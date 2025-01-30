@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.views import View
 from django.urls import reverse
 from django.conf import settings
-from .forms import LogInForm  # Ensure you have a LogInForm for authentication
+from forms import LogInForm  
 
 # Create your views here.
 
@@ -22,7 +22,7 @@ class LogInView(View):
 
     def get(self, request):
         """Display log in template."""
-        next_page = request.GET.get('next', '')  # Get the 'next' parameter
+        next_page = request.GET.get('next', '')  
         return self.render(request, next_page)
 
     def post(self, request):
@@ -32,10 +32,10 @@ class LogInView(View):
             user = form.get_user()
             if user is not None and user.is_active:
                 login(request, user)
-                return redirect(self.redirect_url)  # Redirect after login
+                return redirect(self.redirect_url)  
             else:
                 messages.error(request, "The credentials provided were invalid!")
-        return self.render(request)  # Render login page again if failed
+        return self.render(request)  
 
     def render(self, request, next_page=''):
         """Render login template with blank log in form."""
@@ -49,4 +49,4 @@ class LogOutView(View):
     def get(self, request):
         logout(request)
         messages.success(request, "You have been logged out successfully.")
-        return redirect(reverse("login"))  # Redirect to login page
+        return redirect(reverse("login"))  
