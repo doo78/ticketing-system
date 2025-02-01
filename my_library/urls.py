@@ -16,7 +16,17 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from django.shortcuts import render, redirect
+from django.contrib.auth import login, logout
+from django.contrib import messages
+from django.views import View
+from django.urls import reverse
+from django.conf import settings
+from ticket import views
+from ticket.views import home, TicketListView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('view_tickets/<str:list_type>/', TicketListView.as_view(), name='view_tickets'),
+    path('' , home , name='home'),
 ]
