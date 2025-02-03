@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block body %}
+<div class="container py-4">
+    <h1 class="display-4 mb-4">Staff Dashboard</h1>
+
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <h3 class="card-title mb-4">Welcome, {{ request.user.get_full_name|default:request.user.username }}</h3>
+
+                    <div class="d-grid gap-3">
+                        <a href="{% url 'staff_ticket_list' %}" class="btn btn-primary btn-lg">
+                            <i class="bi bi-ticket-detailed me-2"></i>View Tickets
+                        </a>
+
+                        <a href="#" class="btn btn-outline-secondary btn-lg">
+                            <i class="bi bi-person-circle me-2"></i>My Profile
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Assigned to You</h5>
+                            <h3 class="mb-0">{{ assigned_tickets_count }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Department</h5>
+                            <h3 class="mb-0">{{ request.user.staff.department }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

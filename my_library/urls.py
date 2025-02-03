@@ -23,12 +23,19 @@ from django.views import View
 from django.urls import reverse
 from django.conf import settings
 from ticket import views
-from ticket.views import home, TicketListView, LogInView, LogOutView
+from ticket.views import home, TicketListView, LogInView, LogOutView, StaffTicketListView, ManageTicketView, staff_dashboard
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('view_tickets/<str:list_type>/', TicketListView.as_view(), name='view_tickets'),
     path('' , home , name='home'),
     path('login/', LogInView.as_view(), name='log_in'),
     path('logout/', LogOutView.as_view(), name='logout'),
+    
+    #------------------------------------STAFF URLS------------------------------------#
+    path('staff/dashboard/', staff_dashboard, name='staff_dashboard'),
+    path('staff/tickets/', StaffTicketListView.as_view(), name='staff_ticket_list'),
+    path('staff/ticket/<int:ticket_id>/manage/', ManageTicketView.as_view(), name='manage_ticket'),
+
+    #------------------------------------AUTHENTICATION URLS------------------------------------#
 ]
