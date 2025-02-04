@@ -1,5 +1,8 @@
 from django import forms
 from django.contrib.auth import authenticate
+from django.contrib.auth.forms import UserCreationForm
+from ticket.models import CustomUser
+
 
 class LogInForm(forms.Form):
     """Form enabling registered users to log in."""
@@ -16,3 +19,11 @@ class LogInForm(forms.Form):
             password = self.cleaned_data.get('password')
             user = authenticate(username=username, password=password)
         return user
+    
+    
+class SignUpForm(UserCreationForm):
+    role = forms.ChoiceField(choices=CustomUser.ROLE_CHOICES, required=True)
+
+    class Meta:
+        model = CustomUser
+        fields = ['username', 'email', 'role', 'password']

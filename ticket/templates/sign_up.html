@@ -3,15 +3,7 @@
 {% block body %}
 <div class="container d-flex justify-content-center align-items-center vh-100">
     <div class="card shadow-lg p-4" style="max-width: 400px; width: 100%; border-radius: 10px;">
-        <h2 class="text-center">Log In</h2>
-        
-        {% if messages %}
-        <div class="alert alert-danger">
-            {% for message in messages %}
-                {{ message }}
-            {% endfor %}
-        </div>
-        {% endif %}
+        <h2 class="text-center">Sign Up</h2>
         
         <form method="post">
             {% csrf_token %}
@@ -20,15 +12,22 @@
                 {{ form.username }}
             </div>
             <div class="mb-3">
+                {{ form.email.label_tag }}
+                {{ form.email }}
+            </div>
+            <div class="mb-3">
+                {{ form.role.label_tag }}
+                {{ form.role }}
+            </div>
+            <div class="mb-3">
                 {{ form.password.label_tag }}
                 {{ form.password }}
             </div>
-            <input type="hidden" name="next" value="{{ next }}">
-            <button type="submit" class="btn btn-primary w-100">Log In</button>
+            <button type="submit" class="btn btn-primary w-100">Sign Up</button>
         </form>
 
         <div class="text-center mt-3">
-            <p>Don't have an account? <a href="{% url 'sign_up' %}">Sign up</a></p>
+            <p>Already have an account? <a href="{% url 'log_in' %}">Log in</a></p>
         </div>
     </div>
 </div>

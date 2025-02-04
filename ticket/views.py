@@ -3,12 +3,14 @@ from django.views import View
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.utils import timezone
+from django.contrib.auth.forms import AuthenticationForm
+from ticket.mixins import RoleBasedRedirectMixin
 from .models import Ticket, Staff
 from django.contrib.auth import login, logout
 from django.contrib import messages
 from django.urls import reverse
 from django.conf import settings
-from ticket.forms import LogInForm  
+from ticket.forms import LogInForm, SignUpForm  
 
 # Create your views here.
 
@@ -16,31 +18,22 @@ def home(request):
     return render(request, 'home.html')
 
 
-class LogInView(View):
-    """Display login screen and handle user login."""
-    
-    http_method_names = ['get', 'post']
-    
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.redirect_url = settings.REDIRECT_URL_WHEN_LOGGED_IN 
-
+class LogInView(View, RoleBasedRedirectMixin):
+    """
+    Handles user login and redirection based on role.
+    """
     def get(self, request):
-        """Display log in template."""
-        next_page = request.GET.get('next', '')  
-        return self.render(request, next_page)
+        form = AuthenticationForm()
+        return render(request, 'login.html', {'form': form})
 
     def post(self, request):
-        """Handle log in attempt."""
-        form = LogInForm(request.POST)
+        form = AuthenticationForm(data=request.POST)
         if form.is_valid():
             user = form.get_user()
-            if user is not None and user.is_active:
-                login(request, user)
-                return redirect(self.redirect_url)  
-            else:
-                messages.error(request, "The credentials provided were invalid!")
-        return self.render(request)  
+            login(request, user)
+            return redirect(self.get_redirect_url(user)) 
+        messages.error(request, "Invalid username or password.")
+        return render(request, 'login.html', {'form': form})  
 
     def render(self, request, next_page=''):
         """Render login template with blank log in form."""
@@ -56,6 +49,51 @@ class LogOutView(View):
         messages.success(request, "You have been logged out successfully.")
         return redirect(reverse("login"))  
     
+class SignUpView(View, RoleBasedRedirectMixin):
+    """
+    Handles user registration using Django's Class-Based Views and Mixins.
+    """
+    def get(self, request):
+        form = SignUpForm()
+        return render(request, "sign_up.html", {"form": form})
+
+    def post(self, request):
+        form = SignUpForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            return redirect(self.get_redirect_url(user)) 
+        return render(request, "sign_up.html", {"form": form})   
+    
+class DashboardView(LoginRequiredMixin, View):
+    """
+    Display the appropriate dashboard based on the user's role.
+    """
+
+    def get(self, request, *args, **kwargs):
+        role_dispatch = {
+            'admin': self.render_admin_dashboard,
+            'staff': self.render_staff_dashboard,
+            'student': self.render_student_dashboard,
+        }
+        handler = role_dispatch.get(request.user.role, self.redirect_to_home)
+        return handler(request)
+
+    def render_admin_dashboard(self, request):
+        """Render admin dashboard."""
+        return render(request, 'admin_dashboard.html')
+
+    def render_staff_dashboard(self, request):
+        """Render staff dashboard."""
+        return render(request, 'staff_dashboard.html')
+
+    def render_student_dashboard(self, request):
+        """Render student dashboard."""
+        return render(request, 'student_dashboard.html')
+
+    def redirect_to_home(self, request):
+        """Redirect to home page if the role is undefined."""
+        return redirect(reverse("home"))    
     
 class StaffRequiredMixin(UserPassesTestMixin):
     def test_func(self):
