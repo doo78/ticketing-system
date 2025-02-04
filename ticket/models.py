@@ -16,16 +16,52 @@ class Ticket(models.Model):
         ('pending', 'Pending'),
         ('closed', 'Closed'),
     ]
+    DEPT_CHOICES = [
+        ('arts_humanities', 'Arts & Humanities'),
+        ('business', 'Business'),
+        ('dentistry', 'Dentistry, Oral & Craniofacial Sciences'),
+        ('law', 'Law'),
+        ('life_sciences_medicine', 'Life Sciences & Medicine'),
+        ('natural_mathematical_engineering', 'Natural, Mathematical & Engineering Sciences'),
+        ('nursing', 'Nursing, Midwifery & Palliative Care'),
+        ('psychiatry', 'Psychiatry, Psychology & Neuroscience'), 
+        ('social_science', 'Social Science & Public Policy'),
+    ]
+    PRIORITY_CHOICES = [
+        ('low', 'Low'),
+        ('normal', 'Normal'),
+        ('urgent', 'Urgent'),
+    ]
 
     subject = models.CharField(max_length=200)
     description = models.TextField()
-    email = models.EmailField()
+    department = models.CharField(max_length=50, choices=DEPT_CHOICES)
+    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, null=True, blank=True)
+   
+    student = models.ForeignKey('students.Student', on_delete=models.CASCADE, related_name='submitted_tickets')
+    
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
+    assigned_staff = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True)
     date_submitted = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
     date_closed = models.DateField(blank=True, null=True)
-    assigned_staff = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True)
     closed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='closed_tickets')
+
+    ai_response = models.BooleanField(default=False)
 
     def __str__(self):
         return f"Ticket #{self.id} - {self.subject}"
+    class Meta:
+        ordering = ['-date_submitted']  # Most recent tickets first
+
+class Message(models.Model):
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='messages')
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    content = models.TextField()
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+ 
