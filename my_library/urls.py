@@ -33,7 +33,9 @@ from ticket.views import (
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('' , home , name='home'),
-
+    #------------------------------------STUDENT URLS------------------------------------#
+    path('student/tickets/new/', views.create_ticket, name='create_ticket'),
+    path('student/tickets/', views.ticket_list, name='ticket_list'),
     #------------------------------------STAFF URLS------------------------------------#
     path('staff/dashboard/', staff_dashboard, name='staff_dashboard'),
     path('staff/tickets/', StaffTicketListView.as_view(), name='staff_ticket_list'),

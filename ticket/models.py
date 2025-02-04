@@ -35,10 +35,10 @@ class Ticket(models.Model):
 
     subject = models.CharField(max_length=200)
     description = models.TextField()
-    department = models.CharField(max_length=50, choices=DEPT_CHOICES)
+    department = models.CharField(max_length=50, choices=DEPT_CHOICES, null=True, blank=True)
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, null=True, blank=True)
    
-    student = models.ForeignKey('students.Student', on_delete=models.CASCADE, related_name='submitted_tickets')
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='submitted_tickets', null=True)
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
     assigned_staff = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True)
