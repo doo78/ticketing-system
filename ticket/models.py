@@ -1,7 +1,6 @@
 from django.db import models
-from django.contrib.auth.models import User , AbstractUser
+from django.contrib.auth.models import AbstractUser
 from django.conf import settings  
-
 
 class CustomUser(AbstractUser):
     ROLE_CHOICES = (
@@ -9,7 +8,18 @@ class CustomUser(AbstractUser):
         ('staff', 'Staff'),
         ('admin', 'Admin'),
     )
+    first_name = models.CharField(max_length=150, blank=False)  
+    last_name = models.CharField(max_length=150, blank=False)   
+    email = models.EmailField(unique=True, blank=False)         
+    preferred_name = models.CharField(max_length=150, blank=True, null=True)
+    REQUIRED_FIELDS = ['email', 'first_name', 'last_name']
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='student')
+
+    def save(self, *args, **kwargs):
+        if not self.preferred_name:
+            self.preferred_name = self.first_name
+        super().save(*args, **kwargs)
+
 
 class Staff(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
@@ -19,6 +29,16 @@ class Staff(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.role}"
+
+class Student(models.Model):
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
+    department = models.CharField(max_length=100)
+    program = models.CharField(max_length=100)
+    year_of_study = models.IntegerField(default=1)
+    date_joined = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.program}"
 
 class Ticket(models.Model):
     STATUS_CHOICES = [
@@ -48,14 +68,14 @@ class Ticket(models.Model):
     department = models.CharField(max_length=50, choices=DEPT_CHOICES, null=True, blank=True)
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, null=True, blank=True)
    
-    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='submitted_tickets', null=True)
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='submitted_tickets', null=True)
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
     assigned_staff = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True)
     date_submitted = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
     date_closed = models.DateField(blank=True, null=True)
-    closed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='closed_tickets')
+    closed_by = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True, related_name='closed_tickets')
 
     ai_response = models.BooleanField(default=False)
 
@@ -67,7 +87,7 @@ class Ticket(models.Model):
 
 class Message(models.Model):
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='messages')
-    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    author = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     content = models.TextField()
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies')
     created_at = models.DateTimeField(auto_now_add=True)
