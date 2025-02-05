@@ -5,12 +5,13 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.utils import timezone
 from django.contrib.auth.forms import AuthenticationForm
 from ticket.mixins import RoleBasedRedirectMixin
-from .models import Ticket, Staff
+from .models import Ticket, Staff, CustomUser
 from django.contrib.auth import login, logout
 from django.contrib import messages
 from django.urls import reverse
 from django.conf import settings
-from ticket.forms import LogInForm, SignUpForm  
+from ticket.forms import LogInForm, SignUpForm
+from django.http import JsonResponse
 
 # Create your views here.
 
@@ -61,8 +62,14 @@ class SignUpView(View, RoleBasedRedirectMixin):
         form = SignUpForm(request.POST)
         if form.is_valid():
             user = form.save()
-            login(request, user)
-            return redirect(self.get_redirect_url(user)) 
+            if user.role == 'staff':
+                Staff.objects.create(
+                    user=user,
+                    department = '',
+                    role = 'Staff Member'
+                )
+            messages.success(request, "Account created successfully! Please log in.")
+            return redirect('log_in')
         return render(request, "sign_up.html", {"form": form})   
     
 class DashboardView(LoginRequiredMixin, View):
@@ -167,4 +174,15 @@ class StaffProfileView(View):
     
     def get(self, request):
         return render(request, 'staff/profile.html')
+
+
+def check_username(request):
+    username = request.GET.get('username', '')
+    exists = CustomUser.objects.filter(username=username).exists()
+    return JsonResponse({'exists': exists})
+
+def check_email(request):
+    email = request.GET.get('email', '')
+    exists = CustomUser.objects.filter(email=email).exists()
+    return JsonResponse({'exists': exists})
    

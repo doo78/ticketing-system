@@ -44,5 +44,7 @@ urlpatterns =[
     path('staff/profile', StaffProfileView.as_view(), name='staff_profile'),
 
 
-    #------------------------------------AUTHENTICATION URLS------------------------------------#
+    #-------------------------------AUTHENTICATION URLS--------------------------------#
+    path('check_username/', views.check_username, name='check_username'),
+    path('check_email/', views.check_email, name='check_email'),
 ]
