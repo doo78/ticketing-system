@@ -31,19 +31,20 @@ from ticket.views import (
 urlpatterns =[
     path('admin/', admin.site.urls),
     path('' , home , name='home'),
+    #------------------------------------STUDENT URLS------------------------------------#
+    path('student/tickets/new/', views.create_ticket, name='create_ticket'),
+    path('student/tickets/', views.ticket_list, name='ticket_list'),
     path('login/', LogInView.as_view(), name='log_in'),
     path('logout/', LogOutView.as_view(), name='logout'),
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
     path('sign_up/' , SignUpView.as_view() , name= 'sign_up'),
     path('ticket/', include('ticket.urls')),
-    
     #------------------------------------STAFF URLS------------------------------------#
     path('staff/dashboard/', staff_dashboard, name='staff_dashboard'),
     path('staff/tickets/', StaffTicketListView.as_view(), name='staff_ticket_list'),
     path('staff/ticket/<int:ticket_id>/manage/', ManageTicketView.as_view(), name='manage_ticket'),
+    #------------------------------------AUTHENTICATION URLS------------------------------------#
     path('staff/profile', StaffProfileView.as_view(), name='staff_profile'),
-
-
     #-------------------------------AUTHENTICATION URLS--------------------------------#
     path('check_username/', views.check_username, name='check_username'),
     path('check_email/', views.check_email, name='check_email'),

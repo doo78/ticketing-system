@@ -1,18 +1,39 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.views import View
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.utils import timezone
 from django.contrib.auth.forms import AuthenticationForm
-from ticket.mixins import RoleBasedRedirectMixin
-from .models import Ticket, Staff, CustomUser
 from django.contrib.auth import login, logout
-from django.contrib import messages
 from django.urls import reverse
 from django.conf import settings
-from ticket.forms import LogInForm, SignUpForm
 from django.http import JsonResponse
+from ticket.mixins import RoleBasedRedirectMixin
+from ticket.forms import LogInForm, SignUpForm
+from .models import Ticket, Staff, CustomUser
+from .forms import TicketForm
 
+#------------------------------------STUDENT SECTION------------------------------------#
+#USE THIS AFTER Student MODEL IS MADE
+# @login_required
+# def create_ticket(request):
+#     if not hasattr(request.user, 'student'):
+#         raise PermissionDenied("Only students can create tickets")
+        
+#     if request.method == 'POST':
+#         form = TicketForm(request.POST, student=request.user.student)
+#         if form.is_valid():
+#             ticket = form.save()
+#             messages.success(request, 'Your ticket has been submitted successfully. Check your email for more information.') 
+#             return redirect('ticket_detail', pk=ticket.id)
+#     else:
+#         form = TicketForm(student=request.user.student)
+    
+#     return render(request, 'tickets/create_ticket.html', {
+#         'form': form,
+#     })
 
 def student_dashboard(request):
     # Dummy data for demonstration
@@ -42,9 +63,43 @@ def student_settings(request):
     }
     return render(request, 'ticket/settings.html', student_data)
 
+#THIS VERSION IS FOR TESTING - REAL VERSION ABOVE
+def create_ticket(request):
+    if request.method == 'POST':
+        form = TicketForm(request.POST)  # removed student parameter
+        if form.is_valid():
+            ticket = form.save()
+            messages.success(request, 'Your ticket has been submitted successfully. Ticket number: #{}'.format(ticket.id))
+            return redirect('ticket_detail', pk=ticket.id)
+    else:
+        form = TicketForm()  # removed student parameter
+    
+    return render(request, 'student/create_ticket.html', {
+        'form': form
+    })
+
+def ticket_list(request):
+    return render(request, 'student/ticket_list.html')
+#------------------------------------STAFF SECTION------------------------------------#
+
+class StaffRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return hasattr(self.request.user, 'staff')
 
 def home(request):
     return render(request, 'home.html')
+
+@login_required
+def staff_dashboard(request):
+    if not hasattr(request.user, 'staff'):
+        return redirect('home')
+
+    context = {
+        'assigned_tickets_count': Ticket.objects.filter(
+            assigned_staff= request.user.staff
+        ).exclude(status='closed').count(),
+    }
+    return render(request, 'staff/dashboard.html', context)
 
 
 class LogInView(View, RoleBasedRedirectMixin):
@@ -178,7 +233,6 @@ class StaffTicketListView(View):
     
     def get(self, request):
         status = request.GET.get('status', 'all')
-
         # Base queryset
         tickets = Ticket.objects.all()
 

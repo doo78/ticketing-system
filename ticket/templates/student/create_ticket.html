@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block body %}
+<div class="container mt-4">
+  <div class="row">
+      <div class="col-md-8 offset-md-2">
+          <div class="card">
+              <div class="card-header">
+                  <h2 class="card-title">Submit New Query</h2>
+              </div>
+              <div class="card-body">
+                  <form method="post" novalidate>
+                      {% csrf_token %}
+                      {{ form|crispy }}
+                      
+                      <div class="alert alert-info mt-3">
+                          <h5>Before submitting:</h5>
+                          <ul>
+                              <li>Please check if your question is already answered in our FAQ section</li>
+                              <li>Include all relevant information to help us assist you better</li>
+                              <li>Ensure you've selected the correct department for your query</li>
+                          </ul>
+                      </div>
+                      
+                      <div class="form-group mt-3">
+                          <button type="submit" class="btn btn-primary">Submit Query</button>
+                          <a href="{% url 'ticket_list' %}" class="btn btn-secondary">Cancel</a>
+                      </div>
+                  </form>
+              </div>
+          </div>
+      </div>
+  </div>
+</div>
+{% endblock %}
