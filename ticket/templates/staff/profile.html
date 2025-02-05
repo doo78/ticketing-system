@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block body %}
+<div class="container mt-5">
+    <!-- Title and Back Button -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-4">My Profile</h1>
+        <a href="{% url 'staff_dashboard' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+        </a>
+    </div>    
+
+    <!-- Profile Card -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body text-center">
+            <!-- Profile Icon (Bootstrap Icon) -->
+            <i class="bi bi-person-circle" style="font-size: 6rem; color: #6c757d;"></i>
+    
+            <!-- User's Full Name -->
+            <h3 class="card-title mt-3 mb-2">
+                {{ request.user.get_full_name|default:request.user.username }}
+            </h3>
+            <p class="text-muted mb-4"><strong>Staff Member</strong></p>
+            
+            <!-- Edit Profile Button -->
+            <a href="#" class="btn btn-primary">
+                <i class="bi bi-pencil-square me-2"></i>Edit Profile
+            </a>
+        </div>
+    </div>
+
+    <!-- Staff Profile Info and Stats -->
+    <div class="row">
+        <!-- Staff Details Section -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h2>Personal Information</h2>
+                </div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <strong>Username: </strong> SarahBrown
+                    </li>
+                    <li class="list-group-item">
+                        <strong>Department:</strong> Finance
+                    </li>
+                    <li class="list-group-item">
+                        <strong>Email:</strong> sarah.brown@university.com
+                    </li>
+                    <li class="list-group-item">
+                        <strong>Date Joined:</strong> January 15, 2025
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Ticket Stats Section -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h4 class="card-title mb-0">Ticket Stats</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-4 mb-3">
+                            <div class="card text-white bg-primary">
+                                <div class="card-body">
+                                    <h5 class="card-title">Assigned</h5>
+                                    <p class="card-text">35</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-4 mb-3">
+                            <div class="card text-white bg-warning">
+                                <div class="card-body">
+                                    <h5 class="card-title">Pending</h5>
+                                    <p class="card-text">35</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-4 mb-3">
+                            <div class="card text-white bg-success">
+                                <div class="card-body">
+                                    <h5 class="card-title">Closed</h5>
+                                    <p class="card-text">5</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Average Time to Process/Close a Ticket Section -->
+            <div class="card shadow-sm mt-4">
+                <div class="card-header bg-secondary text-white">
+                    <h4 class="card-title mb-0">Average Time to Close a Ticket</h4>
+                </div>
+                <div class="card-body">
+                    <h3><strong>3 days, 4 hours</strong></h3>
+                    <p class="text-muted">This is based on historical data of closed tickets.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

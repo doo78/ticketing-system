@@ -1,8 +1,18 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User , AbstractUser
+from django.conf import settings  
+
+
+class CustomUser(AbstractUser):
+    ROLE_CHOICES = (
+        ('student', 'Student'),
+        ('staff', 'Staff'),
+        ('admin', 'Admin'),
+    )
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='student')
 
 class Staff(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
     department = models.CharField(max_length=100)
     role = models.CharField(max_length=50)
     date_joined = models.DateTimeField(auto_now_add=True)
@@ -51,6 +61,7 @@ class Ticket(models.Model):
 
     def __str__(self):
         return f"Ticket #{self.id} - {self.subject}"
+      
     class Meta:
         ordering = ['-date_submitted']  # Most recent tickets first
 
@@ -63,5 +74,3 @@ class Message(models.Model):
 
     class Meta:
         ordering = ['created_at']
-
- 
