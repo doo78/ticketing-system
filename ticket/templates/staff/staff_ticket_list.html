@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block body %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-4">Tickets</h1>
+        <a href="{% url 'staff_dashboard' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+        </a>
+    </div>
+
+    <!-- Ticket Status Filter -->
+    <div class="btn-group mb-4" role="group" aria-label="Ticket status filter">
+        <a href="?status=all" class="btn btn-outline-primary {% if status == 'all' %}active{% endif %}">
+            All
+        </a>
+        <a href="?status=open" class="btn btn-outline-primary {% if status == 'open' %}active{% endif %}">
+            Open ({{ open_count }})
+        </a>
+        <a href="?status=pending" class="btn btn-outline-primary {% if status == 'pending' %}active{% endif %}">
+            Pending ({{ pending_count }})
+        </a>
+        <a href="?status=closed" class="btn btn-outline-primary {% if status == 'closed' %}active{% endif %}">
+            Closed ({{ closed_count }})
+        </a>
+    </div>
+
+    <!-- Tickets Table -->
+    <div class="card">
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Subject</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                        <th>Email</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ticket in tickets %}
+                    <tr>
+                        <td>#{{ ticket.id }}</td>
+                        <td>{{ ticket.subject }}</td>
+                        <td>
+                            <span class="badge {% if ticket.status == 'open' %}bg-primary{% elif ticket.status == 'pending' %}bg-warning{% else %}bg-success{% endif %}">
+                                {{ ticket.status|title }}
+                            </span>
+                        </td>
+                        <td>{{ ticket.date_submitted|date:"M d, Y" }}</td>
+                        <td>{{ ticket.email }}</td>
+                        <td>
+                            <div class="btn-group">
+                                {% if ticket.status == 'open' %}
+                                <form method="post" action="{% url 'manage_ticket' ticket.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" name="action" value="assign" class="btn btn-sm btn-primary">
+                                        Assign to Me
+                                    </button>
+                                </form>
+                                {% endif %}
+
+                                {% if ticket.status != 'closed' and ticket.assigned_staff == request.user.staff %}
+                                <form method="post" action="{% url 'manage_ticket' ticket.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" name="action" value="close" class="btn btn-sm btn-success">
+                                        Close
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">No tickets found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
