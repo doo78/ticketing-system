@@ -3,6 +3,28 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.forms import UserCreationForm
 from ticket.models import CustomUser, Ticket
 
+class StaffUpdateProfileForm(forms.ModelForm):
+    """Form for staff to update their profile information."""
+
+    department = forms.CharField(required=True)  
+
+    class Meta:
+        model = CustomUser
+        fields = ['first_name', 'last_name', 'email', 'preferred_name']
+
+    def save(self, commit=True):
+        """Save user and update the related Staff model."""
+        user = super().save(commit=False)
+        
+        if hasattr(user, 'staff'):
+            user.staff.department = self.cleaned_data['department']
+            if commit:
+                user.staff.save()
+
+        if commit:
+            user.save()
+        
+        return user
 
 class LogInForm(forms.Form):
     """Form enabling registered users to log in."""

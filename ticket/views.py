@@ -11,9 +11,10 @@ from django.urls import reverse
 from django.conf import settings
 from django.http import JsonResponse
 from ticket.mixins import RoleBasedRedirectMixin
-from ticket.forms import LogInForm, SignUpForm
+from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm
 from .models import Ticket, Staff, CustomUser
 from .forms import TicketForm
+from django.views.generic.edit import UpdateView
 
 #------------------------------------STUDENT SECTION------------------------------------#
 #USE THIS AFTER Student MODEL IS MADE
@@ -256,6 +257,22 @@ class StaffProfileView(View):
     
     def get(self, request):
         return render(request, 'staff/profile.html')
+    
+class StaffUpdateProfileView(UpdateView):
+    
+    model = CustomUser
+    template_name = "staff/update_profile.html"
+    form_class = StaffUpdateProfileForm
+    
+    def get_object(self):
+        """Return the object (user) to be updated."""
+        return self.request.user
+
+    def get_success_url(self):
+        """Return redirect URL after successful update."""
+        
+        messages.add_message(self.request, messages.SUCCESS, "Profile updated")
+        return reverse("staff_profile")  
 
 
 def check_username(request):
