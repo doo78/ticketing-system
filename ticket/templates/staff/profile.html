@@ -10,6 +10,8 @@
         </a>
     </div>    
 
+    {% if request.user.is_authenticated %}
+
     <!-- Profile Card -->
     <div class="card shadow-sm mb-4">
         <div class="card-body text-center">
@@ -18,7 +20,7 @@
     
             <!-- User's Full Name -->
             <h3 class="card-title mt-3 mb-2">
-                {{ request.user.get_full_name|default:request.user.username }}
+                {{ request.user.preferred_name|default:request.user.first_name }}
             </h3>
             <p class="text-muted mb-4"><strong>Staff Member</strong></p>
             
@@ -28,6 +30,8 @@
             </a>
         </div>
     </div>
+
+    
 
     <!-- Staff Profile Info and Stats -->
     <div class="row">
@@ -39,16 +43,16 @@
                 </div>
                 <ul class="list-group list-group-flush">
                     <li class="list-group-item">
-                        <strong>Username: </strong> SarahBrown
+                        <strong>Name: </strong> {{ request.user.preferred_name|default:request.user.first_name }}
                     </li>
                     <li class="list-group-item">
-                        <strong>Department:</strong> Finance
+                        <strong>Department:</strong> {{ request.user.staff.department }}
                     </li>
                     <li class="list-group-item">
-                        <strong>Email:</strong> sarah.brown@university.com
+                        <strong>Email:</strong> {{ request.user.email }}
                     </li>
                     <li class="list-group-item">
-                        <strong>Date Joined:</strong> January 15, 2025
+                        <strong>Date Joined:</strong> {{ request.user.staff.date_joined }}
                     </li>
                 </ul>
             </div>
@@ -102,6 +106,14 @@
             </div>
         </div>
     </div>
+
+    {% else %}
+
+    <!-- Edit Profile Button -->
+    <a href="#" class="btn btn-primary">
+        <i class="bi bi-pencil-square me-2"></i>Edit Profile
+    </a>
+    {% endif %}
 
 </div>
 {% endblock %}
