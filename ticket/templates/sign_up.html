@@ -1,9 +1,18 @@
 {% extends 'base.html' %}
+{% load form_tags %}
 
 {% block body %}
-<div class="container d-flex justify-content-center align-items-center vh-100">
-    <div class="card shadow-lg p-4" style="max-width: 400px; width: 100%; border-radius: 10px;">
+<div class="container d-flex justify-content-center align-items-center" style="min-height: 100vh; padding: 2rem 0;">
+    <div class="card shadow-lg p-4" style="max-width: 400px; width: 100%; border-radius: 10px; margin: 2rem 0;">
         <h2 class="text-center">Sign Up</h2>
+    
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
         
         {% if messages %}
             {% for message in messages %}
@@ -18,10 +27,16 @@
             {% for field in form %}
                 <div class="mb-3">
                     {{ field.label_tag }}
-                    {{ field }}
+                    {% if field.name in 'department,program,year_of_study' %}
+                        {{ field|add_class:"form-control student-field" }}
+                    {% else %}
+                        {{ field|add_class:"form-control" }}
+                    {% endif %}
                     {% if field.errors %}
                         <div class="text-danger">
-                            {{ field.errors }}
+                            {% for error in field.errors %}
+                                <p>{{ error }}</p>
+                            {% endfor %}
                         </div>
                     {% endif %}
                     {% if field.name == 'username' %}
@@ -62,6 +77,25 @@ document.getElementById('{{ form.email.id_for_label }}').addEventListener('blur'
     } else {
         document.getElementById('emailError').textContent = '';
     }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const roleSelect = document.querySelector('[name="role"]');
+    const studentFields = document.querySelectorAll('.student-field');
+    
+    function toggleStudentFields() {
+        const isStudent = roleSelect.value === 'student';
+        studentFields.forEach(field => {
+            const parentDiv = field.closest('.mb-3');
+            if (parentDiv) {
+                parentDiv.classList.toggle('d-none', !isStudent);
+            }
+            field.required = isStudent;
+        });
+    }
+    
+    roleSelect.addEventListener('change', toggleStudentFields);
+    toggleStudentFields(); // Run once on page load
 });
 </script>
 {% endblock %}

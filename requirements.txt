@@ -1,2 +1,5 @@
 Django==5.1.2
 sqlparse==0.5.1
+django-crispy-forms
+crispy-bootstrap4
+

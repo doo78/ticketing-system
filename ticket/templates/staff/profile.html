@@ -1,88 +1,76 @@
-{% extends 'base.html' %}
+{% extends 'staff/base.html' %}
 
-{% block body %}
-<div class="container mt-5">
-    <!-- Title and Back Button -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="display-4">My Profile</h1>
-        <a href="{% url 'staff_dashboard' %}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
-        </a>
-    </div>    
-
+{% block content %}
+<div class="container-fluid">
     <!-- Profile Card -->
     <div class="card shadow-sm mb-4">
         <div class="card-body text-center">
-            <!-- Profile Icon (Bootstrap Icon) -->
-            <i class="bi bi-person-circle" style="font-size: 6rem; color: #6c757d;"></i>
-    
-            <!-- User's Full Name -->
+            <i class="fas fa-user-circle" style="font-size: 6rem; color: #6c757d;"></i>
+            
             <h3 class="card-title mt-3 mb-2">
                 {{ request.user.get_full_name|default:request.user.username }}
             </h3>
             <p class="text-muted mb-4"><strong>Staff Member</strong></p>
             
-            <!-- Edit Profile Button -->
             <a href="#" class="btn btn-primary">
-                <i class="bi bi-pencil-square me-2"></i>Edit Profile
+                <i class="fas fa-edit me-2"></i>Edit Profile
             </a>
         </div>
     </div>
 
-    <!-- Staff Profile Info and Stats -->
     <div class="row">
         <!-- Staff Details Section -->
         <div class="col-md-6">
             <div class="card mb-4">
                 <div class="card-header bg-secondary text-white">
-                    <h2>Personal Information</h2>
+                    <h5 class="mb-0">Personal Information</h5>
                 </div>
                 <ul class="list-group list-group-flush">
                     <li class="list-group-item">
-                        <strong>Username: </strong> SarahBrown
+                        <strong>Username: </strong> {{ request.user.username }}
                     </li>
                     <li class="list-group-item">
-                        <strong>Department:</strong> Finance
+                        <strong>Department:</strong> {{ request.user.staff.department }}
                     </li>
                     <li class="list-group-item">
-                        <strong>Email:</strong> sarah.brown@university.com
+                        <strong>Email:</strong> {{ request.user.email }}
                     </li>
                     <li class="list-group-item">
-                        <strong>Date Joined:</strong> January 15, 2025
+                        <strong>Date Joined:</strong> {{ request.user.staff.date_joined|date:"F j, Y" }}
                     </li>
                 </ul>
             </div>
         </div>
 
         <!-- Ticket Stats Section -->
-        <div class="col-md-6 mb-4">
-            <div class="card shadow-sm">
+        <div class="col-md-6">
+            <div class="card shadow-sm mb-4">
                 <div class="card-header bg-secondary text-white">
-                    <h4 class="card-title mb-0">Ticket Stats</h4>
+                    <h5 class="mb-0">Ticket Stats</h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-4 mb-3">
+                        <div class="col-4">
                             <div class="card text-white bg-primary">
-                                <div class="card-body">
-                                    <h5 class="card-title">Assigned</h5>
-                                    <p class="card-text">35</p>
+                                <div class="card-body text-center">
+                                    <h6 class="card-title">Assigned</h6>
+                                    <p class="card-text">{{ assigned_tickets_count }}</p>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-4 mb-3">
+                        <div class="col-4">
                             <div class="card text-white bg-warning">
-                                <div class="card-body">
-                                    <h5 class="card-title">Pending</h5>
-                                    <p class="card-text">35</p>
+                                <div class="card-body text-center">
+                                    <h6 class="card-title">Pending</h6>
+                                    <p class="card-text">{{ pending_tickets_count }}</p>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-4 mb-3">
+                        <div class="col-4">
                             <div class="card text-white bg-success">
-                                <div class="card-body">
-                                    <h5 class="card-title">Closed</h5>
-                                    <p class="card-text">5</p>
+                                <div class="card-body text-center">
+                                    <h6 class="card-title">Closed</h6>
+                                    <p class="card-text">{{ closed_tickets_count }}</p>
                                 </div>
                             </div>
                         </div>
@@ -90,18 +78,17 @@
                 </div>
             </div>
             
-            <!-- Average Time to Process/Close a Ticket Section -->
-            <div class="card shadow-sm mt-4">
+            <!-- Average Response Time -->
+            <div class="card shadow-sm">
                 <div class="card-header bg-secondary text-white">
-                    <h4 class="card-title mb-0">Average Time to Close a Ticket</h4>
+                    <h5 class="mb-0">Average Response Time</h5>
                 </div>
-                <div class="card-body">
+                <div class="card-body text-center">
                     <h3><strong>3 days, 4 hours</strong></h3>
-                    <p class="text-muted">This is based on historical data of closed tickets.</p>
+                    <p class="text-muted">Based on your last 30 closed tickets</p>
                 </div>
             </div>
         </div>
     </div>
-
 </div>
 {% endblock %}

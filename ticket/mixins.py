@@ -4,6 +4,7 @@ class RoleBasedRedirectMixin:
     """
     Mixin to redirect users based on their role.
     """
+
     def get_redirect_url(self, user):
         if user.role == "admin":
             return "admin_dashboard"
