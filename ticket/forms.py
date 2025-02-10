@@ -3,14 +3,38 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.forms import UserCreationForm
 from ticket.models import CustomUser, Ticket
 
+DEPT_CHOICES = [
+    ('', 'Select Department'),
+    ('arts_humanities', 'Arts & Humanities'),
+    ('business', 'Business'),
+    ('dentistry', 'Dentistry'),
+    ('law', 'Law'),
+    ('life_sciences_medicine', 'Life Sciences & Medicine'),
+    ('natural_mathematical_engineering', 'Natural, Mathematical & Engineering Sciences'),
+    ('nursing', 'Nursing'),
+    ('psychiatry', 'Psychiatry'),
+    ('social_science', 'Social Science')
+]
+
 class StaffUpdateProfileForm(forms.ModelForm):
     """Form for staff to update their profile information."""
 
-    department = forms.CharField(required=True)  
+    department = forms.ChoiceField(
+        required=True, 
+        choices=DEPT_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-control'})  # Apply Bootstrap styling
+    )
 
     class Meta:
         model = CustomUser
         fields = ['first_name', 'last_name', 'email', 'preferred_name']
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Automatically add Bootstrap 'form-control' class to all fields
+        for field in self.fields.values():
+            field.widget.attrs['class'] = 'form-control'
 
     def save(self, commit=True):
         """Save user and update the related Staff model."""

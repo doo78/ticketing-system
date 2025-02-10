@@ -6,14 +6,12 @@
     <!-- Profile Card -->
     <div class="card shadow-sm mb-4">
         <div class="card-body text-center">
-            <i class="fas fa-user-circle" style="font-size: 6rem; color: #6c757d;"></i>
-            
             <h3 class="card-title mt-3 mb-2">
                 {{ request.user.preferred_name|default:request.user.first_name }}
             </h3>
             <p class="text-muted mb-4"><strong>Staff Member</strong></p>
             
-            <a href="#" class="btn btn-primary">
+            <a href="{% url 'staff_update_profile' %}" class="btn btn-primary">
                 <i class="fas fa-edit me-2"></i>Edit Profile
             </a>
         </div>
@@ -24,7 +22,7 @@
         <!-- Staff Details Section -->
         <div class="col-md-6">
             <div class="card mb-4">
-                <div class="card-header bg-secondary text-white">
+                <div class="card-header">
                     <h5 class="mb-0">Personal Information</h5>
                 </div>
                 <ul class="list-group list-group-flush">
@@ -32,7 +30,7 @@
                         <strong>Name: </strong> {{ request.user.preferred_name|default:request.user.first_name }}
                     </li>
                     <li class="list-group-item">
-                        <strong>Department:</strong> {{ request.user.staff.department }}
+                        <strong>Department:</strong> {{ request.user.staff.get_department_display|default:None }}
                     </li>
                     <li class="list-group-item">
                         <strong>Email:</strong> {{ request.user.email }}
@@ -47,16 +45,16 @@
         <!-- Ticket Stats Section -->
         <div class="col-md-6">
             <div class="card shadow-sm mb-4">
-                <div class="card-header bg-secondary text-white">
+                <div class="card-header">
                     <h5 class="mb-0">Ticket Stats</h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-4">
-                            <div class="card text-white bg-primary">
+                            <div class="card text-white bg-danger">
                                 <div class="card-body text-center">
-                                    <h6 class="card-title">Assigned</h6>
-                                    <p class="card-text">{{ assigned_tickets_count }}</p>
+                                    <h6 class="card-title">Open</h6>
+                                    <p class="card-text">{{ open_tickets }}</p>
                                 </div>
                             </div>
                         </div>
@@ -64,7 +62,7 @@
                             <div class="card text-white bg-warning">
                                 <div class="card-body text-center">
                                     <h6 class="card-title">Pending</h6>
-                                    <p class="card-text">{{ pending_tickets_count }}</p>
+                                    <p class="card-text">{{ pending_tickets }}</p>
                                 </div>
                             </div>
                         </div>
@@ -72,7 +70,7 @@
                             <div class="card text-white bg-success">
                                 <div class="card-body text-center">
                                     <h6 class="card-title">Closed</h6>
-                                    <p class="card-text">{{ closed_tickets_count }}</p>
+                                    <p class="card-text">{{ closed_tickets }}</p>
                                 </div>
                             </div>
                         </div>
@@ -82,12 +80,11 @@
             
             <!-- Average Response Time -->
             <div class="card shadow-sm">
-                <div class="card-header bg-secondary text-white">
+                <div class="card-header">
                     <h5 class="mb-0">Average Response Time</h5>
                 </div>
                 <div class="card-body text-center">
-                    <h3><strong>3 days, 4 hours</strong></h3>
-                    <p class="text-muted">Based on your last 30 closed tickets</p>
+                    <h3><strong>{{ avg_close_time_days }}</strong></h3>
                 </div>
             </div>
         </div>

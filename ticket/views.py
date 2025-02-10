@@ -16,6 +16,16 @@ from .models import Ticket, Staff, CustomUser, Student
 from .forms import TicketForm
 from django.views.generic.edit import UpdateView
 
+
+from django.shortcuts import render
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views import View
+from django.db.models import Avg
+from datetime import timedelta
+from .models import Ticket
+from django.db import models  # <-- Add this import to resolve the NameError
+
+
 #------------------------------------STUDENT SECTION------------------------------------#
 @login_required
 def create_ticket(request):
@@ -239,8 +249,30 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
 
 
 class StaffProfileView(LoginRequiredMixin, StaffRequiredMixin, View):
+    
     def get(self, request):
-        return render(request, 'staff/profile.html')
+        staff_member = request.user.staff  
+
+        assigned_tickets = Ticket.objects.filter(assigned_staff=staff_member)
+        
+        open_tickets = assigned_tickets.filter(status="open").count()
+        pending_tickets = assigned_tickets.filter(status="pending").count()
+        closed_tickets = assigned_tickets.filter(status="closed").count()
+        
+        avg_close_time = assigned_tickets.filter(status="closed").exclude(date_closed=None) \
+            .aggregate(avg_duration=Avg(models.F("date_closed") - models.F("date_submitted")))
+
+        # Convert timedelta to days
+        avg_close_time_days = avg_close_time["avg_duration"].days if avg_close_time["avg_duration"] else None
+
+        context = {
+            "open_tickets": open_tickets,
+            "pending_tickets": pending_tickets,
+            "closed_tickets": closed_tickets,
+            "avg_close_time_days": avg_close_time_days
+        }
+        
+        return render(request, 'staff/profile.html', context)
     
 class StaffUpdateProfileView(UpdateView):
     

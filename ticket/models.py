@@ -29,6 +29,21 @@ class Staff(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.role}"
+    
+    def get_department_display(self):
+        """Map the department choice to a human-readable format"""
+        DEPT_CHOICES = {
+            'arts_humanities': 'Arts & Humanities',
+            'business': 'Business',
+            'dentistry': 'Dentistry',
+            'law': 'Law',
+            'life_sciences_medicine': 'Life Sciences & Medicine',
+            'natural_mathematical_engineering': 'Natural, Mathematical & Engineering Sciences',
+            'nursing': 'Nursing',
+            'psychiatry': 'Psychiatry',
+            'social_science': 'Social Science',
+        }
+        return DEPT_CHOICES.get(self.department, self.department) 
 
 class Student(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
