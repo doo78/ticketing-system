@@ -19,26 +19,64 @@ class LogInForm(forms.Form):
             password = self.cleaned_data.get('password')
             user = authenticate(username=username, password=password)
         return user
-    
-    
+
+
 class SignUpForm(UserCreationForm):
-    role = forms.ChoiceField(choices=CustomUser.ROLE_CHOICES, required=True)
+    role = forms.ChoiceField(
+        choices=[('', 'Select Role')] + list(CustomUser.ROLE_CHOICES),
+        required=True
+    )
+    first_name = forms.CharField(max_length=150, required=True)
+    last_name = forms.CharField(max_length=150, required=True)
+
+    # Student specific fields
+    department = forms.CharField(max_length=100, required=False)
+    program = forms.CharField(max_length=100, required=False)
+    year_of_study = forms.IntegerField(min_value=1, max_value=7, required=False)
 
     class Meta:
         model = CustomUser
-        fields = ['username', 'email', 'role', 'password1', 'password2']
+        fields = ['username', 'email', 'first_name', 'last_name', 'role', 'password1', 'password2']
 
-    def clean_username(self):
-        username = self.cleaned_data.get('username')
-        if CustomUser.objects.filter(username=username).exists():
-            raise forms.ValidationError("This username is already taken.")
-        return username
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['department'].widget = forms.Select(choices=[
+            ('', 'Select Department'),
+            ('arts_humanities', 'Arts & Humanities'),
+            ('business', 'Business'),
+            ('dentistry', 'Dentistry'),
+            ('law', 'Law'),
+            ('life_sciences_medicine', 'Life Sciences & Medicine'),
+            ('natural_mathematical_engineering', 'Natural, Mathematical & Engineering Sciences'),
+            ('nursing', 'Nursing'),
+            ('psychiatry', 'Psychiatry'),
+            ('social_science', 'Social Science')
+        ])
 
-    def clean_email(self):
-        email = self.cleaned_data.get('email')
-        if CustomUser.objects.filter(email=email).exists():
-            raise forms.ValidationError("An account with this email already exists. Please log in.")
-        return email
+        # Initially hide student-specific fields
+        for field in ['department', 'program', 'year_of_study']:
+            self.fields[field].widget.attrs['class'] = 'student-field d-none'
+
+    def clean(self):
+        cleaned_data = super().clean()
+        role = cleaned_data.get('role')
+        password1 = cleaned_data.get('password1')
+        password2 = cleaned_data.get('password2')
+
+        # Ensure password mismatch error is correctly raised
+        if password1 and password2 and password1 != password2:
+            self.add_error('password2', "The two password fields didn't match.")
+
+        # Validate required fields for students
+        if role == 'student':
+            if not cleaned_data.get('department'):
+                self.add_error('department', 'This field is required for students.')
+            if not cleaned_data.get('program'):
+                self.add_error('program', 'This field is required for students.')
+            if not cleaned_data.get('year_of_study'):
+                self.add_error('year_of_study', 'This field is required for students.')
+
+        return cleaned_data
   
 class TicketForm(forms.ModelForm):
     class Meta:
@@ -58,28 +96,17 @@ class TicketForm(forms.ModelForm):
                 'class': 'form-control'
             })
         }
-    
-    #USE THIS AFTER Student MODEL IS MADE
-    # def __init__(self, *args, **kwargs):
-    #     self.student = kwargs.pop('student', None)
-    #     super().__init__(*args, **kwargs)
-        
 
-    #     self.fields['subject'].help_text = 'Enter a clear, brief title for your query'
-    #     self.fields['description'].help_text = 'Include all relevant details, dates, and any other information that might be helpful'
-    #     #Should I make these tooltips instead?
-
-    #     for field in self.fields:
-    #         self.fields[field].required = True
-    
-    #THIS VERSION IS FOR TESTING - REAL VERSION ABOVE
     def __init__(self, *args, **kwargs):
-      self.student = kwargs.pop('student', None) if 'student' in kwargs else None
-      super().__init__(*args, **kwargs)
+        self.student = kwargs.pop('student', None)
+        super().__init__(*args, **kwargs)
 
-    def clean(self):
-        cleaned_data = super().clean()
-        return cleaned_data
+        self.fields['subject'].help_text = 'Enter a clear, brief title for your query'
+        self.fields[
+            'description'].help_text = 'Include all relevant details, dates, and any other information that might be helpful'
+
+        for field in self.fields:
+            self.fields[field].required = True
 
     def save(self, commit=True):
         ticket = super().save(commit=False)
@@ -88,3 +115,4 @@ class TicketForm(forms.ModelForm):
         if commit:
             ticket.save()
         return ticket
+
