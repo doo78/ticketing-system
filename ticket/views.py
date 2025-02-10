@@ -12,75 +12,53 @@ from django.conf import settings
 from django.http import JsonResponse
 from ticket.mixins import RoleBasedRedirectMixin
 from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm
-from .models import Ticket, Staff, CustomUser
+from .models import Ticket, Staff, CustomUser, Student
 from .forms import TicketForm
 from django.views.generic.edit import UpdateView
 
 #------------------------------------STUDENT SECTION------------------------------------#
-#USE THIS AFTER Student MODEL IS MADE
-# @login_required
-# def create_ticket(request):
-#     if not hasattr(request.user, 'student'):
-#         raise PermissionDenied("Only students can create tickets")
-        
-#     if request.method == 'POST':
-#         form = TicketForm(request.POST, student=request.user.student)
-#         if form.is_valid():
-#             ticket = form.save()
-#             messages.success(request, 'Your ticket has been submitted successfully. Check your email for more information.') 
-#             return redirect('ticket_detail', pk=ticket.id)
-#     else:
-#         form = TicketForm(student=request.user.student)
-    
-#     return render(request, 'tickets/create_ticket.html', {
-#         'form': form,
-#     })
-
-def student_dashboard(request):
-    # Dummy data for demonstration
-    open_tickets = [
-        {'id': 1, 'subject': 'Course Registration Issue', 'status': 'Open', 'created_at': '2024-02-05'},
-        {'id': 2, 'subject': 'Library Access Problem', 'status': 'In Progress', 'created_at': '2024-02-04'},
-    ]
-    
-    closed_tickets = [
-        {'id': 3, 'subject': 'WiFi Connection Problem', 'status': 'Resolved', 'created_at': '2024-01-28'},
-        {'id': 4, 'subject': 'Student ID Card Issue', 'status': 'Closed', 'created_at': '2024-01-20'},
-    ]
-    
-    context = {
-        'open_tickets': open_tickets,
-        'closed_tickets': closed_tickets,
-        'student_name': 'John Doe',  # Dummy student name
-    }
-    return render(request, 'ticket/dashboard.html', context)
-
-def student_settings(request):
-    # Dummy student data
-    student_data = {
-        'name': 'John Doe',
-        'email': 'john.doe@university.edu',
-        'student_id': '12345',
-    }
-    return render(request, 'ticket/settings.html', student_data)
-
-#THIS VERSION IS FOR TESTING - REAL VERSION ABOVE
+@login_required
 def create_ticket(request):
+    if not hasattr(request.user, 'student'):
+        raise PermissionDenied("Only students can create tickets")
+
     if request.method == 'POST':
-        form = TicketForm(request.POST)  # removed student parameter
+        form = TicketForm(request.POST, student=request.user.student)
         if form.is_valid():
             ticket = form.save()
-            messages.success(request, 'Your ticket has been submitted successfully. Ticket number: #{}'.format(ticket.id))
-            return redirect('ticket_detail', pk=ticket.id)
+            messages.success(request,
+                           'Your ticket has been submitted successfully. Ticket number: #{}'.format(ticket.id))
+            return redirect('student_dashboard')  # Changed to match your URL name
     else:
-        form = TicketForm()  # removed student parameter
-    
+        form = TicketForm(student=request.user.student)
+
     return render(request, 'student/create_ticket.html', {
         'form': form
     })
+@login_required
+def student_settings(request):
+    if not hasattr(request.user, 'student'):
+        return redirect('home')
 
+    student_data = {
+        'name': request.user.get_full_name(),
+        'email': request.user.email,
+        'preferred_name': request.user.preferred_name,
+        'department': request.user.student.department,
+        'program': request.user.student.program,
+        'year_of_study': request.user.student.year_of_study
+    }
+    return render(request, 'student/settings.html', student_data)
+
+
+@login_required
 def ticket_list(request):
-    return render(request, 'student/ticket_list.html')
+    if not hasattr(request.user, 'student'):
+        return redirect('home')
+
+    tickets = Ticket.objects.filter(student=request.user.student)
+    return render(request, 'student/ticket_list.html', {'tickets': tickets})
+
 #------------------------------------STAFF SECTION------------------------------------#
 
 class StaffRequiredMixin(UserPassesTestMixin):
@@ -97,8 +75,9 @@ def staff_dashboard(request):
 
     context = {
         'assigned_tickets_count': Ticket.objects.filter(
-            assigned_staff= request.user.staff
+            assigned_staff=request.user.staff
         ).exclude(status='closed').count(),
+        'department': request.user.staff.department or "Not Assigned"
     }
     return render(request, 'staff/dashboard.html', context)
 
@@ -132,11 +111,11 @@ class LogOutView(View):
     def get(self, request):
         logout(request)
         messages.success(request, "You have been logged out successfully.")
-        return redirect(reverse("login"))  
+        return redirect(reverse("log_in"))
     
-class SignUpView(View, RoleBasedRedirectMixin):
+class SignUpView(View):
     """
-    Handles user registration using Django's Class-Based Views and Mixins.
+    Handles user registration using Django's Class-Based Views.
     """
     def get(self, request):
         form = SignUpForm()
@@ -147,14 +126,17 @@ class SignUpView(View, RoleBasedRedirectMixin):
         if form.is_valid():
             user = form.save()
             if user.role == 'staff':
-                Staff.objects.create(
+                Staff.objects.create(user=user, department='', role='Staff Member')
+            elif user.role == 'student':
+                Student.objects.create(
                     user=user,
-                    department = '',
-                    role = 'Staff Member'
+                    department=form.cleaned_data.get('department', ''),
+                    program=form.cleaned_data.get('program', 'Undeclared'),
+                    year_of_study=form.cleaned_data.get('year_of_study', 1)
                 )
             messages.success(request, "Account created successfully! Please log in.")
             return redirect('log_in')
-        return render(request, "sign_up.html", {"form": form})   
+        return render(request, "sign_up.html", {"form": form})
     
 class DashboardView(LoginRequiredMixin, View):
     """
@@ -176,11 +158,11 @@ class DashboardView(LoginRequiredMixin, View):
 
     def render_staff_dashboard(self, request):
         """Render staff dashboard."""
-        return render(request, 'staff_dashboard.html')
+        return render(request, 'staff/dashboard.html')
 
     def render_student_dashboard(self, request):
         """Render student dashboard."""
-        return render(request, 'student_dashboard.html')
+        return render(request, 'student/dashboard.html')
 
     def redirect_to_home(self, request):
         """Redirect to home page if the role is undefined."""
@@ -190,29 +172,35 @@ class StaffRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return hasattr(self.request.user, 'staff')
 
-
+class StudentRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return hasattr(self.request.user, 'student')
 
 #@login_required
 def staff_dashboard(request):
-    '''
-    if not hasattr(request.user, 'staff'):
-        return redirect('home')
-    
-
-    
-    context = {
-        'assigned_tickets_count': Ticket.objects.filter(
-            assigned_staff= request.user.staff
-        ).exclude(status='closed').count(),
-    }
-    
-    return render(request, 'staff/dashboard.html', context)
-    '''
     return render(request, 'staff/dashboard.html')
-    
 
-#class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
-class ManageTicketView(View):
+@login_required
+def student_dashboard(request):
+    if not hasattr(request.user, 'student'):
+        return redirect('home')
+
+    open_tickets = Ticket.objects.filter(
+        student=request.user.student
+    ).exclude(status='closed')
+
+    closed_tickets = Ticket.objects.filter(
+        student=request.user.student,
+        status='closed'
+    )
+    context = {
+        'open_tickets': open_tickets,
+        'closed_tickets': closed_tickets,
+        'student_name': request.user.preferred_name or request.user.first_name,
+    }
+    return render(request, 'student/dashboard.html', context)
+
+class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
     def post(self, request, ticket_id):
         ticket = Ticket.objects.get(id=ticket_id)
         action = request.POST.get('action')
@@ -229,9 +217,7 @@ class ManageTicketView(View):
         return redirect('staff_ticket_list')
 
 
-#class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
-class StaffTicketListView(View):
-    
+class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
     def get(self, request):
         status = request.GET.get('status', 'all')
         # Base queryset
@@ -252,9 +238,7 @@ class StaffTicketListView(View):
         return render(request, 'staff/staff_ticket_list.html', context)
 
 
-#class StaffProfileView(LoginRequiredMixin, StaffRequiredMixin, View):
-class StaffProfileView(View):
-    
+class StaffProfileView(LoginRequiredMixin, StaffRequiredMixin, View):
     def get(self, request):
         return render(request, 'staff/profile.html')
     

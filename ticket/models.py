@@ -13,7 +13,7 @@ class CustomUser(AbstractUser):
     email = models.EmailField(unique=True, blank=False)         
     preferred_name = models.CharField(max_length=150, blank=True, null=True)
     REQUIRED_FIELDS = ['email', 'first_name', 'last_name']
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='student')
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES)
 
     def save(self, *args, **kwargs):
         if not self.preferred_name:
