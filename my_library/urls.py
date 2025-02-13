@@ -30,6 +30,7 @@ urlpatterns = [
         path('tickets/', include([
             path('', views.ticket_list, name='ticket_list'),
             path('new/', views.create_ticket, name='create_ticket'),
+            path('<int:ticket_id>/', views.ticket_detail, name='ticket_detail'),
         ])),
     ])),
     #------------------------------------STAFF URLS------------------------------------#
