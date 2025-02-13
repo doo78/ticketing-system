@@ -249,6 +249,9 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
 
 
 class StaffProfileView(LoginRequiredMixin, StaffRequiredMixin, View):
+    """
+    Loads relevant data and template for staff profile
+    """
     
     def get(self, request):
         staff_member = request.user.staff  
@@ -262,8 +265,10 @@ class StaffProfileView(LoginRequiredMixin, StaffRequiredMixin, View):
         avg_close_time = assigned_tickets.filter(status="closed").exclude(date_closed=None) \
             .aggregate(avg_duration=Avg(models.F("date_closed") - models.F("date_submitted")))
 
-        # Convert timedelta to days
-        avg_close_time_days = avg_close_time["avg_duration"].days if avg_close_time["avg_duration"] else None
+        if avg_close_time["avg_duration"]:
+            avg_close_time_days = avg_close_time["avg_duration"].days 
+        else:
+            avg_close_time_days = None
 
         context = {
             "open_tickets": open_tickets,
@@ -275,6 +280,9 @@ class StaffProfileView(LoginRequiredMixin, StaffRequiredMixin, View):
         return render(request, 'staff/profile.html', context)
     
 class StaffUpdateProfileView(UpdateView):
+    """
+    Loads the page and form to update the staff profile
+    """
     
     model = CustomUser
     template_name = "staff/update_profile.html"

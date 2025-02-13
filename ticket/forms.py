@@ -22,7 +22,7 @@ class StaffUpdateProfileForm(forms.ModelForm):
     department = forms.ChoiceField(
         required=True, 
         choices=DEPT_CHOICES,
-        widget=forms.Select(attrs={'class': 'form-control'})  # Apply Bootstrap styling
+        widget=forms.Select(attrs={'class': 'form-control'})
     )
 
     class Meta:
@@ -32,9 +32,11 @@ class StaffUpdateProfileForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # Automatically add Bootstrap 'form-control' class to all fields
+        # Bootstrap styling        
         for field in self.fields.values():
             field.widget.attrs['class'] = 'form-control'
+            
+        self.fields['department'].initial = self.instance.staff.department
 
     def save(self, commit=True):
         """Save user and update the related Staff model."""
