@@ -12,6 +12,9 @@ from ticket.views import (
     ManageTicketView, StaffProfileView, staff_dashboard,SignUpView, StaffUpdateProfileView
 )
 
+from django.conf.urls.static import static
+
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', home, name='home'),
@@ -52,4 +55,4 @@ urlpatterns = [
     
     # General dashboard redirect
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

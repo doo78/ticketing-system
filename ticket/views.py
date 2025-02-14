@@ -286,6 +286,7 @@ class StaffProfileView(LoginRequiredMixin, StaffRequiredMixin, View):
         return render(request, 'staff/profile.html', context)
     '''
     
+    '''
     def get(self, request):
         staff_member = request.user.staff  
 
@@ -323,6 +324,57 @@ class StaffProfileView(LoginRequiredMixin, StaffRequiredMixin, View):
         }
         
         return render(request, 'staff/profile.html', context)
+    '''
+    
+    def get(self, request):
+        staff_member = request.user.staff  
+
+        assigned_tickets = Ticket.objects.filter(assigned_staff=staff_member)
+        
+        open_tickets = assigned_tickets.filter(status="open").count()
+        pending_tickets = assigned_tickets.filter(status="pending").count()
+        closed_tickets = assigned_tickets.filter(status="closed").count()
+        
+        total_tickets = open_tickets + pending_tickets + closed_tickets
+
+        if total_tickets > 0:
+            open_percentage = (open_tickets / total_tickets) * 100
+            pending_percentage = (pending_tickets / total_tickets) * 100
+            closed_percentage = (closed_tickets / total_tickets) * 100
+        else:
+            open_percentage = pending_percentage = closed_percentage = 0
+
+        # Calculate average close time in days
+        avg_close_time = Ticket.objects.filter(status="closed").aggregate(
+            avg_duration=Avg(
+                ExpressionWrapper(
+                    F("date_closed") - F("date_submitted"),
+                    output_field=DurationField()
+                )
+            )
+        )
+
+        avg_duration = avg_close_time["avg_duration"]
+        if avg_duration:
+            avg_close_time_days = avg_duration.days + avg_duration.seconds / (3600 * 24)
+            avg_close_time_days = round(avg_close_time_days, 2)  # Round to 2 decimal places
+            avg_close_time_days_display = f"{avg_close_time_days} days"
+        else:
+            avg_close_time_days_display = "N/A"
+
+        context = {
+            "open_tickets": open_tickets,
+            "pending_tickets": pending_tickets,
+            "closed_tickets": closed_tickets,
+            "total_tickets": total_tickets,
+            "open_percentage": open_percentage,
+            "pending_percentage": pending_percentage,
+            "closed_percentage": closed_percentage,
+            "avg_close_time_days": avg_close_time_days_display
+        }
+        
+        return render(request, 'staff/profile.html', context)
+
     
 class StaffUpdateProfileView(UpdateView):
     """

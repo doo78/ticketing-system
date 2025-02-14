@@ -24,10 +24,16 @@ class StaffUpdateProfileForm(forms.ModelForm):
         choices=DEPT_CHOICES,
         widget=forms.Select(attrs={'class': 'form-control'})
     )
+    
+    profile_picture = forms.ImageField(
+        required=False, 
+        widget=forms.FileInput(attrs={'class': 'form-control'})
+    )
+    
 
     class Meta:
         model = CustomUser
-        fields = ['first_name', 'last_name', 'email', 'preferred_name']
+        fields = ['first_name', 'last_name', 'email', 'preferred_name', 'profile_picture']
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -37,15 +43,18 @@ class StaffUpdateProfileForm(forms.ModelForm):
             field.widget.attrs['class'] = 'form-control'
             
         self.fields['department'].initial = self.instance.staff.department
+        self.fields['profile_picture'].initial = self.instance.staff.profile_picture
 
     def save(self, commit=True):
         """Save user and update the related Staff model."""
         user = super().save(commit=False)
         
-        if hasattr(user, 'staff'):
-            user.staff.department = self.cleaned_data['department']
-            if commit:
-                user.staff.save()
+    
+        user.staff.department = self.cleaned_data['department']
+        if self.cleaned_data.get('profile_picture'):
+            user.staff.profile_picture = self.cleaned_data['profile_picture']
+        if commit:
+            user.staff.save()
 
         if commit:
             user.save()
