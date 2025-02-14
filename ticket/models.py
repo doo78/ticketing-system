@@ -89,7 +89,7 @@ class Ticket(models.Model):
     assigned_staff = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True)
     date_submitted = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
-    date_closed = models.DateField(blank=True, null=True)
+    date_closed = models.DateTimeField(blank=True, null=True)
     closed_by = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True, related_name='closed_tickets')
 
     ai_response = models.BooleanField(default=False)

@@ -23,7 +23,16 @@ from django.views import View
 from django.db.models import Avg
 from datetime import timedelta
 from .models import Ticket
-from django.db import models  # <-- Add this import to resolve the NameError
+from django.db import models 
+from django.utils.timezone import now
+from django.db.models import F, Avg
+
+from django.db.models import ExpressionWrapper, DurationField
+
+from django.db.models import F, ExpressionWrapper, DurationField
+from django.db.models.functions import Cast
+from django.db.models import FloatField
+
 
 
 #------------------------------------STUDENT SECTION------------------------------------#
@@ -253,6 +262,7 @@ class StaffProfileView(LoginRequiredMixin, StaffRequiredMixin, View):
     Loads relevant data and template for staff profile
     """
     
+    '''
     def get(self, request):
         staff_member = request.user.staff  
 
@@ -262,19 +272,54 @@ class StaffProfileView(LoginRequiredMixin, StaffRequiredMixin, View):
         pending_tickets = assigned_tickets.filter(status="pending").count()
         closed_tickets = assigned_tickets.filter(status="closed").count()
         
-        avg_close_time = assigned_tickets.filter(status="closed").exclude(date_closed=None) \
-            .aggregate(avg_duration=Avg(models.F("date_closed") - models.F("date_submitted")))
-
-        if avg_close_time["avg_duration"]:
-            avg_close_time_days = avg_close_time["avg_duration"].days 
-        else:
-            avg_close_time_days = None
+        avg_close_time = Ticket.objects.filter(status="closed").aggregate(
+            avg_duration=Avg(ExpressionWrapper(F("date_closed") - F("date_submitted"), output_field=DurationField()))
+        )
 
         context = {
             "open_tickets": open_tickets,
             "pending_tickets": pending_tickets,
             "closed_tickets": closed_tickets,
             "avg_close_time_days": avg_close_time_days
+        }
+        
+        return render(request, 'staff/profile.html', context)
+    '''
+    
+    def get(self, request):
+        staff_member = request.user.staff  
+
+        assigned_tickets = Ticket.objects.filter(assigned_staff=staff_member)
+        
+        open_tickets = assigned_tickets.filter(status="open").count()
+        pending_tickets = assigned_tickets.filter(status="pending").count()
+        closed_tickets = assigned_tickets.filter(status="closed").count()
+        
+        # Calculate average close time in days
+        avg_close_time = Ticket.objects.filter(status="closed").aggregate(
+            avg_duration=Avg(
+                ExpressionWrapper(
+                    F("date_closed") - F("date_submitted"),
+                    output_field=DurationField()
+                )
+            )
+        )
+
+        # Get the average close time and convert it to days
+        avg_duration = avg_close_time["avg_duration"]
+
+        if avg_duration:
+            avg_close_time_days = avg_duration.days + avg_duration.seconds / (3600 * 24)
+            avg_close_time_days = round(avg_close_time_days, 2)  # Round to 2 decimal places
+            avg_close_time_days_display = f"{avg_close_time_days} days"
+        else:
+            avg_close_time_days_display = "N/A"
+
+        context = {
+            "open_tickets": open_tickets,
+            "pending_tickets": pending_tickets,
+            "closed_tickets": closed_tickets,
+            "avg_close_time_days": avg_close_time_days_display
         }
         
         return render(request, 'staff/profile.html', context)
