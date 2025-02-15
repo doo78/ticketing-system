@@ -10,7 +10,7 @@ from django.contrib.auth import login, logout
 from django.urls import reverse
 from django.conf import settings
 from django.http import JsonResponse
-from ticket.mixins import RoleBasedRedirectMixin
+from ticket.mixins import AdminRoleRequiredMixin, RoleBasedRedirectMixin
 from ticket.forms import LogInForm, SignUpForm
 from .models import Ticket, Staff, Student, CustomUser, Message
 from .forms import TicketForm
@@ -189,7 +189,7 @@ class DashboardView(LoginRequiredMixin, View):
 
     def get(self, request, *args, **kwargs):
         role_dispatch = {
-            'admin': self.render_staff_dashboard,  # Admin users see staff dashboard
+            'admin': self.render_admin_dashboard,  # Admin users see staff dashboard
             'staff': self.render_staff_dashboard,
             'student': self.render_student_dashboard,
         }
@@ -209,6 +209,9 @@ class DashboardView(LoginRequiredMixin, View):
     def render_student_dashboard(self, request):
         """Render student dashboard."""
         return render(request, 'student/dashboard.html')
+    def render_admin_dashboard(self,request):
+        """Render admin dashbaord."""
+        return render(request,"admin/admin_dashboard.html")
 
     def redirect_to_home(self, request):
         """Redirect to home page if the role is undefined."""
@@ -298,3 +301,15 @@ def check_email(request):
     email = request.GET.get('email', '')
     exists = CustomUser.objects.filter(email=email).exists()
     return JsonResponse({'exists': exists})
+
+
+#class AdminDashboardView(AdminRoleRequiredMixin,View):
+    template_name = 'admin/admin_dashboard.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['total_tickets'] = Ticket.objects.count()
+        context['open_tickets'] = Ticket.objects.filter(status='open').count()
+        context['closed_tickets'] = Ticket.objects.filter(status='closed').count()
+        context['recent_activities'] = Ticket.objects.order_by('-created_at')[:5]
+        return context

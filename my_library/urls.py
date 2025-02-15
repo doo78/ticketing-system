@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.conf import settings
 from ticket import views
 from ticket.views import (
-    DashboardView, home, LogInView, LogOutView, StaffTicketListView, 
+     DashboardView, home, LogInView, LogOutView, StaffTicketListView, 
     ManageTicketView, StaffProfileView, staff_dashboard, SignUpView
 )
 
@@ -40,7 +40,12 @@ urlpatterns = [
         path('tickets/', StaffTicketListView.as_view(), name='staff_ticket_list'),
         path('ticket/<int:ticket_id>/manage/', ManageTicketView.as_view(), name='manage_ticket'),
     ])),
+     #------------------------------------STAFF URLS------------------------------------#
+    path('dashboard/admin/', DashboardView.as_view(), name='admin_dashboard'),
+
     
     # General dashboard redirect
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
+    
+    
 ]

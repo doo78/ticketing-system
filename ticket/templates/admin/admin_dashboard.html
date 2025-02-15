@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Dashboard - University Helpdesk{% endblock %}
+
+{% block body %}
+<div class="container py-5">
+    <h1 class="mb-4 text-center">Admin Dashboard</h1>
+    <div class="row">
+        <!-- Card: Total Tickets -->
+        <div class="col-md-4">
+            <div class="card text-white bg-primary mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Total Tickets</h5>
+                    <p class="card-text display-4">{{ total_tickets }}</p>
+                </div>
+            </div>
+        </div>
+        <!-- Card: Open Tickets -->
+        <div class="col-md-4">
+            <div class="card text-white bg-warning mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Open Tickets</h5>
+                    <p class="card-text display-4">{{ open_tickets }}</p>
+                </div>
+            </div>
+        </div>
+        <!-- Card: Closed Tickets -->
+        <div class="col-md-4">
+            <div class="card text-white bg-success mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Closed Tickets</h5>
+                    <p class="card-text display-4">{{ closed_tickets }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Activity Section -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card mb-3">
+                <div class="card-header">Recent Activity</div>
+                <div class="card-body">
+                    {% if recent_activities %}
+                        <ul class="list-group">
+                            {% for ticket in recent_activities %}
+                                <li class="list-group-item bg-dark text-white">
+                                    Ticket #{{ ticket.id }} - {{ ticket.status|title }} on {{ ticket.created_at|date:"M d, Y" }}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>No recent activity.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
