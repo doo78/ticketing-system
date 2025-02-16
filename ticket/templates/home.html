@@ -1,15 +1,16 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
 {% block body %}
-  <div class="container vh-100 d-flex align-items-center justify-content-center">
-    <div class="card shadow-lg p-4 text-center" style="max-width: 600px; border-radius: 15px;">
-      <h1 class="display-4 mb-3 text-dark">University Helpdesk</h1>
-      <p class="lead text-dark">
-        Need help with university </p>
+  <div class="container d-flex align-items-center justify-content-center" style="height: 100vh;">
+    <div class="card text-center">
+      <h1 class="mb-3">University Helpdesk</h1>
+      <p class="mb-4">Your one-stop solution for university support services</p>
       <div class="d-grid gap-3">
+        <a href="{% url 'log_in' %}" class="outer-cont">
+        Log In
         </a>
-        <a href="{% url 'log_in' %}" class="btn btn-lg btn-outline-primary">
-          Log In
+        <a href="{% url 'sign_up' %}" class="outer-cont">
+        Sign Up
         </a>
       </div>
     </div>
