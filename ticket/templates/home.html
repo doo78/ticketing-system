@@ -1,16 +1,23 @@
 {% extends "base.html" %}
 
 {% block body %}
-  <div class="container d-flex align-items-center justify-content-center" style="height: 100vh;">
-    <div class="card text-center">
-      <h1 class="mb-3">Welcome to University Helpdesk</h1>
-      <p class="mb-4">Your one-stop solution for university support services</p>
+  <div class="container d-flex flex-column align-items-center justify-content-center text-center" style="height: 100vh;">
+    
+    <!-- Heading and Subtitle Outside the Card -->
+  
+    <div class="mb-4">
+      <h1 class="text-dark display-4 fw-bold fst-italic">Welcome to University Helpdesk</h1>
+      <p class="text-dark fs-5">Your one-stop solution for university support services</p>
+    </div>
+
+    <!-- Card with Log In & Sign Up -->
+    <div class="card text-center p-4 shadow-lg" style="border-radius: 15px; max-width: 400px;">
       <div class="d-grid gap-3">
         <a href="{% url 'log_in' %}" class="outer-cont">
-        Log In
+          Log In
         </a>
         <a href="{% url 'sign_up' %}" class="outer-cont">
-        Sign Up
+          Sign Up
         </a>
       </div>
     </div>
