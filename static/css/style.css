@@ -62,3 +62,115 @@ body {
     transform: translateY(-2px);
   }
   
+/* Quick Actions Card (Inspired by Uiverse Loader) */
+.main {
+  background-color: white;
+  padding: 1em;
+  padding-bottom: 1.1em;
+  border-radius: 15px;
+  margin: 1em;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.loader {
+  display: flex;
+  flex-direction: row;
+  height: 4em;
+  padding-left: 1em;
+  padding-right: 1em;
+  transform: rotate(180deg);
+  justify-content: right;
+  border-radius: 10px;
+  transition: .4s ease-in-out;
+}
+
+.loader:hover {
+  cursor: pointer;
+  background-color: lightgray;
+}
+
+.currentplaying {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 1em;
+}
+
+.heading {
+  color: black;
+  font-size: 1.1em;
+  font-weight: bold;
+}
+
+.loading {
+  display: flex;
+  margin-left: 0.3em;
+}
+
+.load {
+  width: 4px;
+  height: 15px;
+  background-color: limegreen;
+  animation: move6 1s infinite ease-in-out;
+  border-radius: 5px;
+  margin: 0 2px;
+}
+
+.load:nth-child(1) {
+  animation-delay: 0.2s;
+}
+
+.load:nth-child(2) {
+  animation-delay: 0.4s;
+}
+
+.load:nth-child(3) {
+  animation-delay: 0.6s;
+}
+
+@keyframes move6 {
+  0% {
+      height: 5px;
+  }
+  50% {
+      height: 15px;
+  }
+  100% {
+      height: 5px;
+  }
+}
+
+/* Buttons Styling */
+.main .btn {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  border-radius: 8px;
+  transition: all 0.3s ease-in-out;
+}
+
+.main .btn-primary {
+  background: linear-gradient(135deg, #6a11cb, #2575fc);
+  border: none;
+  color: #fff;
+}
+
+.main .btn-primary:hover {
+  background: linear-gradient(135deg, #2575fc, #6a11cb);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.main .btn-outline-secondary {
+  border: 2px solid #6a11cb;
+  color: #6a11cb;
+  transition: all 0.3s ease-in-out;
+}
+
+.main .btn-outline-secondary:hover {
+  background: #6a11cb;
+  color: white;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}

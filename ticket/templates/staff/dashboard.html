@@ -3,12 +3,11 @@
 {% block content %}
 <div class="container-fluid">
     <!-- Welcome Section -->
-    <div class="row mb-4">
-        <div class="col">
-            <h2>Welcome, {{ request.user.get_full_name|default:request.user.username }}</h2>
-            <p class="text-muted">Staff Dashboard</p>
-        </div>
+    <div class="welcome-container">
+        <h2>Welcome, {{ request.user.get_full_name|default:request.user.username }}</h2>
+        <p>Staff Dashboard</p>
     </div>
+    
 
     <!-- Stats Row -->
     <div class="row mb-4">
@@ -30,25 +29,20 @@
         </div>
     </div>
 
-    <!-- Quick Actions -->
-    <div class="row">
-        <div class="col">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Quick Actions</h5>
-                </div>
-                <div class="card-body">
-                    <div class="d-flex gap-3">
-                        <a href="{% url 'staff_ticket_list' %}" class="btn btn-primary">
-                            <i class="bi bi-ticket-detailed me-2"></i>View Tickets
-                        </a>
-                        <a href="{% url 'staff_profile' %}" class="btn btn-outline-secondary">
-                            <i class="bi bi-person-circle me-2"></i>My Profile
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <!-- Custom Quick Actions Card -->
+  <!-- Quick Actions Card -->
+<div class="quick-actions-card">
+    <h5 class="card-title">Quick Actions</h5>
+    <div class="card-content">
+        <a href="{% url 'staff_ticket_list' %}" class="quick-action-btn">
+            <i class="bi bi-ticket-detailed me-2"></i>View Tickets
+        </a>
+        <a href="{% url 'staff_profile' %}" class="quick-action-btn">
+            <i class="bi bi-person-circle me-2"></i>My Profile
+        </a>
     </div>
 </div>
+
+    
+
 {% endblock %}
