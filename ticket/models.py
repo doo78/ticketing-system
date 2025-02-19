@@ -2,6 +2,9 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings  
 
+DEPT_CHOICES = settings.DEPT_CHOICES
+
+
 class CustomUser(AbstractUser):
     ROLE_CHOICES = (
         ('student', 'Student'),
@@ -26,9 +29,15 @@ class Staff(models.Model):
     department = models.CharField(max_length=100)
     role = models.CharField(max_length=50)
     date_joined = models.DateTimeField(auto_now_add=True)
+    profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
 
     def __str__(self):
         return f"{self.user.username} - {self.role}"
+    
+    def get_department_display(self):
+        """Map the department choice to a human-readable format"""
+        DEPT_DICT = dict(DEPT_CHOICES)  
+        return DEPT_DICT.get(self.department, "Not Assigned")  
 
 class Student(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
@@ -74,7 +83,7 @@ class Ticket(models.Model):
     assigned_staff = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True)
     date_submitted = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
-    date_closed = models.DateField(blank=True, null=True)
+    date_closed = models.DateTimeField(blank=True, null=True)
     closed_by = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True, related_name='closed_tickets')
 
     ai_response = models.BooleanField(default=False)
@@ -91,9 +100,6 @@ class Message(models.Model):
     content = models.TextField()
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies')
     created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return self.content[:50] + '...' if len(self.content) > 50 else self.content
 
     class Meta:
         ordering = ['created_at']

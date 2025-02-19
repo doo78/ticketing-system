@@ -3,6 +3,63 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.forms import UserCreationForm
 from ticket.models import CustomUser, Ticket
 
+DEPT_CHOICES = [
+    ('', 'Select Department'),
+    ('arts_humanities', 'Arts & Humanities'),
+    ('business', 'Business'),
+    ('dentistry', 'Dentistry'),
+    ('law', 'Law'),
+    ('life_sciences_medicine', 'Life Sciences & Medicine'),
+    ('natural_mathematical_engineering', 'Natural, Mathematical & Engineering Sciences'),
+    ('nursing', 'Nursing'),
+    ('psychiatry', 'Psychiatry'),
+    ('social_science', 'Social Science')
+]
+
+class StaffUpdateProfileForm(forms.ModelForm):
+    """Form for staff to update their profile information."""
+
+    department = forms.ChoiceField(
+        required=True, 
+        choices=DEPT_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    
+    profile_picture = forms.ImageField(
+        required=False, 
+        widget=forms.FileInput(attrs={'class': 'form-control'})
+    )
+    
+
+    class Meta:
+        model = CustomUser
+        fields = ['first_name', 'last_name', 'email', 'preferred_name', 'profile_picture']
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Bootstrap styling        
+        for field in self.fields.values():
+            field.widget.attrs['class'] = 'form-control'
+            
+        self.fields['department'].initial = self.instance.staff.department
+        self.fields['profile_picture'].initial = self.instance.staff.profile_picture
+
+    def save(self, commit=True):
+        """Save user and update the related Staff model."""
+        user = super().save(commit=False)
+        
+    
+        user.staff.department = self.cleaned_data['department']
+        if self.cleaned_data.get('profile_picture'):
+            user.staff.profile_picture = self.cleaned_data['profile_picture']
+        if commit:
+            user.staff.save()
+
+        if commit:
+            user.save()
+        
+        return user
 
 class LogInForm(forms.Form):
     """Form enabling registered users to log in."""

@@ -9,8 +9,11 @@ from django.conf import settings
 from ticket import views
 from ticket.views import (
     DashboardView, home, LogInView, LogOutView, StaffTicketListView, 
-    ManageTicketView, StaffProfileView, staff_dashboard, SignUpView
+    ManageTicketView, StaffProfileView, staff_dashboard,SignUpView, StaffUpdateProfileView
 )
+
+from django.conf.urls.static import static
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -19,7 +22,17 @@ urlpatterns = [
     #------------------------------------AUTHENTICATION URLS------------------------------------#
     path('login/', LogInView.as_view(), name='log_in'),
     path('logout/', LogOutView.as_view(), name='logout'),
-    path('sign_up/', SignUpView.as_view(), name='sign_up'),
+    path('dashboard/', DashboardView.as_view(), name='dashboard'),
+    path('sign_up/' , SignUpView.as_view() , name= 'sign_up'),
+
+    #------------------------------------STAFF URLS------------------------------------#
+    path('staff/dashboard/', staff_dashboard, name='staff_dashboard'),
+    path('staff/tickets/', StaffTicketListView.as_view(), name='staff_ticket_list'),
+    path('staff/ticket/<int:ticket_id>/manage/', ManageTicketView.as_view(), name='manage_ticket'),
+    path('staff/profile', StaffProfileView.as_view(), name='staff_profile'),
+    path('staff/update_profile', StaffUpdateProfileView.as_view(), name='staff_update_profile'),
+    #-------------------------------AUTHENTICATION URLS--------------------------------#
+
     path('check_username/', views.check_username, name='check_username'),
     path('check_email/', views.check_email, name='check_email'),
     
@@ -43,4 +56,4 @@ urlpatterns = [
     
     # General dashboard redirect
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
