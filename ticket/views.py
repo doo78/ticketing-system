@@ -12,7 +12,7 @@ from django.conf import settings
 from django.http import JsonResponse
 from ticket.mixins import RoleBasedRedirectMixin
 from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm
-from .models import Ticket, Staff, CustomUser, Student
+from .models import Ticket, Staff, Student, CustomUser, Message
 from .forms import TicketForm
 from django.views.generic.edit import UpdateView
 
@@ -45,15 +45,19 @@ def create_ticket(request):
         form = TicketForm(request.POST, student=request.user.student)
         if form.is_valid():
             ticket = form.save()
-            messages.success(request,
-                           'Your ticket has been submitted successfully. Ticket number: #{}'.format(ticket.id))
-            return redirect('student_dashboard')  # Changed to match your URL name
+            messages.success(
+                request,
+                f'Your ticket #{ticket.id} has been submitted successfully. We will review it shortly.'
+            )
+            return redirect('student_dashboard')
     else:
         form = TicketForm(student=request.user.student)
 
     return render(request, 'student/create_ticket.html', {
-        'form': form
+        'form': form,
+        'title': 'Submit New Query'
     })
+
 @login_required
 def student_settings(request):
     if not hasattr(request.user, 'student'):
@@ -77,6 +81,36 @@ def ticket_list(request):
 
     tickets = Ticket.objects.filter(student=request.user.student)
     return render(request, 'student/ticket_list.html', {'tickets': tickets})
+
+@login_required
+def ticket_detail(request, ticket_id):
+    if not hasattr(request.user, 'student'):
+        return redirect('home')
+    
+    ticket = get_object_or_404(Ticket, id=ticket_id, student=request.user.student)
+    
+    if request.method == 'POST':
+        message_content = request.POST.get('message')
+        if message_content:
+            if ticket.status == 'closed':
+                messages.error(request, 'Cannot add messages to a closed ticket.')
+                return render(request, 'student/ticket_detail.html', {
+                    'ticket': ticket,
+                    'ticket_messages': ticket.messages.all().order_by('created_at')
+                })
+            Message.objects.create(
+                ticket=ticket,
+                author=request.user,
+                content=message_content
+            )
+            messages.success(request, 'Message sent successfully.')
+            return redirect('ticket_detail', ticket_id=ticket_id)
+    
+    context = {
+        'ticket': ticket,
+        'ticket_messages': ticket.messages.all().order_by('created_at')
+    }
+    return render(request, 'student/ticket_detail.html', context)
 
 #------------------------------------STAFF SECTION------------------------------------#
 
@@ -114,7 +148,11 @@ class LogInView(View, RoleBasedRedirectMixin):
         if form.is_valid():
             user = form.get_user()
             login(request, user)
-            return redirect(self.get_redirect_url(user)) 
+            redirect_url = self.get_redirect_url(user)
+            # Check if it's a direct URL or a URL name
+            if redirect_url.startswith('/'):
+                return redirect(redirect_url)
+            return redirect(redirect_url)
         messages.error(request, "Invalid username or password.")
         return render(request, 'login.html', {'form': form})  
 
@@ -128,7 +166,14 @@ class LogOutView(View):
     """Log out the current user and redirect to login page."""
 
     def get(self, request):
+        # Clear all existing messages
+        storage = messages.get_messages(request)
+        storage.used = True
+        
+        # Perform logout
         logout(request)
+        
+        # Add only the logout success message
         messages.success(request, "You have been logged out successfully.")
         return redirect(reverse("log_in"))
     
@@ -164,20 +209,23 @@ class DashboardView(LoginRequiredMixin, View):
 
     def get(self, request, *args, **kwargs):
         role_dispatch = {
-            'admin': self.render_admin_dashboard,
+            'admin': self.render_staff_dashboard,  # Admin users see staff dashboard
             'staff': self.render_staff_dashboard,
             'student': self.render_student_dashboard,
         }
         handler = role_dispatch.get(request.user.role, self.redirect_to_home)
         return handler(request)
 
-    def render_admin_dashboard(self, request):
-        """Render admin dashboard."""
-        return render(request, 'admin_dashboard.html')
-
     def render_staff_dashboard(self, request):
         """Render staff dashboard."""
-        return render(request, 'staff/dashboard.html')
+        
+        context = {
+            'assigned_tickets_count': Ticket.objects.filter(
+                assigned_staff=request.user.staff if hasattr(request.user, 'staff') else None
+            ).exclude(status='closed').count(),
+            'department': request.user.staff.department if hasattr(request.user, 'staff') else "Admin"
+        }
+        return render(request, 'staff/dashboard.html', context)
 
     def render_student_dashboard(self, request):
         """Render student dashboard."""
@@ -194,10 +242,6 @@ class StaffRequiredMixin(UserPassesTestMixin):
 class StudentRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return hasattr(self.request.user, 'student')
-
-#@login_required
-def staff_dashboard(request):
-    return render(request, 'staff/dashboard.html')
 
 @login_required
 def student_dashboard(request):
@@ -283,7 +327,7 @@ class StaffProfileView(LoginRequiredMixin, StaffRequiredMixin, View):
             closed_percentage = 0
 
         # Calculates average close time in days
-        avg_close_time = Ticket.objects.filter(status="closed").aggregate(
+        avg_close_time = Ticket.objects.filter(status="closed", date_closed__isnull=False).aggregate(
             avg_duration=Avg(ExpressionWrapper(F("date_closed") - F("date_submitted"), output_field=DurationField()))
         )
 

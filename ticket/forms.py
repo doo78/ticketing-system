@@ -158,9 +158,16 @@ class TicketForm(forms.ModelForm):
         self.student = kwargs.pop('student', None)
         super().__init__(*args, **kwargs)
 
+        # Set the initial department value to the student's department
+        if self.student:
+            self.fields['department'].initial = self.student.department
+
+        # Use the same department choices as defined in the Ticket model
+        self.fields['department'].choices = Ticket.DEPT_CHOICES
+        
         self.fields['subject'].help_text = 'Enter a clear, brief title for your query'
-        self.fields[
-            'description'].help_text = 'Include all relevant details, dates, and any other information that might be helpful'
+        self.fields['description'].help_text = 'Include all relevant details, dates, and any other information that might be helpful'
+        self.fields['department'].help_text = 'Select the department related to your query'
 
         for field in self.fields:
             self.fields[field].required = True
@@ -169,6 +176,7 @@ class TicketForm(forms.ModelForm):
         ticket = super().save(commit=False)
         if self.student:
             ticket.student = self.student
+            ticket.status = 'open'  # Ensure the ticket starts as open
         if commit:
             ticket.save()
         return ticket

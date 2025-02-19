@@ -62,7 +62,7 @@
                                     </td>
                                     <td>{{ ticket.created_at }}</td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline-primary">View</button>
+                                        <a href="{% url 'ticket_detail' ticket.id %}" class="btn btn-sm btn-outline-primary">View</a>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -107,7 +107,7 @@
                                     </td>
                                     <td>{{ ticket.created_at }}</td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline-secondary">View</button>
+                                        <a href="{% url 'ticket_detail' ticket.id %}" class="btn btn-sm btn-outline-secondary">View</a>
                                     </td>
                                 </tr>
                                 {% endfor %}

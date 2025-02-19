@@ -2,35 +2,168 @@
 {% load crispy_forms_tags %}
 
 {% block content %}
-<div class="container mt-4">
-  <div class="row">
-      <div class="col-md-8 offset-md-2">
-          <div class="card">
-              <div class="card-header">
-                  <h2 class="card-title">Submit New Query</h2>
-              </div>
-              <div class="card-body">
-                  <form method="post" novalidate>
-                      {% csrf_token %}
-                      {{ form|crispy }}
-                      
-                      <div class="alert alert-info mt-3">
-                          <h5>Before submitting:</h5>
-                          <ul>
-                              <li>Please check if your question is already answered in our FAQ section</li>
-                              <li>Include all relevant information to help us assist you better</li>
-                              <li>Ensure you've selected the correct department for your query</li>
-                          </ul>
-                      </div>
-                      
-                      <div class="form-group mt-3">
-                          <button type="submit" class="btn btn-primary">Submit Query</button>
-                          <a href="{% url 'student_dashboard' %}" class="btn btn-secondary">Cancel</a>
-                      </div>
-                  </form>
-              </div>
-          </div>
-      </div>
-  </div>
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">Submit New Query</h2>
+                    <p class="text-muted mb-0">Create a new support ticket</p>
+                </div>
+                <a href="{% url 'student_dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <form method="post" novalidate class="ticket-form">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label for="id_subject" class="form-label h6">Subject</label>
+                            <input type="text" name="subject" class="form-control" id="id_subject" required placeholder="Brief summary of your query">
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Enter a clear, brief title for your query
+                            </small>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="id_description" class="form-label h6">Description</label>
+                            <textarea name="description" class="form-control" id="id_description" rows="5" required placeholder="Please provide detailed information about your query"></textarea>
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Include all relevant details, dates, and any other information that might be helpful
+                            </small>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="id_department" class="form-label h6">Department</label>
+                            {{ form.department }}
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Select the department related to your query
+                            </small>
+                        </div>
+
+                        <div class="alert alert-info bg-light border-info">
+                            <div class="d-flex">
+                                <div class="me-3">
+                                    <i class="fas fa-lightbulb fa-2x text-info"></i>
+                                </div>
+                                <div>
+                                    <h6 class="alert-heading mb-2">Before submitting:</h6>
+                                    <ul class="mb-0 ps-3">
+                                        <li>Please check if your question is already answered in our FAQ section</li>
+                                        <li>Include all relevant information to help us assist you better</li>
+                                        <li>Ensure you've selected the correct department for your query</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{% url 'student_dashboard' %}" class="btn btn-light">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane me-2"></i>Submit Query
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-lightbulb me-2 text-warning"></i>
+                        Tips for a Good Query
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-3 d-flex align-items-start">
+                            <span class="badge bg-success rounded-circle p-2 me-2">
+                                <i class="fas fa-check"></i>
+                            </span>
+                            <span>Be specific about your issue</span>
+                        </li>
+                        <li class="mb-3 d-flex align-items-start">
+                            <span class="badge bg-success rounded-circle p-2 me-2">
+                                <i class="fas fa-check"></i>
+                            </span>
+                            <span>Include relevant dates or deadlines</span>
+                        </li>
+                        <li class="mb-3 d-flex align-items-start">
+                            <span class="badge bg-success rounded-circle p-2 me-2">
+                                <i class="fas fa-check"></i>
+                            </span>
+                            <span>Mention any steps you've already taken</span>
+                        </li>
+                        <li class="mb-0 d-flex align-items-start">
+                            <span class="badge bg-success rounded-circle p-2 me-2">
+                                <i class="fas fa-check"></i>
+                            </span>
+                            <span>Provide any error messages if applicable</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+    .ticket-form .form-control {
+        border-radius: 0.5rem;
+        padding: 0.75rem 1rem;
+        border-color: #dee2e6;
+    }
+    
+    .ticket-form .form-control:focus {
+        border-color: #80bdff;
+        box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+    }
+
+    .ticket-form .form-select {
+        border-radius: 0.5rem;
+        padding: 0.75rem 1rem;
+        border-color: #dee2e6;
+    }
+
+    .ticket-form textarea {
+        min-height: 120px;
+    }
+
+    .card {
+        border-radius: 0.75rem;
+        border: 1px solid rgba(0,0,0,.1);
+    }
+
+    .card-header {
+        border-top-left-radius: 0.75rem !important;
+        border-top-right-radius: 0.75rem !important;
+    }
+
+    .btn {
+        padding: 0.5rem 1.5rem;
+        border-radius: 0.5rem;
+    }
+
+    .alert {
+        border-radius: 0.75rem;
+    }
+
+    .form-text {
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+        color: #6c757d !important;
+    }
+</style>
 {% endblock %}
