@@ -11,6 +11,19 @@ ROLE_ADMIN = "admin"
 ROLE_STAFF = "staff"
 ROLE_STUDENT = "student"
 
+# Department Choices
+DEPT_CHOICES = [
+    "arts_humanities",
+    "business",
+    "dentistry",
+    "law",
+    "life_sciences_medicine",
+    "natural_mathematical_engineering",
+    "nursing",
+    "psychiatry",
+    "social_science",
+]
+
 # Fixed Users
 DEFAULT_USERS = [
     {
@@ -87,9 +100,14 @@ class Command(BaseCommand):
 
         if created:
             if data["role"] == ROLE_STAFF:
-                Staff.objects.create(user=user, department=fake.company(), role="Support Staff")
+                Staff.objects.create(user=user, department=random.choice(DEPT_CHOICES), role="Support Staff")
             elif data["role"] == ROLE_STUDENT:
-                Student.objects.create(user=user, department=fake.company(), program=fake.job(), year_of_study=random.randint(1, 4))
+                Student.objects.create(
+                    user=user,
+                    department=random.choice(DEPT_CHOICES),
+                    program=fake.job(),
+                    year_of_study=random.randint(1, 4)
+                )
 
             user.set_password("password123")  
             user.save()
@@ -103,19 +121,26 @@ class Command(BaseCommand):
         if not students.exists() or not staff.exists():
             self.stdout.write(self.style.ERROR("No students or staff available for ticket creation!"))
             return
-
+        
         for _ in range(self.TICKET_COUNT):
             student = random.choice(students)
-            assigned_staff = random.choice(staff) if random.choice([True, False]) else None
+            assigned_staff = random.choice(staff)  # Ensure every ticket has staff
+            department = assigned_staff.department  # Assign ticket to staff's department
+            status = random.choice(["open", "pending", "closed"])
+            closed_by = assigned_staff if status == "closed" else None
+            date_closed = now().date() if status == "closed" else None
 
             Ticket.objects.create(
                 subject=fake.sentence(),
                 description=fake.paragraph(),
-                student=student,  
-                assigned_staff=assigned_staff,
-                status=random.choice(["open", "pending", "closed"]),
+                department=department,
                 priority=random.choice(["low", "normal", "urgent"]),
-                date_submitted=now()
+                student=student,
+                assigned_staff=assigned_staff,
+                status=status,
+                closed_by=closed_by,
+                date_closed=date_closed,
+                date_submitted=now(),
             )
 
         self.stdout.write(self.style.SUCCESS(f"{self.TICKET_COUNT} tickets generated."))
