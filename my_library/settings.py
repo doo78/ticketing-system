@@ -141,3 +141,16 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 LOGIN_URL = '/login/'
 
+DEPT_CHOICES = [
+    ('', 'Select Department'),
+    ('arts_humanities', 'Arts & Humanities'),
+    ('business', 'Business'),
+    ('dentistry', 'Dentistry'),
+    ('law', 'Law'),
+    ('life_sciences_medicine', 'Life Sciences & Medicine'),
+    ('natural_mathematical_engineering', 'Natural, Mathematical & Engineering Sciences'),
+    ('nursing', 'Nursing'),
+    ('psychiatry', 'Psychiatry'),
+    ('social_science', 'Social Science')
+]
+

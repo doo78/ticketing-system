@@ -2,6 +2,9 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings  
 
+DEPT_CHOICES = settings.DEPT_CHOICES
+
+
 class CustomUser(AbstractUser):
     ROLE_CHOICES = (
         ('student', 'Student'),
@@ -26,27 +29,15 @@ class Staff(models.Model):
     department = models.CharField(max_length=100)
     role = models.CharField(max_length=50)
     date_joined = models.DateTimeField(auto_now_add=True)
-    
     profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
-
 
     def __str__(self):
         return f"{self.user.username} - {self.role}"
     
     def get_department_display(self):
         """Map the department choice to a human-readable format"""
-        DEPT_CHOICES = {
-            'arts_humanities': 'Arts & Humanities',
-            'business': 'Business',
-            'dentistry': 'Dentistry',
-            'law': 'Law',
-            'life_sciences_medicine': 'Life Sciences & Medicine',
-            'natural_mathematical_engineering': 'Natural, Mathematical & Engineering Sciences',
-            'nursing': 'Nursing',
-            'psychiatry': 'Psychiatry',
-            'social_science': 'Social Science',
-        }
-        return DEPT_CHOICES.get(self.department, self.department) 
+        DEPT_DICT = dict(DEPT_CHOICES)  
+        return DEPT_DICT.get(self.department, "Not Assigned")  
 
 class Student(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
@@ -109,9 +100,6 @@ class Message(models.Model):
     content = models.TextField()
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies')
     created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return self.content[:50] + '...' if len(self.content) > 50 else self.content
 
     class Meta:
         ordering = ['created_at']

@@ -56,7 +56,7 @@
                                     <td>#{{ ticket.id }}</td>
                                     <td>{{ ticket.subject }}</td>
                                     <td>
-                                        <span class="badge {% if ticket.status == 'Open' %}bg-danger{% else %}bg-warning{% endif %}">
+                                        <span class="badge {% if ticket.status == 'open' %}bg-danger{% else %}bg-warning{% endif %}">
                                             {{ ticket.status }}
                                         </span>
                                     </td>
@@ -103,7 +103,7 @@
                                     <td>#{{ ticket.id }}</td>
                                     <td>{{ ticket.subject }}</td>
                                     <td>
-                                        <span class="badge bg-secondary">{{ ticket.status }}</span>
+                                        <span class="badge bg-success">{{ ticket.status }}</span>
                                     </td>
                                     <td>{{ ticket.created_at }}</td>
                                     <td>

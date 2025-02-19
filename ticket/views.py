@@ -29,7 +29,7 @@ from django.db.models import F, Avg
 
 from django.db.models import ExpressionWrapper, DurationField
 
-from django.db.models import F, ExpressionWrapper, DurationField
+from django.db.models import F, ExpressionWrapper, DurationField, Case, When, Value
 from django.db.models.functions import Cast
 from django.db.models import FloatField
 
@@ -326,18 +326,30 @@ class StaffProfileView(LoginRequiredMixin, StaffRequiredMixin, View):
             pending_percentage = 0 
             closed_percentage = 0
 
-        # Calculates average close time in days
-        avg_close_time = Ticket.objects.filter(status="closed", date_closed__isnull=False).aggregate(
-            avg_duration=Avg(ExpressionWrapper(F("date_closed") - F("date_submitted"), output_field=DurationField()))
-        )
-
-        avg_duration = avg_close_time["avg_duration"]
-        if avg_duration:
-            avg_close_time_days = avg_duration.days + avg_duration.seconds / (3600 * 24)
-            avg_close_time_days = round(avg_close_time_days, 2)
-            avg_close_time_days_display = f"{avg_close_time_days} days"
-        else:
+        if closed_tickets == 0:
             avg_close_time_days_display = "N/A"
+        else:
+            avg_close_time = Ticket.objects.filter(
+                status="closed", 
+                date_closed__isnull=False
+            ).aggregate(
+                avg_duration=Avg(ExpressionWrapper(Case(When(date_closed__gte=F("date_submitted"),  
+                            then=F("date_closed") - F("date_submitted")),
+                            default=Value(0),
+                            output_field=DurationField()  
+                        ),
+                        output_field=DurationField()  
+                    )
+                )
+            )
+
+            avg_duration = avg_close_time["avg_duration"]
+            if avg_duration:
+                avg_close_time_days = avg_duration.days + avg_duration.seconds / (3600 * 24)
+                avg_close_time_days = round(avg_close_time_days, 2)
+                avg_close_time_days_display = f"{avg_close_time_days} days"
+            else:
+                avg_close_time_days_display = "N/A"
 
         context = {
             "open_tickets": open_tickets,
