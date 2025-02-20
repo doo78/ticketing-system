@@ -9,11 +9,11 @@ from django.conf import settings
 from ticket import views
 from ticket.views import (
      DashboardView, home, LogInView, LogOutView, StaffTicketListView, 
-    ManageTicketView, StaffProfileView, staff_dashboard, SignUpView
+    ManageTicketView, StaffProfileView, staff_dashboard, SignUpView,AdminTicketListView
 )
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('admin-panel/', admin.site.urls),
     path('', home, name='home'),
     
     #------------------------------------AUTHENTICATION URLS------------------------------------#
@@ -41,9 +41,11 @@ urlpatterns = [
         path('ticket/<int:ticket_id>/manage/', ManageTicketView.as_view(), name='manage_ticket'),
     ])),
      #------------------------------------STAFF URLS------------------------------------#
-    path('dashboard/admin/', DashboardView.as_view(), name='admin_dashboard'),
 
-    
+    path('control-panel/', include([
+        path('dashboard/', views.admin_dashboard, name='admin_dashboard'),
+        path('tickets/', AdminTicketListView.as_view(), name='admin_ticket_list'),
+    ])),
     # General dashboard redirect
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
     

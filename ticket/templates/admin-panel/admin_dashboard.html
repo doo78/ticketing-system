@@ -1,0 +1,106 @@
+{% extends 'admin-panel/base.html' %}
+
+{% block title %}Admin Dashboard - University Helpdesk{% endblock %}
+
+{% block content %}
+<div class="container">
+   <div class="row mb-4">
+        <div class="col">
+            <h2>Welcome, {{ request.user.get_full_name|default:request.user.username }}</h2>
+            <p class="text-muted">Admin Dashboard</p>
+        </div>
+    </div>
+    <div class="row">
+        <!-- Card: Total Tickets -->
+        <div class="col-md-4">
+            <div class="card text-white bg-primary mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Total Tickets</h5>
+                    <p class="card-text display-4">{{ tickets_count }}</p>
+                </div>
+            </div>
+        </div>
+        <!-- Card: Open Tickets -->
+        <div class="col-md-4">
+            <div class="card text-white bg-warning mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Open Tickets</h5>
+                    <p class="card-text display-4">{{ open_tickets_count }}</p>
+                </div>
+            </div>
+        </div>
+        <!-- Card: Closed Tickets -->
+        <div class="col-md-4">
+            <div class="card text-white bg-success mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Closed Tickets</h5>
+                    <p class="card-text display-4">{{ closed_tickets_count }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Activity Section -->
+    <div class="row">
+        <div class="col-md-12">
+        <h3>Recent Activity</h3>
+        <div class="card">
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Subject</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                        <th>Email</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ticket in recent_activities %}
+                    <tr>
+                        <td>#{{ ticket.id }}</td>
+                        <td>{{ ticket.subject }}</td>
+                        <td>
+                            <span class="badge {% if ticket.status == 'open' %}bg-primary{% elif ticket.status == 'pending' %}bg-warning{% else %}bg-success{% endif %}">
+                                {{ ticket.status|title }}
+                            </span>
+                        </td>
+                        <td>{{ ticket.date_submitted|date:"M d, Y" }}</td>
+                        <td>{{ ticket.email }}</td>
+                        <td>
+                            <div class="btn-group">
+                                {% if ticket.status == 'open' %}
+                                <form method="post" action="{% url 'manage_ticket' ticket.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" name="action" value="assign" class="btn btn-sm btn-primary">
+                                        Assign to Me
+                                    </button>
+                                </form>
+                                {% endif %}
+
+                                {% if ticket.status != 'closed' and ticket.assigned_staff == request.user.staff %}
+                                <form method="post" action="{% url 'manage_ticket' ticket.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" name="action" value="close" class="btn btn-sm btn-success">
+                                        Close
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">No tickets found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -98,6 +98,11 @@ class StaffRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return hasattr(self.request.user, 'staff')
 
+class AdminRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.role == 'admin'
+        # return hasattr(self.request.user, 'admin')
+
 def home(request):
     return render(request, 'home.html')
 
@@ -210,8 +215,8 @@ class DashboardView(LoginRequiredMixin, View):
         """Render student dashboard."""
         return render(request, 'student/dashboard.html')
     def render_admin_dashboard(self,request):
-        """Render admin dashbaord."""
-        return render(request,"admin/admin_dashboard.html")
+        """Render admin-panel dashbaord."""
+        return render(request, "admin-panel/admin_dashboard.html")
 
     def redirect_to_home(self, request):
         """Redirect to home page if the role is undefined."""
@@ -304,7 +309,7 @@ def check_email(request):
 
 
 #class AdminDashboardView(AdminRoleRequiredMixin,View):
-    template_name = 'admin/admin_dashboard.html'
+    template_name = 'admin-panel/admin_dashboard.html'
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -313,3 +318,46 @@ def check_email(request):
         context['closed_tickets'] = Ticket.objects.filter(status='closed').count()
         context['recent_activities'] = Ticket.objects.order_by('-created_at')[:5]
         return context
+
+@login_required
+def admin_dashboard(request):
+    context={}
+    context["open_tickets_count"] = Ticket.objects.filter(status='open').exclude(status='closed').exclude(status='pending').count()
+    context["closed_tickets_count"] = Ticket.objects.filter(status='closed').exclude(status='pending').exclude(status='open').count()
+    context["tickets_count"]=Ticket.objects.count()
+    context["recent_activities"]=Ticket.objects.order_by('-date_updated')[:10]
+    print(context)
+    return render(request, 'admin-panel/admin_dashboard.html', context)
+
+# def admin_ticket_list(request):
+#     return render(request, 'admin-panel/admin_ticket_list.html')
+
+class AdminTicketListView(LoginRequiredMixin,AdminRequiredMixin, View):
+    def get(self, request):
+        status = request.GET.get('status', 'all')
+        order = request.GET.get('order', 'asce')
+        order_attr = request.GET.get('order_attr', 'id')
+        order_by=order_attr  if order == 'asce' else "-" + order_attr
+        # Base queryset
+        tickets = Ticket.objects.all().order_by(order_by)
+
+        # Filter by status if specified
+        if status != 'all':
+            tickets = tickets.filter(status=status)
+
+
+        if order != 'asce':
+            tickets = tickets.order_by('-id')
+
+        # Get counts for the filter buttons
+        context = {
+            'tickets': tickets,
+            'status': status,
+            'order': order,
+            'order_attr': order_attr,
+            'open_count': Ticket.objects.filter(status='open').count(),
+            'pending_count': Ticket.objects.filter(status='pending').count(),
+            'closed_count': Ticket.objects.filter(status='closed').count(),
+        }
+        return render(request, 'admin-panel/admin_ticket_list.html', context)
+
