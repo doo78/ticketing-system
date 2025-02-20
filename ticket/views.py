@@ -63,13 +63,31 @@ def student_settings(request):
     if not hasattr(request.user, 'student'):
         return redirect('home')
 
+    # Get the user's last login time
+    last_login = request.user.last_login
+    if last_login:
+        from django.utils import timezone
+        from django.utils.timezone import localtime
+        now = timezone.now()
+        if now.date() == last_login.date():
+            last_login_display = f"Today at {localtime(last_login).strftime('%I:%M %p')}"
+        else:
+            last_login_display = localtime(last_login).strftime('%B %d, %Y %I:%M %p')
+    else:
+        last_login_display = "Never"
+
     student_data = {
         'name': request.user.get_full_name(),
         'email': request.user.email,
         'preferred_name': request.user.preferred_name,
         'department': request.user.student.department,
         'program': request.user.student.program,
-        'year_of_study': request.user.student.year_of_study
+        'year_of_study': request.user.student.year_of_study,
+        # Account status information
+        'account_type': request.user.get_role_display(),
+        'status': 'Active',  # You can add logic for different statuses if needed
+        'member_since': localtime(request.user.date_joined).strftime('%B %d, %Y'),
+        'last_login': last_login_display,
     }
     return render(request, 'student/settings.html', student_data)
 
@@ -228,8 +246,26 @@ class DashboardView(LoginRequiredMixin, View):
         return render(request, 'staff/dashboard.html', context)
 
     def render_student_dashboard(self, request):
-        """Render student dashboard."""
-        return render(request, 'student/dashboard.html')
+        student = request.user.student
+        name = request.user.preferred_name if request.user.preferred_name else request.user.first_name
+
+        # Get tickets by status
+        open_tickets = Ticket.objects.filter(student=student, status='open').order_by('-date_submitted')
+        pending_tickets = Ticket.objects.filter(student=student, status='pending').order_by('-date_submitted')
+        closed_tickets = Ticket.objects.filter(student=student, status='closed').order_by('-date_submitted')
+
+        # For display purposes, we show both open and pending tickets in the active section
+        active_tickets = list(open_tickets) + list(pending_tickets)
+        active_tickets.sort(key=lambda x: x.date_submitted, reverse=True)
+
+        context = {
+            'student_name': name,
+            'open_tickets': open_tickets,  # Only open tickets
+            'pending_tickets': pending_tickets,  # Only pending tickets
+            'closed_tickets': closed_tickets,  # Only closed tickets
+            'active_tickets': active_tickets,  # Combined open and pending tickets for display
+        }
+        return render(request, 'student/dashboard.html', context)
 
     def redirect_to_home(self, request):
         """Redirect to home page if the role is undefined."""
@@ -248,18 +284,21 @@ def student_dashboard(request):
     if not hasattr(request.user, 'student'):
         return redirect('home')
 
-    open_tickets = Ticket.objects.filter(
-        student=request.user.student
-    ).exclude(status='closed')
+    # Get tickets by status
+    open_tickets = Ticket.objects.filter(student=request.user.student, status='open').order_by('-date_submitted')
+    pending_tickets = Ticket.objects.filter(student=request.user.student, status='pending').order_by('-date_submitted')
+    closed_tickets = Ticket.objects.filter(student=request.user.student, status='closed').order_by('-date_submitted')
 
-    closed_tickets = Ticket.objects.filter(
-        student=request.user.student,
-        status='closed'
-    )
+    # For display purposes, we show both open and pending tickets in the active section
+    active_tickets = list(open_tickets) + list(pending_tickets)
+    active_tickets.sort(key=lambda x: x.date_submitted, reverse=True)
+
     context = {
-        'open_tickets': open_tickets,
-        'closed_tickets': closed_tickets,
         'student_name': request.user.preferred_name or request.user.first_name,
+        'open_tickets': open_tickets,  # Only open tickets
+        'pending_tickets': pending_tickets,  # Only pending tickets
+        'closed_tickets': closed_tickets,  # Only closed tickets
+        'active_tickets': active_tickets,  # Combined open and pending tickets for display
     }
     return render(request, 'student/dashboard.html', context)
 
