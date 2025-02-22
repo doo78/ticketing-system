@@ -33,7 +33,10 @@ from django.db.models import F, ExpressionWrapper, DurationField, Case, When, Va
 from django.db.models.functions import Cast
 from django.db.models import FloatField
 
-
+# #Gen AI imports
+import boto3
+import json
+from django.views.decorators.http import require_POST
 
 #------------------------------------STUDENT SECTION------------------------------------#
 @login_required
@@ -339,6 +342,109 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
         }
         return render(request, 'staff/staff_ticket_list.html', context)
 
+class StaffTicketDetailView(LoginRequiredMixin, StaffRequiredMixin, View):
+    """
+    Display ticket details for staff members
+    """
+    def get(self, request, ticket_id):
+        ticket = get_object_or_404(Ticket, id=ticket_id)
+        context = {
+            'ticket': ticket,
+            'ticket_messages': ticket.messages.all().order_by('created_at')
+        }
+        return render(request, 'staff/ticket_detail.html', context)
+
+    def post(self, request, ticket_id):
+        ticket = get_object_or_404(Ticket, id=ticket_id)
+        
+        # Check if this is a JSON request (AI generation)
+        if request.content_type == 'application/json':
+            try:
+                data = json.loads(request.body)
+                action = data.get('action')
+                current_text = data.get('current_text', '')
+
+                # Initialize AWS Bedrock client
+                bedrock = boto3.client(
+                    service_name='bedrock-runtime',
+                    region_name=settings.AWS_REGION,
+                    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+                )
+
+                # Prepare context for Claude
+                ticket_context = f"""Ticket #{ticket.id}
+Subject: {ticket.subject}
+Department: {ticket.get_department_display()}
+Description: {ticket.description}
+
+Previous Messages:
+{chr(10).join([f'{msg.author.get_full_name()}: {msg.content}' for msg in ticket.messages.all().order_by('created_at')])}"""
+
+                # Different prompts based on action
+                if action == 'refine_ai':
+                    prompt = f"""Human: Please refine this response to be more professional and polished while keeping its core message and tone:
+
+{current_text}
+
+Context (for reference):
+{ticket_context}"""
+                else:  # Default generate action
+                    prompt = f"""Human: Please generate a professional and helpful response to this ticket:
+
+{ticket_context}"""
+
+                # Call Claude through Bedrock
+                body = json.dumps({
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": 300,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": prompt
+                                }
+                            ]
+                        }
+                    ]
+                })
+
+                response = bedrock.invoke_model(
+                    modelId="anthropic.claude-3-haiku-20240307-v1:0",
+                    contentType="application/json",
+                    accept="application/json",
+                    body=body
+                )
+
+                response_body = json.loads(response.get('body').read())
+                ai_response = response_body.get('content', [{'text': ''}])[0]['text']
+
+                return JsonResponse({
+                    'success': True,
+                    'response': ai_response
+                })
+            except Exception as e:
+                return JsonResponse({
+                    'success': False,
+                    'error': str(e)
+                })
+            
+        # Handle regular form submission (adding messages)
+        message_content = request.POST.get('message')
+        if message_content:
+            if ticket.status == 'closed':
+                messages.error(request, 'Cannot add messages to a closed ticket.')
+            else:
+                Message.objects.create(
+                    ticket=ticket,
+                    author=request.user,
+                    content=message_content
+                )
+                messages.success(request, 'Message sent successfully.')
+        
+        return redirect('staff_ticket_detail', ticket_id=ticket_id)
 
 class StaffProfileView(LoginRequiredMixin, StaffRequiredMixin, View):
     """

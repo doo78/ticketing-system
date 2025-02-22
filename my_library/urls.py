@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.conf import settings
 from ticket import views
 from ticket.views import (
-    DashboardView, home, LogInView, LogOutView, StaffTicketListView, 
+    DashboardView, home, LogInView, LogOutView, StaffTicketListView, StaffTicketDetailView,
     ManageTicketView, StaffProfileView, staff_dashboard,SignUpView, StaffUpdateProfileView
 )
 
@@ -28,6 +28,7 @@ urlpatterns = [
     #------------------------------------STAFF URLS------------------------------------#
     path('staff/dashboard/', staff_dashboard, name='staff_dashboard'),
     path('staff/tickets/', StaffTicketListView.as_view(), name='staff_ticket_list'),
+    path('staff/ticket/<int:ticket_id>/', StaffTicketDetailView.as_view(), name='staff_ticket_detail'),
     path('staff/ticket/<int:ticket_id>/manage/', ManageTicketView.as_view(), name='manage_ticket'),
     path('staff/profile', StaffProfileView.as_view(), name='staff_profile'),
     path('staff/update_profile', StaffUpdateProfileView.as_view(), name='staff_update_profile'),

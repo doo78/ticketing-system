@@ -1,0 +1,301 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>Ticket #{{ ticket.id }}</h2>
+                <div>
+                    <a href="{% url 'staff_ticket_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Tickets
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="row mb-4">
+        <div class="col">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Ticket Details -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">{{ ticket.subject }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-3">Description</h6>
+                        <p>{{ ticket.description }}</p>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-2">Department</h6>
+                            <p>{{ ticket.get_department_display }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-2">Status</h6>
+                            <span class="badge {% if ticket.status == 'open' %}bg-danger{% elif ticket.status == 'pending' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                {{ ticket.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Messages/Updates Section -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Messages</h5>
+                    <span class="badge bg-secondary">{{ ticket.messages.count }} messages</span>
+                </div>
+                <div class="card-body">
+                    <!-- Messages Container -->
+                    <div class="messages-container" style="max-height: 400px; overflow-y: auto;">
+                        {% if ticket_messages %}
+                            {% for message in ticket_messages %}
+                            <div class="mb-3 p-3 {% if message.author == request.user %}bg-light{% endif %} rounded border">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <strong>{{ message.author.get_full_name }}</strong>
+                                    <small class="text-muted">{{ message.created_at|date:"M d, Y H:i" }}</small>
+                                </div>
+                                <p class="mb-0">{{ message.content }}</p>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted">No messages yet.</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Reply Box -->
+                    {% if ticket.status != 'closed' %}
+                    <div class="reply-box mt-4">
+                        <form method="post">
+                            {% csrf_token %}
+                            <div class="position-relative">
+                                <textarea class="form-control mb-3" id="message" name="message" rows="3" placeholder="Type your reply..." oninput="toggleAIButtons(this)"></textarea>
+                                <div id="aiButtonsContainer" class="position-absolute bottom-0 end-0 mb-2 me-2" style="display: none;">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="refineWithAI()">
+                                        <i class="fas fa-magic me-1"></i>Refine with AI
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <button type="submit" class="btn btn-primary me-2">Send</button>
+                                <button type="button" id="generateAIResponse" class="btn btn-outline-primary">Generate AI Response</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- AI Response Preview -->
+                    <div id="aiResponseContainer" class="mt-3 border rounded p-3" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="text-primary mb-0">AI Generated Response</h6>
+                            <div>
+                                <button onclick="useAIResponse()" class="btn btn-primary btn-sm me-2">Use Response</button>
+                                <button onclick="document.getElementById('aiResponseContainer').style.display='none'" class="btn btn-outline-secondary btn-sm">Dismiss</button>
+                            </div>
+                        </div>
+                        <p id="aiResponseText" class="mb-0"></p>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-secondary mt-4">
+                        This ticket is closed. No further replies can be added.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Ticket Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Ticket Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6 class="text-muted">Student</h6>
+                        <p>{{ ticket.student.user.get_full_name }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <h6 class="text-muted">Created</h6>
+                        <p>{{ ticket.date_submitted|date:"M d, Y H:i" }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <h6 class="text-muted">Last Updated</h6>
+                        <p>{{ ticket.date_updated|date:"M d, Y H:i" }}</p>
+                    </div>
+                    {% if ticket.assigned_staff %}
+                    <div class="mb-3">
+                        <h6 class="text-muted">Assigned To</h6>
+                        <p>{{ ticket.assigned_staff.user.get_full_name }}</p>
+                    </div>
+                    {% endif %}
+                    {% if ticket.status == 'closed' %}
+                    <div>
+                        <h6 class="text-muted">Closed On</h6>
+                        <p>{{ ticket.date_closed|date:"M d, Y" }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Ticket Actions -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'manage_ticket' ticket.id %}">
+                        {% csrf_token %}
+                        {% if not ticket.assigned_staff %}
+                        <button type="submit" name="action" value="assign" class="btn btn-primary w-100 mb-2">
+                            <i class="fas fa-user-check me-2"></i>Assign to Me
+                        </button>
+                        {% endif %}
+                        {% if ticket.status != 'closed' %}
+                        <button type="submit" name="action" value="close" class="btn btn-secondary w-100">
+                            <i class="fas fa-check-circle me-2"></i>Close Ticket
+                        </button>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('generateAIResponse').addEventListener('click', function() {
+    // Get ticket ID from the current URL or data attribute
+    const ticketId = "{{ ticket.id }}";
+    
+    // Disable button with loading text
+    const button = this;
+    button.disabled = true;
+    button.innerHTML = 'Generating...';
+    
+    fetch(`/staff/ticket/${ticketId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            action: 'generate_ai'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show the response
+            document.getElementById('aiResponseText').innerHTML = data.response.replace(/\n/g, '<br>');
+            document.getElementById('aiResponseContainer').style.display = 'block';
+        } else {
+            alert('Error generating response: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error);
+    })
+    .finally(() => {
+        // Reset button
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-robot me-2"></i>Generate AI Response';
+    });
+});
+
+// Helper function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function useAIResponse() {
+    const aiResponseElement = document.getElementById('aiResponseText');
+    // Get the text content (with newlines) instead of the HTML
+    const aiResponse = aiResponseElement.innerHTML.replace(/<br\s*\/?>/g, '\n');
+    document.getElementById('message').value = aiResponse;
+    document.getElementById('aiResponseContainer').style.display = 'none';
+}
+
+function toggleAIButtons(textarea) {
+    const aiButtonsContainer = document.getElementById('aiButtonsContainer');
+    if (textarea.value.trim().length > 0) {
+        aiButtonsContainer.style.display = 'block';
+    } else {
+        aiButtonsContainer.style.display = 'none';
+    }
+}
+
+function refineWithAI() {
+    const ticketId = "{{ ticket.id }}";
+    const currentText = document.getElementById('message').value;
+    
+    // Disable buttons during generation
+    setAIButtonsState(true);
+    
+    fetch(`/staff/ticket/${ticketId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            action: 'refine_ai',
+            current_text: currentText
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('aiResponseText').innerHTML = data.response.replace(/\n/g, '<br>');
+            document.getElementById('aiResponseContainer').style.display = 'block';
+        } else {
+            alert('Error refining response: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error);
+    })
+    .finally(() => {
+        setAIButtonsState(false);
+    });
+}
+
+function setAIButtonsState(disabled) {
+    document.querySelectorAll('#aiButtonsContainer button').forEach(button => {
+        button.disabled = disabled;
+        if (disabled) {
+            button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+        } else {
+            button.innerHTML = '<i class="fas fa-magic me-1"></i>Refine with AI';
+        }
+    });
+}
+</script>
+{% endblock %}

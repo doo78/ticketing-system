@@ -153,3 +153,8 @@ DEPT_CHOICES = [
     ('social_science', 'Social Science')
 ]
 
+# AWS Configuration
+AWS_ACCESS_KEY_ID = 'AKIA45Y2RZEVXOPUT2WW'
+AWS_SECRET_ACCESS_KEY = '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'
+AWS_REGION = 'eu-west-2'  
+
