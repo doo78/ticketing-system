@@ -28,20 +28,28 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+EMAIL_HOST = "imap.gmail.com"
+EMAIL_PORT = 993
+EMAIL_HOST_USER = "testingteamsk@gmail.com"
+EMAIL_HOST_PASSWORD = "kqlnawtipijjcvdv"
+
 
 # Application definition
 
 INSTALLED_APPS = [
+    'ticket',
+    'django_apscheduler',
+    'django_mailbox',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'ticket',
     'crispy_forms',
     'crispy_bootstrap4',
 ]
+
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
 
 MIDDLEWARE = [

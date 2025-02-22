@@ -86,6 +86,7 @@ class Ticket(models.Model):
     date_closed = models.DateTimeField(blank=True, null=True)
     closed_by = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True, related_name='closed_tickets')
 
+    message_id = models.CharField(max_length=255, blank=True, null=True)
     ai_response = models.BooleanField(default=False)
 
     def __str__(self):
