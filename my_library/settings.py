@@ -154,7 +154,10 @@ DEPT_CHOICES = [
 ]
 
 # AWS Configuration
-AWS_ACCESS_KEY_ID = 'AKIA45Y2RZEVXOPUT2WW'
-AWS_SECRET_ACCESS_KEY = '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'
-AWS_REGION = 'eu-west-2'  
+AWS_REGION = 'eu-west-2'  # Keep only the region
+AWS_ACCESS_KEY_ID = '***REMOVED***'      # Replace with actual key
+AWS_SECRET_ACCESS_KEY = '***REMOVED***'  # Replace with actual secret
+
+# Lambda Configuration
+LAMBDA_FUNCTION_NAME = 'ticket-context-handler'  # The name we gave our Lambda function
 

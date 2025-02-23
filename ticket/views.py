@@ -35,6 +35,7 @@ from django.db.models import FloatField
 
 # #Gen AI imports
 import boto3
+from botocore.config import Config
 import json
 from django.views.decorators.http import require_POST
 
@@ -343,9 +344,7 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
         return render(request, 'staff/staff_ticket_list.html', context)
 
 class StaffTicketDetailView(LoginRequiredMixin, StaffRequiredMixin, View):
-    """
-    Display ticket details for staff members
-    """
+    """Display ticket details for staff members"""
     def get(self, request, ticket_id):
         ticket = get_object_or_404(Ticket, id=ticket_id)
         context = {
@@ -363,72 +362,81 @@ class StaffTicketDetailView(LoginRequiredMixin, StaffRequiredMixin, View):
                 data = json.loads(request.body)
                 action = data.get('action')
                 current_text = data.get('current_text', '')
-
-                # Initialize AWS Bedrock client
-                bedrock = boto3.client(
-                    service_name='bedrock-runtime',
+                # Prepare data for Lambda
+                lambda_client = boto3.client(
+                    'lambda',
                     region_name=settings.AWS_REGION,
                     aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+                    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                    config=Config(
+                        retries=dict(
+                            max_attempts=2
+                        )
+                    )
                 )
-
-                # Prepare context for Claude
-                ticket_context = f"""Ticket #{ticket.id}
-Subject: {ticket.subject}
-Department: {ticket.get_department_display()}
-Description: {ticket.description}
-
-Previous Messages:
-{chr(10).join([f'{msg.author.get_full_name()}: {msg.content}' for msg in ticket.messages.all().order_by('created_at')])}"""
-
-                # Different prompts based on action
-                if action == 'refine_ai':
-                    prompt = f"""Human: Please refine this response to be more professional and polished while keeping its core message and tone:
-
-{current_text}
-
-Context (for reference):
-{ticket_context}"""
-                else:  # Default generate action
-                    prompt = f"""Human: Please generate a professional and helpful response to this ticket:
-
-{ticket_context}"""
-
-                # Call Claude through Bedrock
-                body = json.dumps({
-                    "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": 300,
+                
+                lambda_payload = {
+                    "ticket_id": ticket.id,
+                    "department": ticket.department,
+                    "subject": ticket.subject,
+                    "description": ticket.description,
+                    "student_name": ticket.student.user.get_full_name(),
+                    "student_program": ticket.student.program,
+                    "student_year": ticket.student.year_of_study,
+                    "staff_name": request.user.get_full_name(),
+                    "staff_department": request.user.staff.department,
+                    "action": action,
+                    "current_text": current_text,
                     "messages": [
                         {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "text",
-                                    "text": prompt
-                                }
-                            ]
-                        }
+                            "author": msg.author.get_full_name(),
+                            "content": msg.content
+                        } for msg in ticket.messages.all()
                     ]
-                })
+                }
 
-                response = bedrock.invoke_model(
-                    modelId="anthropic.claude-3-haiku-20240307-v1:0",
-                    contentType="application/json",
-                    accept="application/json",
-                    body=body
-                )
+                try:
+                    response = lambda_client.invoke(
+                        FunctionName=settings.LAMBDA_FUNCTION_NAME,
+                        InvocationType='RequestResponse',
+                        Payload=json.dumps(lambda_payload)
+                    )
+                    
+                    if response['StatusCode'] != 200:
+                        raise Exception(f"Lambda returned status code {response['StatusCode']}")
+                    
+                    response_payload = json.loads(response['Payload'].read())
+                    
+                    if 'errorMessage' in response_payload:
+                        raise Exception(response_payload['errorMessage'])
+                    
+                    if response_payload.get('statusCode') == 200:
+                        body = json.loads(response_payload['body'])
+                        return JsonResponse({
+                            'success': True,
+                            'response': body['response']
+                        })
+                    else:
+                        return JsonResponse({
+                            'success': False,
+                            'error': response_payload.get('body', 'Unknown error')
+                        })
 
-                response_body = json.loads(response.get('body').read())
-                ai_response = response_body.get('content', [{'text': ''}])[0]['text']
+                except Exception as e:
+                    return JsonResponse({
+                        'success': False,
+                        'error': f"Failed to generate AI response: {str(e)}"
+                    })
 
+            except json.JSONDecodeError as e:
                 return JsonResponse({
-                    'success': True,
-                    'response': ai_response
+                    'success': False,
+                    'error': 'Invalid JSON in request'
                 })
             except Exception as e:
                 return JsonResponse({
                     'success': False,
-                    'error': str(e)
+                    'error': 'An unexpected error occurred'
                 })
             
         # Handle regular form submission (adding messages)
