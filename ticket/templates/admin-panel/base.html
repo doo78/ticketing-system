@@ -69,6 +69,9 @@
                        href="{% url 'admin_ticket_list' %}">
                         <i class="bi bi-ticket-detailed me-2"></i> Tickets
                     </a>
+                    <a class="nav-link {% if request.resolver_match.url_name == 'admin_accounts' %}active{% endif %}"
+                       href="{% url 'admin_accounts_list' %}"> <i class="bi bi-people"></i> Accounts
+                    </a>
                     <a class="nav-link {% if request.resolver_match.url_name == 'staff_profile' %}active{% endif %}"
                        href="{% url 'staff_profile' %}">
                         <i class="bi bi-person-circle me-2"></i> Profile

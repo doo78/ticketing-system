@@ -11,7 +11,7 @@ from django.urls import reverse
 from django.conf import settings
 from django.http import JsonResponse
 from ticket.mixins import AdminRoleRequiredMixin, RoleBasedRedirectMixin
-from ticket.forms import LogInForm, SignUpForm
+from ticket.forms import LogInForm, SignUpForm, EditAccountForm
 from .models import Ticket, Staff, Student, CustomUser, Message
 from .forms import TicketForm
 
@@ -361,3 +361,103 @@ class AdminTicketListView(LoginRequiredMixin,AdminRequiredMixin, View):
         }
         return render(request, 'admin-panel/admin_ticket_list.html', context)
 
+
+class AdminAccountView(View):
+    """
+    Handles user registration using Django's Class-Based Views.
+    """
+
+    def get(self, request):
+        form = SignUpForm()
+        return render(request, "admin-panel/admin_accounts.html", {"form": form,"is_update":False})
+
+    def post(self, request):
+        form = SignUpForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            if user.role == 'staff':
+                Staff.objects.create(user=user, department='', role='Staff Member')
+            elif user.role == 'student':
+                Student.objects.create(
+                    user=user,
+                    department=form.cleaned_data.get('department', ''),
+                    program=form.cleaned_data.get('program', 'Undeclared'),
+                    year_of_study=form.cleaned_data.get('year_of_study', 1)
+                )
+            messages.success(request, "Account created successfully!.")
+            return redirect('admin_accounts_list')
+        return render(request, "admin-panel/admin_accounts.html", {"form": form,"is_update":False})
+
+class AdminAccountEditView(View):
+    """
+    Handles user registration using Django's Class-Based Views.
+    """
+
+    def get(self, request,account_id):
+        account=get_object_or_404(CustomUser, id=account_id)
+        form = EditAccountForm(instance=account)
+        return render(request, "admin-panel/admin_accounts.html", {"form": form,"is_update":True})
+
+    def post(self, request,account_id):
+        account = get_object_or_404(CustomUser, id=account_id)
+        form = EditAccountForm(request.POST,instance=account)
+
+        if form.is_valid():
+            user = form.save()
+            if user.role == 'staff':
+                Staff.objects.create(user=user, department='', role='Staff Member')
+            elif user.role == 'student':
+                Student.objects.create(
+                    user=user,
+                    department=form.cleaned_data.get('department', ''),
+                    program=form.cleaned_data.get('program', 'Undeclared'),
+                    year_of_study=form.cleaned_data.get('year_of_study', 1)
+                )
+            messages.success(request, "Account updated successfully!.")
+            return redirect('admin_accounts_list')
+        return render(request, "admin-panel/admin_accounts.html", {"form": form,"is_update":True})
+class AdminAccountsView(View):
+    """
+    Handles user registration using Django's Class-Based Views.
+    """
+    def get(self, request):
+        admin_count=CustomUser.objects.filter(role="admin").count()
+        staff_count = CustomUser.objects.filter(role= "staff").count()
+        student_count = CustomUser.objects.filter(role= "student").count()
+        account_type = request.GET.get('account_type', 'all')
+        order = request.GET.get('order', 'asce')
+        order_attr = request.GET.get('order_attr', 'id')
+        order_by = order_attr if order == 'asce' else "-" + order_attr
+        # Base queryset
+        accounts = CustomUser.objects.all().order_by(order_by)
+
+        # Filter by status if specified
+        if account_type != 'all':
+            accounts = accounts.filter(role=account_type)
+
+
+        # Get counts for the filter buttons
+        context = {
+            'accounts': accounts,
+            'account_type': account_type,
+            'order': order,
+            'order_attr': order_attr,
+            'admin_count': admin_count,
+            'staff_count': staff_count,
+            'student_count': student_count,
+        }
+        return render(request, 'admin-panel/admin_accounts_list.html', context)
+
+
+    def post(self, request):
+        account_id = request.POST.get("account_id")  # Get the ID
+
+        if account_id:
+            try:
+                user = get_object_or_404(CustomUser, id=account_id)
+                user.delete()  # Delete from the database
+                messages.success(request, f"User with ID {account_id} deleted successfully.")
+            except Exception as e:
+                messages.success(request, f"Error deleting user: {e}")
+
+        return redirect("admin_accounts_list")

@@ -9,7 +9,7 @@ from django.conf import settings
 from ticket import views
 from ticket.views import (
      DashboardView, home, LogInView, LogOutView, StaffTicketListView, 
-    ManageTicketView, StaffProfileView, staff_dashboard, SignUpView,AdminTicketListView
+    ManageTicketView, StaffProfileView, staff_dashboard, SignUpView,AdminTicketListView, AdminAccountsView,AdminAccountView,AdminAccountEditView
 )
 
 urlpatterns = [
@@ -45,6 +45,10 @@ urlpatterns = [
     path('control-panel/', include([
         path('dashboard/', views.admin_dashboard, name='admin_dashboard'),
         path('tickets/', AdminTicketListView.as_view(), name='admin_ticket_list'),
+
+        path('account/<int:account_id>/', AdminAccountEditView.as_view(), name='admin_edit_account'),
+        path('account/', AdminAccountView.as_view(), name='admin_account'),
+        path('accounts/', AdminAccountsView.as_view(), name='admin_accounts_list'),
     ])),
     # General dashboard redirect
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
