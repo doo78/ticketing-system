@@ -19,11 +19,11 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-6">
             <div class="card bg-primary text-white">
                 <div class="card-body">
                     <h5 class="card-title">Department</h5>
-                    <h2 class="card-text">{{ request.user.staff.department|default:"Not Assigned" }}</h2>
+                    <h2 class="card-text">{{ request.user.staff.get_department_display|default:"Not Assigned" }}</h2>
                 </div>
             </div>
         </div>

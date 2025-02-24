@@ -11,9 +11,33 @@ from django.urls import reverse
 from django.conf import settings
 from django.http import JsonResponse
 from ticket.mixins import RoleBasedRedirectMixin
-from ticket.forms import LogInForm, SignUpForm
+from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm
 from .models import Ticket, Staff, Student, CustomUser, Message
 from .forms import TicketForm
+from django.views.generic.edit import UpdateView
+
+
+from django.shortcuts import render
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views import View
+from django.db.models import Avg
+from datetime import timedelta
+from .models import Ticket
+from django.db import models 
+from django.utils.timezone import now
+from django.db.models import F, Avg
+
+from django.db.models import ExpressionWrapper, DurationField
+
+from django.db.models import F, ExpressionWrapper, DurationField, Case, When, Value
+from django.db.models.functions import Cast
+from django.db.models import FloatField
+
+# #Gen AI imports
+import boto3
+from botocore.config import Config
+import json
+from django.views.decorators.http import require_POST
 
 #------------------------------------STUDENT SECTION------------------------------------#
 @login_required
@@ -43,13 +67,31 @@ def student_settings(request):
     if not hasattr(request.user, 'student'):
         return redirect('home')
 
+    # Get the user's last login time
+    last_login = request.user.last_login
+    if last_login:
+        from django.utils import timezone
+        from django.utils.timezone import localtime
+        now = timezone.now()
+        if now.date() == last_login.date():
+            last_login_display = f"Today at {localtime(last_login).strftime('%I:%M %p')}"
+        else:
+            last_login_display = localtime(last_login).strftime('%B %d, %Y %I:%M %p')
+    else:
+        last_login_display = "Never"
+
     student_data = {
         'name': request.user.get_full_name(),
         'email': request.user.email,
         'preferred_name': request.user.preferred_name,
         'department': request.user.student.department,
         'program': request.user.student.program,
-        'year_of_study': request.user.student.year_of_study
+        'year_of_study': request.user.student.year_of_study,
+        # Account status information
+        'account_type': request.user.get_role_display(),
+        'status': 'Active',  # You can add logic for different statuses if needed
+        'member_since': localtime(request.user.date_joined).strftime('%B %d, %Y'),
+        'last_login': last_login_display,
     }
     return render(request, 'student/settings.html', student_data)
 
@@ -198,6 +240,7 @@ class DashboardView(LoginRequiredMixin, View):
 
     def render_staff_dashboard(self, request):
         """Render staff dashboard."""
+        
         context = {
             'assigned_tickets_count': Ticket.objects.filter(
                 assigned_staff=request.user.staff if hasattr(request.user, 'staff') else None
@@ -207,8 +250,26 @@ class DashboardView(LoginRequiredMixin, View):
         return render(request, 'staff/dashboard.html', context)
 
     def render_student_dashboard(self, request):
-        """Render student dashboard."""
-        return render(request, 'student/dashboard.html')
+        student = request.user.student
+        name = request.user.preferred_name if request.user.preferred_name else request.user.first_name
+
+        # Get tickets by status
+        open_tickets = Ticket.objects.filter(student=student, status='open').order_by('-date_submitted')
+        pending_tickets = Ticket.objects.filter(student=student, status='pending').order_by('-date_submitted')
+        closed_tickets = Ticket.objects.filter(student=student, status='closed').order_by('-date_submitted')
+
+        # For display purposes, we show both open and pending tickets in the active section
+        active_tickets = list(open_tickets) + list(pending_tickets)
+        active_tickets.sort(key=lambda x: x.date_submitted, reverse=True)
+
+        context = {
+            'student_name': name,
+            'open_tickets': open_tickets,  # Only open tickets
+            'pending_tickets': pending_tickets,  # Only pending tickets
+            'closed_tickets': closed_tickets,  # Only closed tickets
+            'active_tickets': active_tickets,  # Combined open and pending tickets for display
+        }
+        return render(request, 'student/dashboard.html', context)
 
     def redirect_to_home(self, request):
         """Redirect to home page if the role is undefined."""
@@ -222,27 +283,26 @@ class StudentRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return hasattr(self.request.user, 'student')
 
-#@login_required
-def staff_dashboard(request):
-    return render(request, 'staff/dashboard.html')
-
 @login_required
 def student_dashboard(request):
     if not hasattr(request.user, 'student'):
         return redirect('home')
 
-    open_tickets = Ticket.objects.filter(
-        student=request.user.student
-    ).exclude(status='closed')
+    # Get tickets by status
+    open_tickets = Ticket.objects.filter(student=request.user.student, status='open').order_by('-date_submitted')
+    pending_tickets = Ticket.objects.filter(student=request.user.student, status='pending').order_by('-date_submitted')
+    closed_tickets = Ticket.objects.filter(student=request.user.student, status='closed').order_by('-date_submitted')
 
-    closed_tickets = Ticket.objects.filter(
-        student=request.user.student,
-        status='closed'
-    )
+    # For display purposes, we show both open and pending tickets in the active section
+    active_tickets = list(open_tickets) + list(pending_tickets)
+    active_tickets.sort(key=lambda x: x.date_submitted, reverse=True)
+
     context = {
-        'open_tickets': open_tickets,
-        'closed_tickets': closed_tickets,
         'student_name': request.user.preferred_name or request.user.first_name,
+        'open_tickets': open_tickets,  # Only open tickets
+        'pending_tickets': pending_tickets,  # Only pending tickets
+        'closed_tickets': closed_tickets,  # Only closed tickets
+        'active_tickets': active_tickets,  # Combined open and pending tickets for display
     }
     return render(request, 'student/dashboard.html', context)
 
@@ -283,10 +343,202 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
         }
         return render(request, 'staff/staff_ticket_list.html', context)
 
+class StaffTicketDetailView(LoginRequiredMixin, StaffRequiredMixin, View):
+    """Display ticket details for staff members"""
+    def get(self, request, ticket_id):
+        ticket = get_object_or_404(Ticket, id=ticket_id)
+        if ticket.status in ['open', 'pending'] and now() >= ticket.expiration_date:
+            ticket.status = 'closed'
+            ticket.date_closed = now()
+            ticket.closed_by = ticket.assigned_staff if ticket.assigned_staff else None
+            ticket.save()
+        context = {
+            'ticket': ticket,
+            'ticket_messages': ticket.messages.all().order_by('created_at')
+        }
+        return render(request, 'staff/ticket_detail.html', context)
+
+    def post(self, request, ticket_id):
+        ticket = get_object_or_404(Ticket, id=ticket_id)
+        
+        # Check if this is a JSON request (AI generation)
+        if request.content_type == 'application/json':
+            try:
+                data = json.loads(request.body)
+                action = data.get('action')
+                current_text = data.get('current_text', '')
+                # Prepare data for Lambda
+                lambda_client = boto3.client(
+                    'lambda',
+                    region_name=settings.AWS_REGION,
+                    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                    config=Config(
+                        retries=dict(
+                            max_attempts=2
+                        )
+                    )
+                )
+                
+                lambda_payload = {
+                    "ticket_id": ticket.id,
+                    "department": ticket.department,
+                    "subject": ticket.subject,
+                    "description": ticket.description,
+                    "student_name": ticket.student.user.get_full_name(),
+                    "student_program": ticket.student.program,
+                    "student_year": ticket.student.year_of_study,
+                    "staff_name": request.user.get_full_name(),
+                    "staff_department": request.user.staff.department,
+                    "action": action,
+                    "current_text": current_text,
+                    "messages": [
+                        {
+                            "author": msg.author.get_full_name(),
+                            "content": msg.content
+                        } for msg in ticket.messages.all()
+                    ]
+                }
+
+                try:
+                    response = lambda_client.invoke(
+                        FunctionName=settings.LAMBDA_FUNCTION_NAME,
+                        InvocationType='RequestResponse',
+                        Payload=json.dumps(lambda_payload)
+                    )
+                    
+                    if response['StatusCode'] != 200:
+                        raise Exception(f"Lambda returned status code {response['StatusCode']}")
+                    
+                    response_payload = json.loads(response['Payload'].read())
+                    
+                    if 'errorMessage' in response_payload:
+                        raise Exception(response_payload['errorMessage'])
+                    
+                    if response_payload.get('statusCode') == 200:
+                        body = json.loads(response_payload['body'])
+                        return JsonResponse({
+                            'success': True,
+                            'response': body['response']
+                        })
+                    else:
+                        return JsonResponse({
+                            'success': False,
+                            'error': response_payload.get('body', 'Unknown error')
+                        })
+
+                except Exception as e:
+                    return JsonResponse({
+                        'success': False,
+                        'error': f"Failed to generate AI response: {str(e)}"
+                    })
+
+            except json.JSONDecodeError as e:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid JSON in request'
+                })
+            except Exception as e:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'An unexpected error occurred'
+                })
+            
+        # Handle regular form submission (adding messages)
+        message_content = request.POST.get('message')
+        if message_content:
+            if ticket.status == 'closed':
+                messages.error(request, 'Cannot add messages to a closed ticket.')
+            else:
+                Message.objects.create(
+                    ticket=ticket,
+                    author=request.user,
+                    content=message_content
+                )
+                messages.success(request, 'Message sent successfully.')
+        
+        return redirect('staff_ticket_detail', ticket_id=ticket_id)
 
 class StaffProfileView(LoginRequiredMixin, StaffRequiredMixin, View):
+    """
+    Loads relevant data and template for staff profile
+    """
+    
     def get(self, request):
-        return render(request, 'staff/profile.html')
+        staff_member = request.user.staff  
+
+        assigned_tickets = Ticket.objects.filter(assigned_staff=staff_member)
+        
+        open_tickets = assigned_tickets.filter(status="open").count()
+        pending_tickets = assigned_tickets.filter(status="pending").count()
+        closed_tickets = assigned_tickets.filter(status="closed").count()
+        
+        total_tickets = open_tickets + pending_tickets + closed_tickets
+
+        if total_tickets > 0:
+            open_percentage = (open_tickets / total_tickets) * 100
+            pending_percentage = (pending_tickets / total_tickets) * 100
+            closed_percentage = (closed_tickets / total_tickets) * 100
+        else:
+            open_percentage = 0 
+            pending_percentage = 0 
+            closed_percentage = 0
+
+        if closed_tickets == 0:
+            avg_close_time_days_display = "N/A"
+        else:
+            avg_close_time = Ticket.objects.filter(
+                status="closed", 
+                date_closed__isnull=False
+            ).aggregate(
+                avg_duration=Avg(ExpressionWrapper(Case(When(date_closed__gte=F("date_submitted"),  
+                            then=F("date_closed") - F("date_submitted")),
+                            default=Value(0),
+                            output_field=DurationField()  
+                        ),
+                        output_field=DurationField()  
+                    )
+                )
+            )
+
+            avg_duration = avg_close_time["avg_duration"]
+            if avg_duration:
+                avg_close_time_days = avg_duration.days + avg_duration.seconds / (3600 * 24)
+                avg_close_time_days = round(avg_close_time_days, 2)
+                avg_close_time_days_display = f"{avg_close_time_days} days"
+            else:
+                avg_close_time_days_display = "N/A"
+
+        context = {
+            "open_tickets": open_tickets,
+            "pending_tickets": pending_tickets,
+            "closed_tickets": closed_tickets,
+            "total_tickets": total_tickets,
+            "open_percentage": open_percentage,
+            "pending_percentage": pending_percentage,
+            "closed_percentage": closed_percentage,
+            "avg_close_time_days": avg_close_time_days_display
+        }
+        
+        return render(request, 'staff/profile.html', context)
+
+class StaffUpdateProfileView(UpdateView):
+    """
+    Loads the page and form to update the staff profile
+    """
+    
+    model = CustomUser
+    template_name = "staff/update_profile.html"
+    form_class = StaffUpdateProfileForm
+    
+    def get_object(self):
+        """Return the object (user) to be updated."""
+        return self.request.user
+
+    def get_success_url(self):
+        """Return redirect URL after successful update."""
+        
+        return reverse("staff_profile")  
 
 
 def check_username(request):
