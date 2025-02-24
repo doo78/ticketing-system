@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -120,6 +121,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -131,4 +134,30 @@ REDIRECT_URL_WHEN_LOGGED_IN = 'dashboard'
 AUTH_USER_MODEL = 'ticket.CustomUser'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/login/'
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
 LOGIN_URL = '/login/'
+
+DEPT_CHOICES = [
+    ('', 'Select Department'),
+    ('arts_humanities', 'Arts & Humanities'),
+    ('business', 'Business'),
+    ('dentistry', 'Dentistry'),
+    ('law', 'Law'),
+    ('life_sciences_medicine', 'Life Sciences & Medicine'),
+    ('natural_mathematical_engineering', 'Natural, Mathematical & Engineering Sciences'),
+    ('nursing', 'Nursing'),
+    ('psychiatry', 'Psychiatry'),
+    ('social_science', 'Social Science')
+]
+
+# AWS Configuration
+AWS_REGION = 'eu-west-2'  # Keep only the region
+AWS_ACCESS_KEY_ID = '***REMOVED***'      # Replace with actual key
+AWS_SECRET_ACCESS_KEY = '***REMOVED***'  # Replace with actual secret
+
+# Lambda Configuration
+LAMBDA_FUNCTION_NAME = 'ticket-context-handler'  # The name we gave our Lambda function
+

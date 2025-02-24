@@ -2,6 +2,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from ticket.models import CustomUser, Student, Ticket, Message, Staff
 from django.utils import timezone
+from datetime import timedelta
 
 class StudentDashboardTest(TestCase):
     def setUp(self):
@@ -25,7 +26,7 @@ class StudentDashboardTest(TestCase):
         # Create some test tickets
         self.open_ticket = Ticket.objects.create(
             student=self.student,
-            subject='Test Open Ticket',
+            subject='Initial Support Query',
             description='This is a test open ticket',
             department='business',
             status='open'
@@ -33,7 +34,7 @@ class StudentDashboardTest(TestCase):
         
         self.closed_ticket = Ticket.objects.create(
             student=self.student,
-            subject='Test Closed Ticket',
+            subject='Resolved Issue',
             description='This is a test closed ticket',
             department='business',
             status='closed',
@@ -63,8 +64,8 @@ class StudentDashboardTest(TestCase):
         self.client.login(username='testuser', password='testpass123')
         response = self.client.get(self.dashboard_url)
         
-        self.assertContains(response, 'Test Open Ticket')
-        self.assertContains(response, 'Test Closed Ticket')
+        self.assertContains(response, 'Initial Support Query')
+        self.assertContains(response, 'Resolved Issue')
         self.assertEqual(len(response.context['open_tickets']), 1)
         self.assertEqual(len(response.context['closed_tickets']), 1)
 
@@ -284,4 +285,216 @@ class StudentDashboardTest(TestCase):
         }
         response = self.client.post(self.create_ticket_url, ticket_data)
         self.assertEqual(response.status_code, 302)
-        self.assertTrue(Ticket.objects.filter(subject='!@#$%^&*()').exists()) 
+        self.assertTrue(Ticket.objects.filter(subject='!@#$%^&*()').exists())
+
+    def test_student_settings_dynamic_data(self):
+        """Test that student settings page shows correct dynamic data"""
+        self.client.login(username='testuser', password='testpass123')
+        
+        # Set a specific last login time
+        self.user.last_login = timezone.now() - timedelta(days=1)
+        self.user.save()
+        
+        response = self.client.get(reverse('student_settings'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['account_type'], 'Student')
+        self.assertEqual(response.context['status'], 'Active')
+        self.assertIn(self.user.date_joined.strftime('%B'), response.context['member_since'])
+        self.assertNotIn('Today at', response.context['last_login'])  # Should show date format since login was yesterday
+
+    def test_dashboard_ticket_counts(self):
+        """Test that dashboard shows correct ticket counts"""
+        self.client.login(username='testuser', password='testpass123')
+        
+        # Clean up existing tickets and create fresh test data
+        Ticket.objects.all().delete()
+        
+        # Create test tickets with specific statuses
+        open_ticket1 = Ticket.objects.create(
+            student=self.student,
+            subject='First Open Ticket',
+            description='This is the first open ticket',
+            department='business',
+            status='open'
+        )
+        
+        open_ticket2 = Ticket.objects.create(
+            student=self.student,
+            subject='Second Open Ticket',
+            description='This is the second open ticket',
+            department='business',
+            status='open'
+        )
+        
+        pending_ticket = Ticket.objects.create(
+            student=self.student,
+            subject='Pending Ticket',
+            description='This is a pending ticket',
+            department='business',
+            status='pending'
+        )
+        
+        closed_ticket = Ticket.objects.create(
+            student=self.student,
+            subject='Closed Ticket',
+            description='This is a closed ticket',
+            department='business',
+            status='closed',
+            date_closed=timezone.now()
+        )
+        
+        # Debug: Print all tickets
+        print("\nAll tickets before test:")
+        for ticket in Ticket.objects.all().order_by('subject'):
+            print(f"- {ticket.subject} (Status: {ticket.status})")
+        
+        response = self.client.get(reverse('student_dashboard'))
+        
+        # Debug: Print tickets from response context
+        print("\nTickets in response context:")
+        print(f"Open tickets: {len(response.context['open_tickets'])}")
+        for ticket in response.context['open_tickets'].order_by('subject'):
+            print(f"- {ticket.subject} (Status: {ticket.status})")
+        
+        # Verify ticket counts
+        self.assertEqual(len(response.context['open_tickets']), 2)  # Two open tickets
+        self.assertEqual(len(response.context['closed_tickets']), 1)  # One closed ticket
+        self.assertEqual(len(response.context['pending_tickets']), 1)  # One pending ticket
+        
+        # Verify specific tickets are in the correct lists
+        open_tickets = list(response.context['open_tickets'].order_by('subject'))
+        self.assertEqual(open_tickets[0].subject, 'First Open Ticket')
+        self.assertEqual(open_tickets[1].subject, 'Second Open Ticket')
+        
+        pending_tickets = list(response.context['pending_tickets'])
+        self.assertEqual(pending_tickets[0].subject, 'Pending Ticket')
+        
+        closed_tickets = list(response.context['closed_tickets'])
+        self.assertEqual(closed_tickets[0].subject, 'Closed Ticket')
+
+    def test_dashboard_empty_state(self):
+        """Test dashboard display when student has no tickets"""
+        # Create new student with no tickets
+        new_user = CustomUser.objects.create_user(
+            username='newstudent',
+            password='testpass123',
+            email='new@example.com',
+            first_name='New',
+            last_name='Student',
+            role='student'
+        )
+        Student.objects.create(
+            user=new_user,
+            department='business',
+            program='Business Administration',
+            year_of_study=1
+        )
+        
+        self.client.login(username='newstudent', password='testpass123')
+        response = self.client.get(reverse('student_dashboard'))
+        
+        self.assertEqual(len(response.context['open_tickets']), 0)
+        self.assertEqual(len(response.context['closed_tickets']), 0)
+        self.assertContains(response, 'No open tickets found')
+        self.assertContains(response, 'No past tickets found')
+
+    def test_dashboard_ticket_ordering(self):
+        """Test that tickets are displayed in correct order"""
+        self.client.login(username='testuser', password='testpass123')
+        
+        # Create tickets with specific dates
+        older_ticket = Ticket.objects.create(
+            student=self.student,
+            subject='Older Ticket',
+            description='This is an older ticket',
+            department='business',
+            status='open'
+        )
+        older_ticket.date_submitted = timezone.now() - timedelta(days=5)
+        older_ticket.save()
+        
+        newer_ticket = Ticket.objects.create(
+            student=self.student,
+            subject='Newer Ticket',
+            description='This is a newer ticket',
+            department='business',
+            status='open'
+        )
+        
+        response = self.client.get(reverse('student_dashboard'))
+        open_tickets = response.context['open_tickets']
+        self.assertEqual(open_tickets[0], newer_ticket)  # Newest should be first
+        self.assertEqual(open_tickets[2], older_ticket)  # Oldest should be last
+
+    def test_dashboard_preferred_name_display(self):
+        """Test that dashboard uses preferred name when available"""
+        self.client.login(username='testuser', password='testpass123')
+        
+        # Test with no preferred name
+        response = self.client.get(reverse('student_dashboard'))
+        self.assertContains(response, self.user.first_name)
+        
+        # Test with preferred name
+        self.user.preferred_name = 'Preferred'
+        self.user.save()
+        response = self.client.get(reverse('student_dashboard'))
+        self.assertContains(response, 'Preferred')
+        self.assertNotContains(response, self.user.first_name)
+
+    def test_dashboard_access_after_password_change(self):
+        """Test dashboard access after password change"""
+        self.client.login(username='testuser', password='testpass123')
+        
+        # Change password
+        self.user.set_password('newpassword123')
+        self.user.save()
+        
+        # Should be logged out after password change
+        response = self.client.get(reverse('student_dashboard'))
+        self.assertRedirects(response, f'/login/?next={reverse("student_dashboard")}')
+        
+        # Should be able to log in with new password
+        self.client.login(username='testuser', password='newpassword123')
+        response = self.client.get(reverse('student_dashboard'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_dashboard_ticket_status_badges(self):
+        """Test that ticket status badges show correct colors"""
+        self.client.login(username='testuser', password='testpass123')
+        
+        # Create tickets with different statuses
+        pending_ticket = Ticket.objects.create(
+            student=self.student,
+            subject='Pending Ticket',
+            description='This is a pending ticket',
+            department='business',
+            status='pending'
+        )
+        
+        response = self.client.get(reverse('student_dashboard'))
+        self.assertContains(response, 'bg-danger')  # Open ticket badge
+        self.assertContains(response, 'bg-warning')  # Pending ticket badge
+        self.assertContains(response, 'bg-secondary')  # Closed ticket badge
+
+    def test_concurrent_ticket_creation(self):
+        """Test handling of concurrent ticket creation"""
+        self.client.login(username='testuser', password='testpass123')
+        
+        # Simulate concurrent ticket creation
+        ticket_data = {
+            'subject': 'Concurrent Ticket',
+            'description': 'This is a concurrent ticket',
+            'department': 'business'
+        }
+        
+        # Create tickets almost simultaneously
+        response1 = self.client.post(reverse('create_ticket'), ticket_data)
+        response2 = self.client.post(reverse('create_ticket'), ticket_data)
+        
+        # Both tickets should be created successfully
+        self.assertEqual(
+            Ticket.objects.filter(subject='Concurrent Ticket').count(),
+            2
+        )
+        self.assertEqual(response1.status_code, 302)
+        self.assertEqual(response2.status_code, 302) 

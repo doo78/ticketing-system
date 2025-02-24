@@ -1,0 +1,23 @@
+{% extends 'staff/base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <!-- Title and Back Button -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-4">Edit Profile</h1>
+        <a href="{% url 'staff_profile' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Back to Profile
+        </a>
+    </div>    
+
+    <form action="{% url 'staff_update_profile' %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        
+        {{ form.as_p }}
+
+
+        <input type="submit" value="Update" class="btn btn-primary">
+    </form>
+</div>
+{% endblock %}
