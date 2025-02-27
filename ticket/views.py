@@ -49,6 +49,35 @@ def create_ticket(request):
         form = TicketForm(request.POST, student=request.user.student)
         if form.is_valid():
             ticket = form.save()
+
+            if ticket.department:
+                matching_staff = Staff.objects.filter(department=ticket.department)
+                if matching_staff.exists():
+                    assigned_staff = None
+                    min_active_tickets = float('inf')
+
+                    for staff in matching_staff:
+                        active_ticket_count = Ticket.objects.filter(
+                            assigned_staff=staff,
+                        ).exclude(
+                            status = 'closed'
+                        ).count()
+
+                        if active_ticket_count < min_active_tickets:
+                            min_active_tickets = active_ticket_count
+                            assigned_staff = staff
+
+                    if assigned_staff:
+                        ticket.assigned_staff = assigned_staff
+                        ticket.status = 'pending'
+                        ticket.save()
+
+                        messages.success(
+                            request,
+                            f'Your ticket #{ticket.id} has been successfully submitted and assigned to a staff member from {ticket.get_department_display()}'
+                        )
+                        return redirect('student_dashboard')
+
             messages.success(
                 request,
                 f'Your ticket #{ticket.id} has been submitted successfully. We will review it shortly.'
@@ -143,16 +172,40 @@ class StaffRequiredMixin(UserPassesTestMixin):
 def home(request):
     return render(request, 'home.html')
 
+
 @login_required
 def staff_dashboard(request):
     if not hasattr(request.user, 'staff'):
         return redirect('home')
 
+    staff_department = request.user.staff.department
+
+    # Count tickets assigned to this staff member
+    assigned_tickets_count = Ticket.objects.filter(
+        assigned_staff=request.user.staff
+    ).exclude(status='closed').count()
+
+    # Count tickets for their department (not necessarily assigned to them)
+    department_tickets_count = 0
+    if staff_department:
+        department_tickets_count = Ticket.objects.filter(
+            department=staff_department
+        ).exclude(status='closed').count()
+
+    # Count unassigned tickets in their department
+    unassigned_dept_tickets = 0
+    if staff_department:
+        unassigned_dept_tickets = Ticket.objects.filter(
+            department=staff_department,
+            assigned_staff=None,
+            status='open'
+        ).count()
+
     context = {
-        'assigned_tickets_count': Ticket.objects.filter(
-            assigned_staff=request.user.staff
-        ).exclude(status='closed').count(),
-        'department': request.user.staff.department or "Not Assigned"
+        'assigned_tickets_count': assigned_tickets_count,
+        'department_tickets_count': department_tickets_count,
+        'unassigned_dept_tickets': unassigned_dept_tickets,
+        'department': request.user.staff.get_department_display() if staff_department else "Not Assigned"
     }
     return render(request, 'staff/dashboard.html', context)
 
@@ -311,6 +364,10 @@ class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
         ticket = Ticket.objects.get(id=ticket_id)
         action = request.POST.get('action')
 
+        # Get the current filter parameters to preserve them after redirect
+        status_filter = request.POST.get('status_filter', 'all')
+        department_filter = request.POST.get('department_filter', 'all')
+
         if action == 'assign':
             ticket.assigned_staff = request.user.staff
             ticket.status = 'pending'
@@ -320,16 +377,36 @@ class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
             ticket.date_closed = timezone.now()
 
         ticket.save()
-        return redirect('staff_ticket_list')
+
+        # Redirect back to the same filtered view
+        redirect_url = reverse('staff_ticket_list')
+        params = []
+
+        if status_filter != 'all':
+            params.append(f'status={status_filter}')
+
+        if department_filter != 'all':
+            params.append(f'department_filter={department_filter}')
+
+        if params:
+            redirect_url += '?' + '&'.join(params)
+
+        return redirect(redirect_url)
 
 
 class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
     def get(self, request):
         status = request.GET.get('status', 'all')
-        # Base queryset
+        department_filter = request.GET.get('department_filter', 'all')
+
         tickets = Ticket.objects.all()
 
         # Filter by status if specified
+        if department_filter == 'mine':
+            staff_department = request.user.staff.department
+            if staff_department:
+                tickets = tickets.filter(department=staff_department)
+
         if status != 'all':
             tickets = tickets.filter(status=status)
 
@@ -337,9 +414,13 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
         context = {
             'tickets': tickets,
             'status': status,
+            'department_filter': department_filter,
             'open_count': Ticket.objects.filter(status='open').count(),
             'pending_count': Ticket.objects.filter(status='pending').count(),
             'closed_count': Ticket.objects.filter(status='closed').count(),
+            'my_department_count': Ticket.objects.filter(
+                department= request.user.staff.department
+            ).count() if request.user.staff.department else 0,
         }
         return render(request, 'staff/staff_ticket_list.html', context)
 
