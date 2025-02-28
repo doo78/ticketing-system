@@ -307,6 +307,11 @@ def student_dashboard(request):
     return render(request, 'student/dashboard.html', context)
 
 class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
+    def get(self, request, ticket_id):
+        ticket = Ticket.objects.get(id=ticket_id)
+        return render(request, 'staff/ticket_detail.html', {'ticket': ticket})
+        
+        
     def post(self, request, ticket_id):
         ticket = Ticket.objects.get(id=ticket_id)
         action = request.POST.get('action')
