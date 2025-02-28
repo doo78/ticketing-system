@@ -318,6 +318,18 @@ class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
             ticket.status = 'closed'
             ticket.closed_by = request.user.staff
             ticket.date_closed = timezone.now()
+        else:
+            new_department = request.POST.get('department')
+            
+            if not new_department:
+                messages.error(request, 'Please select a department to redirect the ticket to.')
+                return redirect('manage_ticket', ticket_id=ticket.id)
+            
+            ticket.department = new_department
+            ticket.assigned_staff = None  
+
+            if ticket.status == 'pending':
+                ticket.status = 'open'
 
         ticket.save()
         return redirect('staff_ticket_list')
@@ -438,7 +450,7 @@ class StaffTicketDetailView(LoginRequiredMixin, StaffRequiredMixin, View):
                     'success': False,
                     'error': 'An unexpected error occurred'
                 })
-            
+
         # Handle regular form submission (adding messages)
         message_content = request.POST.get('message')
         if message_content:

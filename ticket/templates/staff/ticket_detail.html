@@ -167,8 +167,36 @@
                             <i class="fas fa-user-check me-2"></i>Assign to Me
                         </button>
                         {% endif %}
+                        {% if ticket.status == 'open' or ticket.status == 'pending' and ticket.assigned_staff == request.user.staff %}
+                        <div class="mb-2">
+                            <button class="btn btn-warning w-100" type="button" data-bs-toggle="collapse" data-bs-target="#redirectSection" aria-expanded="false" aria-controls="redirectSection">
+                                <i class="fas fa-arrow-right me-2"></i>Redirect Ticket
+                            </button>
+                            <div class="collapse" id="redirectSection">
+                                <div class="card card-body mt-3">
+                                    <label for="department" class="form-label">Select Department</label>
+                                    <select name="department" class="form-control" required>
+                                        <option value="">Select Department</option>
+                                        <option value="arts_humanities">Arts & Humanities</option>
+                                        <option value="business">Business</option>
+                                        <option value="dentistry">Dentistry</option>
+                                        <option value="law">Law</option>
+                                        <option value="life_sciences_medicine">Life Sciences & Medicine</option>
+                                        <option value="natural_mathematical_engineering">Natural, Mathematical & Engineering Sciences</option>
+                                        <option value="nursing">Nursing</option>
+                                        <option value="psychiatry">Psychiatry</option>
+                                        <option value="social_science">Social Science</option>
+                                    </select>
+                                    <button type="submit" name="action" value="redirect" class="btn btn-warning w-100 mt-2">
+                                        <i class="fas fa-arrow-right me-2"></i>Redirect Ticket
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
                         {% if ticket.status != 'closed' %}
-                        <button type="submit" name="action" value="close" class="btn btn-secondary w-100">
+                        <button type="submit" name="action" value="close" class="btn btn-success w-100">
                             <i class="fas fa-check-circle me-2"></i>Close Ticket
                         </button>
                         {% endif %}
