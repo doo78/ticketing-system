@@ -18,6 +18,8 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', home, name='home'),
+    path('about/' , views.about, name='about'),
+    path('faq/',views.faq,name='faq'),
     
     #------------------------------------AUTHENTICATION URLS------------------------------------#
     path('login/', LogInView.as_view(), name='log_in'),

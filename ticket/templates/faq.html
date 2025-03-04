@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+
+{% block extra_imports %}
+<style>
+    .accordion-button:not(.collapsed) {
+        background-color: rgba(57, 17, 100, 0.1);
+        color: #391164;
+    }
+    .accordion-button:focus {
+        border-color: rgba(57, 17, 100, 0.25);
+        box-shadow: 0 0 0 0.25rem rgba(57, 17, 100, 0.25);
+    }
+    .faq-search {
+        max-width: 600px;
+        margin: 0 auto 2rem;
+    }
+    .faq-search .form-control:focus {
+        border-color: rgba(57, 17, 100, 0.25);
+        box-shadow: 0 0 0 0.25rem rgba(57, 17, 100, 0.25);
+    }
+    .faq-search .btn {
+        background-color: #391164;
+        border-color: #391164;
+    }
+    .faq-category {
+        margin-bottom: 2rem;
+    }
+    .faq-category-title {
+        color: #391164;
+        border-bottom: 2px solid #391164;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="container py-5">
+    <h1 class="mb-4 text-center" style="color: #391164;">Frequently Asked Questions</h1>
+    
+    <div class="faq-search">
+        <div class="input-group mb-3">
+            <input type="text" class="form-control" placeholder="Search FAQs..." aria-label="Search FAQs">
+            <button class="btn btn-primary" type="button">Search</button>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col text-center">
+            <div class="btn-group" role="group" aria-label="FAQ Categories">
+                <button type="button" class="btn btn-outline-secondary active">All</button>
+                <button type="button" class="btn btn-outline-secondary">Accounts</button>
+                <button type="button" class="btn btn-outline-secondary">Network</button>
+                <button type="button" class="btn btn-outline-secondary">Software</button>
+                <button type="button" class="btn btn-outline-secondary">Hardware</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="faq-category">
+        <h3 class="faq-category-title">Account Management</h3>
+        <div class="accordion" id="accountAccordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="accountHeading1">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#accountCollapse1" aria-expanded="true" aria-controls="accountCollapse1">
+                        How do I reset my university account password?
+                    </button>
+                </h2>
+                <div id="accountCollapse1" class="accordion-collapse collapse show" aria-labelledby="accountHeading1" data-bs-parent="#accountAccordion">
+                    <div class="accordion-body">
+                        <p>You can reset your password through the university's self-service portal. Visit <strong>University Helpdesk</strong> and click on "Forgot Password." You will need to verify your identity using your registered email or phone number.</p>
+                        <p>If you're unable to access the self-service portal, you can visit the helpdesk in person with your university ID for immediate assistance.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="accountHeading2">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#accountCollapse2" aria-expanded="false" aria-controls="accountCollapse2">
+                        I'm a new student/faculty member. How do I activate my account?
+                    </button>
+                </h2>
+                <div id="accountCollapse2" class="accordion-collapse collapse" aria-labelledby="accountHeading2" data-bs-parent="#accountAccordion">
+                    <div class="accordion-body">
+                        <p>New students and faculty should have received an email with activation instructions to their personal email address. Follow the link in that email to set up your account.</p>
+                        <p>If you haven't received the activation email within 48 hours of your official start date, please contact the helpdesk with your university ID number and we will assist you with the account setup process.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="accountHeading3">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#accountCollapse3" aria-expanded="false" aria-controls="accountCollapse3">
+                        How do I set up multi-factor authentication?
+                    </button>
+                </h2>
+                <div id="accountCollapse3" class="accordion-collapse collapse" aria-labelledby="accountHeading3" data-bs-parent="#accountAccordion">
+                    <div class="accordion-body">
+                        <p>The university requires multi-factor authentication (MFA) for all accounts. To set it up:</p>
+                        <ol>
+                            <li>Log into the university portal</li>
+                            <li>Go to "Account Settings" and select "Security"</li>
+                            <li>Click "Set up Multi-Factor Authentication"</li>
+                            <li>Follow the prompts to add your mobile device or other authentication methods</li>
+                        </ol>
+                        <p>We recommend setting up multiple authentication methods (e.g., mobile app and SMS) to ensure you always have access to your account.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="faq-category">
+        <h3 class="faq-category-title">Network & Connectivity</h3>
+        <div class="accordion" id="networkAccordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="networkHeading1">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#networkCollapse1" aria-expanded="false" aria-controls="networkCollapse1">
+                        How do I connect to the university Wi-Fi?
+                    </button>
+                </h2>
+                <div id="networkCollapse1" class="accordion-collapse collapse" aria-labelledby="networkHeading1" data-bs-parent="#networkAccordion">
+                    <div class="accordion-body">
+                        <p>To connect to the university Wi-Fi:</p>
+                        <ol>
+                            <li>Go to your device's Wi-Fi settings</li>
+                            <li>Select the "Universty wifi" network</li>
+                            <li>When prompted, enter your university email and password</li>
+                            <li>Accept the security certificate if prompted</li>
+                        </ol>
+                        <p>For devices that don't support WPA2-Enterprise authentication, use the "University_Guest" network and register your device through the captive portal.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="networkHeading2">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#networkCollapse2" aria-expanded="false" aria-controls="networkCollapse2">
+                        How do I access university resources remotely using VPN?
+                    </button>
+                </h2>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="networkHeading3">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#networkCollapse3" aria-expanded="false" aria-controls="networkCollapse3">
+                        Why is my internet connection slow on campus?
+                    </button>
+                </h2>
+                <div id="networkCollapse3" class="accordion-collapse collapse" aria-labelledby="networkHeading3" data-bs-parent="#networkAccordion">
+                    <div class="accordion-body">
+                        <p>Several factors can affect Wi-Fi performance on campus:</p>
+                        <ul>
+                            <li>High-density areas during peak hours may experience congestion</li>
+                            <li>Distance from the nearest access point</li>
+                            <li>Interference from other electronic devices</li>
+                            <li>Building materials blocking signals in certain areas</li>
+                        </ul>
+                        <p>If you consistently experience slow connections in specific locations, please report this to the helpdesk with details about the time, location, and your device. This helps us improve our network coverage.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="faq-category">
+        <h3 class="faq-category-title">Software & Applications</h3>
+        <div class="accordion" id="softwareAccordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="softwareHeading1">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#softwareCollapse1" aria-expanded="false" aria-controls="softwareCollapse1">
+                        How do I access university-provided software?
+                    </button>
+                </h2>
+                <div id="softwareCollapse1" class="accordion-collapse collapse" aria-labelledby="softwareHeading1" data-bs-parent="#softwareAccordion">
+                    <div class="accordion-body">
+                        <p>The university provides a wide range of software applications for academic and administrative use. To access these:</p>
+                        <ol>
+                            <li>Visit the Software Portal at <strong>software.university.edu</strong></li>
+                            <li>Log in with your university credentials</li>
+                            <li>Browse available software by category or use the search function</li>
+                            <li>Follow the installation instructions for your specific operating system</li>
+                        </ol>
+                        <p>Many applications are also available through virtual desktop infrastructure, which you can access from any device without installation.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="softwareHeading2">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#softwareCollapse2" aria-expanded="false" aria-controls="softwareCollapse2">
+                        How do I access my university email?
+                    </button>
+                </h2>
+                <div id="softwareCollapse2" class="accordion-collapse collapse" aria-labelledby="softwareHeading2" data-bs-parent="#softwareAccordion">
+                    <div class="accordion-body">
+                        <p>You can access your university email in several ways:</p>
+                        <ul>
+                            <li><strong>Web browser:</strong> Visit <strong>mail.university.edu</strong> and log in with your university credentials</li>
+                            <li><strong>Desktop client:</strong> Configure Outlook or other email clients using the settings available on our support page</li>
+                            <li><strong>Mobile devices:</strong> Use the Outlook app or add your account to your device's native email app</li>
+                        </ul>
+                        <p>For setup instructions on specific devices, please visit our email configuration guide on the helpdesk website.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="softwareHeading3">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#softwareCollapse3" aria-expanded="false" aria-controls="softwareCollapse3">
+                        I'm having trouble with the learning management system. What should I do?
+                    </button>
+                </h2>
+                <div id="softwareCollapse3" class="accordion-collapse collapse" aria-labelledby="softwareHeading3" data-bs-parent="#softwareAccordion">
+                    <div class="accordion-body">
+                        <p>For issues with the Learning Management System (LMS):</p>
+                        <ol>
+                            <li>Clear your browser cache and cookies</li>
+                            <li>Try using a different browser (we recommend Chrome or Firefox)</li>
+                            <li>Check if the LMS is experiencing an outage on our service status page</li>
+                            <li>For course-specific access issues, contact your instructor first</li>
+                            <li>For technical problems, contact the helpdesk with specific error messages and screenshots</li>
+                        </ol>
+                        <p>We also offer LMS training sessions for students and faculty throughout the semester. Check the event calendar for upcoming sessions.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="faq-category">
+        <h3 class="faq-category-title">Hardware & Equipment</h3>
+        <div class="accordion" id="hardwareAccordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="hardwareHeading1">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#hardwareCollapse1" aria-expanded="false" aria-controls="hardwareCollapse1">
+                        Can I borrow equipment from the university?
+                    </button>
+                </h2>
+                <div id="hardwareCollapse1" class="accordion-collapse collapse" aria-labelledby="hardwareHeading1" data-bs-parent="#hardwareAccordion">
+                    <div class="accordion-body">
+                        <p>Yes, the university offers equipment loans for academic purposes:</p>
+                        <ul>
+                            <li><strong>Laptops:</strong> Available for short-term (daily) or long-term (semester) loans</li>
+                            <li><strong>Tablets:</strong> Available for up to one week</li>
+                            <li><strong>Projectors & Presentation Equipment:</strong> Available for classroom or event use</li>
+                            <li><strong>Specialized Equipment:</strong> Department-specific equipment may be available through your academic department</li>
+                        </ul>
+                        <p>To borrow equipment, visit the Equipment Loan desk at the main library or submit a request through the online portal at least 24 hours in advance.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="hardwareHeading2">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#hardwareCollapse2" aria-expanded="false" aria-controls="hardwareCollapse2">
+                        Where can I print documents on campus?
+                    </button>
+                </h2>
+                <div id="hardwareCollapse2" class="accordion-collapse collapse" aria-labelledby="hardwareHeading2" data-bs-parent="#hardwareAccordion">
+                    <div class="accordion-body">
+                        <p>Printing services are available at multiple locations across campus:</p>
+                        <ul>
+                            <li>Main Library (all floors)</li>
+                            <li>Student Union Building</li>
+                            <li>Computer labs in each academic building</li>
+                            <li>Residence hall common areas</li>
+                        </ul>
+                        <p>To print, you can:</p>
+                        <ol>
+                            <li>Use a campus computer and print directly</li>
+                            <li>Upload your document to <strong>print.university.edu</strong></li>
+                            <li>Send an email with your document to <strong>print@university.edu</strong></li>
+                            <li>Use the mobile printing app available for iOS and Android</li>
+                        </ol>
+                        <p>All printing requires your university ID card for release and charges apply to your printing account.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="hardwareHeading3">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#hardwareCollapse3" aria-expanded="false" aria-controls="hardwareCollapse3">
+                        My university-issued device needs repair. What's the process?
+                    </button>
+                </h2>
+                <div id="hardwareCollapse3" class="accordion-collapse collapse" aria-labelledby="hardwareHeading3" data-bs-parent="#hardwareAccordion">
+                    <div class="accordion-body">
+                        <p>For university-issued device repairs:</p>
+                        <ol>
+                            <li>Back up your important data if possible</li>
+                            <li>Submit a repair ticket through the helpdesk portal</li>
+                            <li>Bring your device to the Hardware Support Center during business hours</li>
+                            <li>For emergency loaners, indicate this need in your ticket</li>
+                        </ol>
+                        <p>Typical repair times range from same-day service for minor issues to 3-5 business days for major repairs. You'll receive email updates on the status of your repair.</p>
+                        <p>Note: For personally-owned devices, we offer limited troubleshooting assistance but cannot perform hardware repairs.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="alert alert-info mt-5">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-info-circle-fill fs-4 me-3"></i>
+            <div>
+                <strong>Didn't find what you were looking for?</strong>
+                <p class="mb-0">Submit a support ticket or contact our helpdesk directly at <strong>helpdesk@university.edu</strong> or call <strong>(555) 123-4567</strong>.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Simple search functionality for FAQ items
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.querySelector('.faq-search input');
+        
+        searchInput.addEventListener('keyup', function() {
+            const searchText = this.value.toLowerCase();
+            const accordionItems = document.querySelectorAll('.accordion-item');
+            
+            accordionItems.forEach(item => {
+                const question = item.querySelector('.accordion-button').textContent.toLowerCase();
+                const answer = item.querySelector('.accordion-body').textContent.toLowerCase();
+                
+                if (question.includes(searchText) || answer.includes(searchText)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+        
+        // Category filter buttons
+        const categoryButtons = document.querySelectorAll('.btn-group .btn-outline-secondary');
+        categoryButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Toggle active state
+                categoryButtons.forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Filter categories
+                const category = this.textContent.toLowerCase();
+                const faqCategories = document.querySelectorAll('.faq-category');
+                
+                if (category === 'all') {
+                    faqCategories.forEach(cat => cat.style.display = 'block');
+                } else {
+                    faqCategories.forEach(cat => {
+                        const categoryTitle = cat.querySelector('.faq-category-title').textContent.toLowerCase();
+                        if (categoryTitle.includes(category)) {
+                            cat.style.display = 'block';
+                        } else {
+                            cat.style.display = 'none';
+                        }
+                    });
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

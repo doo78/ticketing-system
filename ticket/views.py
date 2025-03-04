@@ -275,6 +275,7 @@ class DashboardView(LoginRequiredMixin, View):
         """Redirect to home page if the role is undefined."""
         return redirect(reverse("home"))    
     
+    
 class StaffRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return hasattr(self.request.user, 'staff')
@@ -550,3 +551,11 @@ def check_email(request):
     email = request.GET.get('email', '')
     exists = CustomUser.objects.filter(email=email).exists()
     return JsonResponse({'exists': exists})
+
+def about(request):
+    """View function for the about page.Displays information about the University Helpdesk, its mission, team, values, and services offered. """
+    return render(request, 'about.html')
+
+def faq(request):
+    """View function for the FAQ page.Displays frequently asked questions organized by categories."""
+    return render(request, 'faq.html')
