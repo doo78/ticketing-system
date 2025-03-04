@@ -10,8 +10,8 @@ from django.contrib.auth import login, logout
 from django.urls import reverse
 from django.conf import settings
 from django.http import JsonResponse
-from ticket.mixins import RoleBasedRedirectMixin
-from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm
+from ticket.mixins import RoleBasedRedirectMixin,AdminRoleRequiredMixin
+from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm,EditAccountForm
 from .models import Ticket, Staff, Student, CustomUser, Message
 from .forms import TicketForm
 from django.views.generic.edit import UpdateView
@@ -140,6 +140,11 @@ class StaffRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return hasattr(self.request.user, 'staff')
 
+class AdminRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.role == 'admin'
+        # return hasattr(self.request.user, 'admin')
+
 def home(request):
     return render(request, 'home.html')
 
@@ -231,7 +236,7 @@ class DashboardView(LoginRequiredMixin, View):
 
     def get(self, request, *args, **kwargs):
         role_dispatch = {
-            'admin': self.render_staff_dashboard,  # Admin users see staff dashboard
+            'admin': self.render_admin_dashboard,  # Admin users see staff dashboard
             'staff': self.render_staff_dashboard,
             'student': self.render_student_dashboard,
         }
@@ -270,6 +275,10 @@ class DashboardView(LoginRequiredMixin, View):
             'active_tickets': active_tickets,  # Combined open and pending tickets for display
         }
         return render(request, 'student/dashboard.html', context)
+
+    def render_admin_dashboard(self,request):
+        """Render admin-panel dashbaord."""
+        return render(request, "admin-panel/admin_dashboard.html")
 
     def redirect_to_home(self, request):
         """Redirect to home page if the role is undefined."""
@@ -552,6 +561,7 @@ def check_email(request):
     exists = CustomUser.objects.filter(email=email).exists()
     return JsonResponse({'exists': exists})
 
+
 def about(request):
     """View function for the about page.Displays information about the University Helpdesk, its mission, team, values, and services offered. """
     return render(request, 'about.html')
@@ -559,3 +569,159 @@ def about(request):
 def faq(request):
     """View function for the FAQ page.Displays frequently asked questions organized by categories."""
     return render(request, 'faq.html')
+
+
+#class AdminDashboardView(AdminRoleRequiredMixin,View):
+    template_name = 'admin-panel/admin_dashboard.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['total_tickets'] = Ticket.objects.count()
+        context['open_tickets'] = Ticket.objects.filter(status='open').count()
+        context['closed_tickets'] = Ticket.objects.filter(status='closed').count()
+        context['recent_activities'] = Ticket.objects.order_by('-created_at')[:5]
+        return context
+
+@login_required
+def admin_dashboard(request):
+    context={}
+    context["open_tickets_count"] = Ticket.objects.filter(status='open').exclude(status='closed').exclude(status='pending').count()
+    context["closed_tickets_count"] = Ticket.objects.filter(status='closed').exclude(status='pending').exclude(status='open').count()
+    context["tickets_count"]=Ticket.objects.count()
+    context["recent_activities"]=Ticket.objects.order_by('-date_updated')[:10]
+    print(context)
+    return render(request, 'admin-panel/admin_dashboard.html', context)
+
+# def admin_ticket_list(request):
+#     return render(request, 'admin-panel/admin_ticket_list.html')
+
+class AdminTicketListView(LoginRequiredMixin,AdminRequiredMixin, View):
+    def get(self, request):
+        status = request.GET.get('status', 'all')
+        order = request.GET.get('order', 'asce')
+        order_attr = request.GET.get('order_attr', 'id')
+        order_by=order_attr  if order == 'asce' else "-" + order_attr
+        # Base queryset
+        tickets = Ticket.objects.all().order_by(order_by)
+
+        # Filter by status if specified
+        if status != 'all':
+            tickets = tickets.filter(status=status)
+
+
+        if order != 'asce':
+            tickets = tickets.order_by('-id')
+
+        # Get counts for the filter buttons
+        context = {
+            'tickets': tickets,
+            'status': status,
+            'order': order,
+            'order_attr': order_attr,
+            'open_count': Ticket.objects.filter(status='open').count(),
+            'pending_count': Ticket.objects.filter(status='pending').count(),
+            'closed_count': Ticket.objects.filter(status='closed').count(),
+        }
+        return render(request, 'admin-panel/admin_ticket_list.html', context)
+
+
+class AdminAccountView(View):
+    """
+    Handles user registration using Django's Class-Based Views.
+    """
+
+    def get(self, request):
+        form = SignUpForm()
+        return render(request, "admin-panel/admin_accounts.html", {"form": form,"is_update":False})
+
+    def post(self, request):
+        form = SignUpForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            if user.role == 'staff':
+                Staff.objects.create(user=user, department='', role='Staff Member')
+            elif user.role == 'student':
+                Student.objects.create(
+                    user=user,
+                    department=form.cleaned_data.get('department', ''),
+                    program=form.cleaned_data.get('program', 'Undeclared'),
+                    year_of_study=form.cleaned_data.get('year_of_study', 1)
+                )
+            messages.success(request, "Account created successfully!.")
+            return redirect('admin_accounts_list')
+        return render(request, "admin-panel/admin_accounts.html", {"form": form,"is_update":False})
+
+class AdminAccountEditView(View):
+    """
+    Handles user registration using Django's Class-Based Views.
+    """
+
+    def get(self, request,account_id):
+        account=get_object_or_404(CustomUser, id=account_id)
+        form = EditAccountForm(instance=account)
+        return render(request, "admin-panel/admin_accounts.html", {"form": form,"is_update":True})
+
+    def post(self, request,account_id):
+        account = get_object_or_404(CustomUser, id=account_id)
+        form = EditAccountForm(request.POST,instance=account)
+
+        if form.is_valid():
+            user = form.save()
+            if user.role == 'staff':
+                Staff.objects.create(user=user, department='', role='Staff Member')
+            elif user.role == 'student':
+                Student.objects.create(
+                    user=user,
+                    department=form.cleaned_data.get('department', ''),
+                    program=form.cleaned_data.get('program', 'Undeclared'),
+                    year_of_study=form.cleaned_data.get('year_of_study', 1)
+                )
+            messages.success(request, "Account updated successfully!.")
+            return redirect('admin_accounts_list')
+        return render(request, "admin-panel/admin_accounts.html", {"form": form,"is_update":True})
+class AdminAccountsView(View):
+    """
+    Handles user registration using Django's Class-Based Views.
+    """
+    def get(self, request):
+        admin_count=CustomUser.objects.filter(role="admin").count()
+        staff_count = CustomUser.objects.filter(role= "staff").count()
+        student_count = CustomUser.objects.filter(role= "student").count()
+        account_type = request.GET.get('account_type', 'all')
+        order = request.GET.get('order', 'asce')
+        order_attr = request.GET.get('order_attr', 'id')
+        order_by = order_attr if order == 'asce' else "-" + order_attr
+        # Base queryset
+        accounts = CustomUser.objects.all().order_by(order_by)
+
+        # Filter by status if specified
+        if account_type != 'all':
+            accounts = accounts.filter(role=account_type)
+
+
+        # Get counts for the filter buttons
+        context = {
+            'accounts': accounts,
+            'account_type': account_type,
+            'order': order,
+            'order_attr': order_attr,
+            'admin_count': admin_count,
+            'staff_count': staff_count,
+            'student_count': student_count,
+        }
+        return render(request, 'admin-panel/admin_accounts_list.html', context)
+
+
+    def post(self, request):
+        account_id = request.POST.get("account_id")  # Get the ID
+
+        if account_id:
+            try:
+                user = get_object_or_404(CustomUser, id=account_id)
+                user.delete()  # Delete from the database
+                messages.success(request, f"User with ID {account_id} deleted successfully.")
+            except Exception as e:
+                messages.success(request, f"Error deleting user: {e}")
+
+        return redirect("admin_accounts_list")
+
