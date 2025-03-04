@@ -15,8 +15,6 @@ from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm,EditAccou
 from .models import Ticket, Staff, Student, CustomUser, Message
 from .forms import TicketForm
 from django.views.generic.edit import UpdateView
-
-
 from django.shortcuts import render
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View

@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.conf import settings
 from ticket import views
 from ticket.views import (
-     DashboardView, home, LogInView, LogOutView, StaffTicketListView, StaffTicketDetailView,
+     DashboardView, StaffUpdateProfileView, home, LogInView, LogOutView, StaffTicketListView, StaffTicketDetailView,
     ManageTicketView, StaffProfileView, staff_dashboard, SignUpView,AdminTicketListView, AdminAccountsView,AdminAccountView,AdminAccountEditView
 )
 
