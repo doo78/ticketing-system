@@ -1,0 +1,54 @@
+/* Centering Quick Actions Card */
+.quick-actions-card {
+    width: 280px; /* Slightly wider */
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    margin: 20px auto; /* Centers it */
+}
+
+/* Title Styling */
+.quick-actions-card .card-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+/* Button Layout */
+.card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px; /* More space between buttons */
+}
+
+/* Button Styling */
+.quick-action-btn {
+    display: block;
+    padding: 12px;
+    background: linear-gradient(135deg, #6a11cb, #2575fc);
+    color: white;
+    text-decoration: none;
+    font-size: 1rem;
+}
+
+/* Centering Welcome Text */
+.welcome-container {
+    text-align: center;
+    color: #4b0082; /* Dark Purple */
+    margin-top: 20px;
+}
+
+/* Adjusting Welcome Title */
+.welcome-container h2 {
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+/* Adjusting Staff Dashboard Subtitle */
+.welcome-container p {
+    font-size: 1.0rem;
+    font-weight: 500;
+    color: #47256a; /* Slightly lighter purple */
+}

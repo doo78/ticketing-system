@@ -15,8 +15,6 @@ from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm,EditAccou
 from .models import Ticket, Staff, Student, CustomUser, Message
 from .forms import TicketForm
 from django.views.generic.edit import UpdateView
-
-
 from django.shortcuts import render
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
@@ -284,6 +282,7 @@ class DashboardView(LoginRequiredMixin, View):
         """Redirect to home page if the role is undefined."""
         return redirect(reverse("home"))    
     
+    
 class StaffRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return hasattr(self.request.user, 'staff')
@@ -356,6 +355,11 @@ class StaffTicketDetailView(LoginRequiredMixin, StaffRequiredMixin, View):
     """Display ticket details for staff members"""
     def get(self, request, ticket_id):
         ticket = get_object_or_404(Ticket, id=ticket_id)
+        if ticket.status in ['open', 'pending'] and now() >= ticket.expiration_date:
+            ticket.status = 'closed'
+            ticket.date_closed = now()
+            ticket.closed_by = ticket.assigned_staff if ticket.assigned_staff else None
+            ticket.save()
         context = {
             'ticket': ticket,
             'ticket_messages': ticket.messages.all().order_by('created_at')
@@ -556,6 +560,15 @@ def check_email(request):
     return JsonResponse({'exists': exists})
 
 
+def about(request):
+    """View function for the about page.Displays information about the University Helpdesk, its mission, team, values, and services offered. """
+    return render(request, 'about.html')
+
+def faq(request):
+    """View function for the FAQ page.Displays frequently asked questions organized by categories."""
+    return render(request, 'faq.html')
+
+
 #class AdminDashboardView(AdminRoleRequiredMixin,View):
     template_name = 'admin-panel/admin_dashboard.html'
     
@@ -709,3 +722,4 @@ class AdminAccountsView(View):
                 messages.success(request, f"Error deleting user: {e}")
 
         return redirect("admin_accounts_list")
+

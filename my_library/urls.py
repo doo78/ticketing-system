@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.conf import settings
 from ticket import views
 from ticket.views import (
-     DashboardView, home, LogInView, LogOutView, StaffTicketListView, StaffTicketDetailView,
+     DashboardView, StaffUpdateProfileView, home, LogInView, LogOutView, StaffTicketListView, StaffTicketDetailView,
     ManageTicketView, StaffProfileView, staff_dashboard, SignUpView,AdminTicketListView, AdminAccountsView,AdminAccountView,AdminAccountEditView
 )
 
@@ -18,6 +18,8 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin-panel/', admin.site.urls),
     path('', home, name='home'),
+    path('about/' , views.about, name='about'),
+    path('faq/',views.faq,name='faq'),
     
     #------------------------------------AUTHENTICATION URLS------------------------------------#
     path('login/', LogInView.as_view(), name='log_in'),
