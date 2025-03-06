@@ -103,20 +103,20 @@
                         <td>{{ ticket.email }}</td>
                         <td>
                             <div class="btn-group">
-                                {% if ticket.status == 'open' %}
-                                <form method="post" action="{% url 'manage_ticket' ticket.id %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button type="submit" name="action" value="assign" class="btn btn-sm btn-primary">
-                                        Assign to Me
+                                <a href="{% url 'staff_ticket_detail' ticket.id %}" class="btn btn-sm btn-info">
+                                    View
+                                </a>
+                                {% if ticket.status != 'closed' %}
+                                    <button type="button" class="btn btn-sm btn-primary open-assign-modal" data-ticketid="{{ ticket.id }}" >
+                                      Assign
                                     </button>
-                                </form>
                                 {% endif %}
 
                                 {% if ticket.status != 'closed' and ticket.assigned_staff == request.user.staff %}
                                 <form method="post" action="{% url 'manage_ticket' ticket.id %}" class="d-inline">
                                     {% csrf_token %}
                                     <button type="submit" name="action" value="close" class="btn btn-sm btn-success">
-                                        Close
+                                        Closes
                                     </button>
                                 </form>
                                 {% endif %}
@@ -133,6 +133,106 @@
         </div>
     </div>
 
+
+
+<!-- Modal -->
+<div class="modal fade" id="assign-modal" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLongTitle">Assign to</h5>
+        <button type="button" class="close btn close-modal" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+          <label>Department</label>
+          <select class="form-control mb-3" id="department">
+              <option value="" selected>Select Department</option>
+              {% for department in departments %}
+              	<option value="{{ department.0 }}" >{{ department.1 }}</option>
+              {% endfor %}
+          </select>
+          <label>Staff</label>
+          <select class="form-control" id="staff">
+              <option value="" selected>Select Staff</option>
+          </select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary close-modal" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="save-btn">Save changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    $(document).ready(function (){
+        var ticket_id=""
+        $(".close-modal").on("click",function (){
+            close_modal();
+        })
+        $("#department").on("change",function (){
+            get_staff_by_department($(this).val())
+        })
+        $("#save-btn").on("click",function (){
+            save_ticket();
+        });
+        $(".open-assign-modal").on("click", function () {
+            let ticket_id = $(this).data("ticketid");
+            ajaxRequest('/control-panel/api/ticket_details', { ticket_id: ticket_id })
+            .then(data => {
+                if (data && data.department) {
+                    // Load staff based on department
+                    get_staff_by_department(data.department, data.assigned_staff_id);
+                    $("#department").val(data.department);
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error);
+            });
+            // Show the modal
+            $("#assign-modal").modal("show");
+        });
+
+
+
+        function get_staff_by_department(department, selected = "") {
+            ajaxRequest('/control-panel/api/get_staff_by_department', { department: department })
+                .then(response => {
+                    if (response) {
+                        let staffSelect = $("#staff");
+                        staffSelect.empty(); // Clear previous options
+
+                        // Add a default placeholder option
+                        staffSelect.append(`<option value="" selected>Select Staff</option>`);
+
+                        // Loop through the returned staff list and append options
+                        response.forEach(staff => {
+                            staffSelect.append(`<option value="${staff.id}">${staff.name}</option>`);
+                        });
+
+                        // Set the selected staff member if provided
+                        $("#staff").val(selected);
+                    }
+                })
+                .catch(error => {
+                    alert('Error: ' + error);
+                });
+        }
+        function close_modal(){
+            let staffSelect = $("#staff");
+            staffSelect.val("")
+            $("#department").val("")
+            staffSelect.empty()
+            staffSelect.append(`<option value="" selected>Select Staff</option>`);
+            $("#assign-modal").modal("hide");
+        }
+        function save_ticket(){
+
+        }
+    });
+</script>
 
 </div>
 {% endblock %}

@@ -9,7 +9,8 @@ from django.conf import settings
 from ticket import views
 from ticket.views import (
      DashboardView, StaffUpdateProfileView, home, LogInView, LogOutView, StaffTicketListView, StaffTicketDetailView,
-    ManageTicketView, StaffProfileView, staff_dashboard, SignUpView,AdminTicketListView, AdminAccountsView,AdminAccountView,AdminAccountEditView
+    ManageTicketView, StaffProfileView, staff_dashboard, SignUpView,AdminTicketListView, AdminAccountsView,AdminAccountView,AdminAccountEditView,
+     AdminAPITicketDetailsView,AdminAPIStaffByDepartmentView
 )
 
 from django.conf.urls.static import static
@@ -65,6 +66,8 @@ urlpatterns = [
         path('account/<int:account_id>/', AdminAccountEditView.as_view(), name='admin_edit_account'),
         path('account/', AdminAccountView.as_view(), name='admin_account'),
         path('accounts/', AdminAccountsView.as_view(), name='admin_accounts_list'),
+        path('api/ticket_details', AdminAPITicketDetailsView.as_view(), name='api_ticket'),
+        path('api/get_staff_by_department', AdminAPIStaffByDepartmentView.as_view(), name='api_get_staff_by_deparment'),
     ])),
     # General dashboard redirect
     path('dashboard/', DashboardView.as_view(), name='dashboard'),

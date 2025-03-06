@@ -422,7 +422,7 @@ class StaffTicketDetailView(LoginRequiredMixin, StaffRequiredMixin, View):
                     
                     if 'errorMessage' in response_payload:
                         raise Exception(response_payload['errorMessage'])
-                    
+
                     if response_payload.get('statusCode') == 200:
                         body = json.loads(response_payload['body'])
                         return JsonResponse({
@@ -473,7 +473,7 @@ class StaffProfileView(LoginRequiredMixin, StaffRequiredMixin, View):
     """
     
     def get(self, request):
-        staff_member = request.user.staff  
+        staff_member = request.user.staff
 
         assigned_tickets = Ticket.objects.filter(assigned_staff=staff_member)
         
@@ -612,6 +612,7 @@ class AdminTicketListView(LoginRequiredMixin,AdminRequiredMixin, View):
 
         # Get counts for the filter buttons
         context = {
+            'departments': Ticket.DEPT_CHOICES,
             'tickets': tickets,
             'status': status,
             'order': order,
@@ -722,4 +723,71 @@ class AdminAccountsView(View):
                 messages.success(request, f"Error deleting user: {e}")
 
         return redirect("admin_accounts_list")
+class AdminAPITicketDetailsView(LoginRequiredMixin,AdminRequiredMixin,View):
+    def post(self, request):
+        try:
+            # Parse JSON request body
+            body = json.loads(request.body.decode('utf-8'))
+            ticket_id = body.get('ticket_id')
 
+            if not ticket_id:
+                return JsonResponse({'success': False, 'error': 'ticket_id is required'}, status=400)
+
+            # Retrieve the ticket
+            try:
+                ticket = Ticket.objects.get(id=ticket_id)
+            except Ticket.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'Ticket not found'}, status=404)
+
+            # Construct the response
+            response_data = {
+                'ticket_id': ticket.id,
+                'subject': ticket.subject,
+                'description': ticket.description,
+                'status': ticket.status,
+                'department': ticket.department,
+                'student': ticket.student.user.first_name if ticket.student else None,
+                'assigned_staff_id': ticket.assigned_staff_id if ticket.assigned_staff_id else None,
+                'date_submitted': ticket.date_submitted.strftime('%Y-%m-%d %H:%M:%S') if ticket.date_submitted else None,
+                'date_updated': ticket.date_updated.strftime('%Y-%m-%d %H:%M:%S') if ticket.date_updated else None,
+                'date_closed': ticket.date_closed.strftime('%Y-%m-%d %H:%M:%S') if ticket.date_closed else None,
+                'expiration_date': ticket.expiration_date.strftime('%Y-%m-%d %H:%M:%S') if ticket.expiration_date else None,
+                'closed_by': ticket.closed_by.username if ticket.closed_by else None,
+
+            }
+
+            return JsonResponse({'success': True, 'response': response_data})
+
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'error': 'Invalid JSON format'}, status=400)
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+class AdminAPIStaffByDepartmentView(LoginRequiredMixin,AdminRequiredMixin,View):
+    def post(self, request):
+        try:
+            # Parse JSON request body
+            body = json.loads(request.body.decode('utf-8'))
+            department = body.get('department')
+
+            if not department:
+                return JsonResponse({'success': False, 'error': 'department is required'}, status=400)
+
+            staff_members = Staff.objects.filter(department=department)
+            staff_data = [
+                {
+                    'id': staff.id,
+                    'name': staff.user.first_name+" "+staff.user.last_name,
+                }
+                for staff in staff_members
+            ]
+
+
+            return JsonResponse({'success': True, 'response': staff_data})
+
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'error': 'Invalid JSON format'}, status=400)
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
