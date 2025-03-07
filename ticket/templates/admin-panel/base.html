@@ -134,7 +134,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    return data.response;
+                    return data;
                 } else {
                     alert('Error generating response: ' + data.error);
                 }

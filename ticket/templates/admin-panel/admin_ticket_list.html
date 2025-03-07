@@ -9,7 +9,18 @@
             <h2>Tickets</h2>
         </div>
     </div>
-
+{% if messages %}
+    <div class="row mb-4">
+        <div class="col">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
  <!-- Ticket Status Filter -->
     <div class="btn-group mb-4" role="group" aria-label="Ticket status filter">
         <a href="?status=all" class="btn btn-outline-primary {% if status == 'all' %}active{% endif %}">
@@ -103,7 +114,7 @@
                         <td>{{ ticket.email }}</td>
                         <td>
                             <div class="btn-group">
-                                <a href="{% url 'staff_ticket_detail' ticket.id %}" class="btn btn-sm btn-info">
+                                <a href="{% url 'admin_ticket_detail' ticket.id %}" class="btn btn-sm btn-info">
                                     View
                                 </a>
                                 {% if ticket.status != 'closed' %}
@@ -157,6 +168,11 @@
           <select class="form-control" id="staff">
               <option value="" selected>Select Staff</option>
           </select>
+
+          <div class="form-check closed_ticket">
+            <input type="checkbox" class="form-check-input" id="closed_ticket">
+            <label class="form-check-label" for="closed_ticket">Close Ticket</label>
+          </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary close-modal" data-dismiss="modal">Close</button>
@@ -176,15 +192,32 @@
             get_staff_by_department($(this).val())
         })
         $("#save-btn").on("click",function (){
-            save_ticket();
+            save_ticket(ticket_id,$("#department").val(),$("#staff").val(),$("#closed_ticket").prop("checked"));
         });
+        $("#staff").on("change",function (){
+            if($(this).val()){
+                $(".closed_ticket").show();
+            }else{
+                $(".closed_ticket").hide();
+            }
+        })
         $(".open-assign-modal").on("click", function () {
-            let ticket_id = $(this).data("ticketid");
+            ticket_id = $(this).data("ticketid");
             ajaxRequest('/control-panel/api/ticket_details', { ticket_id: ticket_id })
             .then(data => {
                 if (data && data.department) {
                     // Load staff based on department
                     get_staff_by_department(data.department, data.assigned_staff_id);
+                    if (data.assigned_staff_id){
+                        $(".closed_ticket").show();
+                    }else{
+                        $(".closed_ticket").hide();
+                    }
+                    if(data.status === "closed"){
+                        $("closed_ticket").prop("checked",true);
+                    }else{
+                        $("closed_ticket").prop("checked",false);
+                    }
                     $("#department").val(data.department);
                 }
             })
@@ -196,10 +229,10 @@
         });
 
 
-
         function get_staff_by_department(department, selected = "") {
             ajaxRequest('/control-panel/api/get_staff_by_department', { department: department })
-                .then(response => {
+                .then(data => {
+                    let response = data.response
                     if (response) {
                         let staffSelect = $("#staff");
                         staffSelect.empty(); // Clear previous options
@@ -226,10 +259,25 @@
             $("#department").val("")
             staffSelect.empty()
             staffSelect.append(`<option value="" selected>Select Staff</option>`);
+            $("closed_ticket").prop("checked",false);
             $("#assign-modal").modal("hide");
         }
-        function save_ticket(){
+        function save_ticket(ticket_id,department,assigned_staff_id,ticket_status){
+            ajaxRequest('/control-panel/api/ticket_assign', {
+                ticket_id: ticket_id,
+                assigned_staff_id:assigned_staff_id,
+                department:department,
+                ticket_status:ticket_status
+            })
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                }
 
+            })
+            .catch(error => {
+                alert('Error: ' + error);
+            });
         }
     });
 </script>

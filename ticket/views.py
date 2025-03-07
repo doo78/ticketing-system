@@ -351,7 +351,7 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
         }
         return render(request, 'staff/staff_ticket_list.html', context)
 
-class StaffTicketDetailView(LoginRequiredMixin, StaffRequiredMixin, View):
+class StaffTicketDetailView(LoginRequiredMixin,AdminRequiredMixin, StaffRequiredMixin, View):
     """Display ticket details for staff members"""
     def get(self, request, ticket_id):
         ticket = get_object_or_404(Ticket, id=ticket_id)
@@ -624,7 +624,7 @@ class AdminTicketListView(LoginRequiredMixin,AdminRequiredMixin, View):
         return render(request, 'admin-panel/admin_ticket_list.html', context)
 
 
-class AdminAccountView(View):
+class AdminAccountView(LoginRequiredMixin,AdminRequiredMixin,View):
     """
     Handles user registration using Django's Class-Based Views.
     """
@@ -650,7 +650,7 @@ class AdminAccountView(View):
             return redirect('admin_accounts_list')
         return render(request, "admin-panel/admin_accounts.html", {"form": form,"is_update":False})
 
-class AdminAccountEditView(View):
+class AdminAccountEditView(LoginRequiredMixin,AdminRequiredMixin,View):
     """
     Handles user registration using Django's Class-Based Views.
     """
@@ -678,7 +678,7 @@ class AdminAccountEditView(View):
             messages.success(request, "Account updated successfully!.")
             return redirect('admin_accounts_list')
         return render(request, "admin-panel/admin_accounts.html", {"form": form,"is_update":True})
-class AdminAccountsView(View):
+class AdminAccountsView(LoginRequiredMixin,AdminRequiredMixin,View):
     """
     Handles user registration using Django's Class-Based Views.
     """
@@ -763,7 +763,6 @@ class AdminAPITicketDetailsView(LoginRequiredMixin,AdminRequiredMixin,View):
 
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)}, status=500)
-
 class AdminAPIStaffByDepartmentView(LoginRequiredMixin,AdminRequiredMixin,View):
     def post(self, request):
         try:
@@ -785,6 +784,43 @@ class AdminAPIStaffByDepartmentView(LoginRequiredMixin,AdminRequiredMixin,View):
 
 
             return JsonResponse({'success': True, 'response': staff_data})
+
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'error': 'Invalid JSON format'}, status=400)
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+class AdminAPITicketAssignView(LoginRequiredMixin,AdminRequiredMixin,View):
+    def post(self, request):
+        try:
+            body = json.loads(request.body.decode('utf-8'))
+            ticket_id = body.get('ticket_id')
+            assigned_staff_id = body.get('assigned_staff_id')
+            department = body.get('department')
+            status = body.get('ticket_status')
+            print("ticket_id=",ticket_id)
+            ticket = Ticket.objects.get(id=ticket_id)
+            if department == "":
+                return JsonResponse({'success': False, 'error': 'department is required'}, status=400)
+            if assigned_staff_id != "" and department != "":
+                ticket.assigned_staff_id = assigned_staff_id
+                ticket.department = department
+                if status :
+                    ticket.status = "closed"
+                else:
+                    ticket.status = 'pending'
+                ticket.save()
+                messages.success(request, "ticket assigned successfully.")
+                return JsonResponse({'success': True},status=200)
+            else:
+                ticket.department = department
+                ticket.status = 'open'
+                ticket.save()
+                # messages.success(request, "ticket assigned successfully.")
+                return JsonResponse({'success': True},status=200)
+
+        except Ticket.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Ticket not found'}, status=404)
 
         except json.JSONDecodeError:
             return JsonResponse({'success': False, 'error': 'Invalid JSON format'}, status=400)
