@@ -1,31 +1,50 @@
-{% extends 'staff/base.html' %}
+{% extends 'admin-panel/base.html' %}
 
-{% block content %}  <!-- Changed from block body -->
-<div class="container-fluid">  <!-- Changed from container py-4 -->
-    <div class="row mb-4">
+{% block title %}Admin Dashboard - University Helpdesk{% endblock %}
+
+{% block content %}
+<div class="container">
+   <div class="row mb-4">
         <div class="col">
-            <h1>Tickets</h1>
+            <h2>Welcome, {{ request.user.get_full_name|default:request.user.username }}</h2>
+            <p class="text-muted">Admin Dashboard</p>
         </div>
     </div>
-
-    <!-- Ticket Status Filter -->
-    <div class="btn-group mb-4" role="group" aria-label="Ticket status filter">
-        <a href="?status=all" class="btn btn-outline-primary {% if status == 'all' %}active{% endif %}">
-            All
-        </a>
-        <a href="?status=open" class="btn btn-outline-primary {% if status == 'open' %}active{% endif %}">
-            Open ({{ open_count }})
-        </a>
-        <a href="?status=pending" class="btn btn-outline-primary {% if status == 'pending' %}active{% endif %}">
-            Pending ({{ pending_count }})
-        </a>
-        <a href="?status=closed" class="btn btn-outline-primary {% if status == 'closed' %}active{% endif %}">
-            Closed ({{ closed_count }})
-        </a>
+    <div class="row">
+        <!-- Card: Total Tickets -->
+        <div class="col-md-4">
+            <div class="card text-white bg-primary mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Total Tickets</h5>
+                    <p class="card-text display-4">{{ tickets_count }}</p>
+                </div>
+            </div>
+        </div>
+        <!-- Card: Open Tickets -->
+        <div class="col-md-4">
+            <div class="card text-white bg-warning mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Open Tickets</h5>
+                    <p class="card-text display-4">{{ open_tickets_count }}</p>
+                </div>
+            </div>
+        </div>
+        <!-- Card: Closed Tickets -->
+        <div class="col-md-4">
+            <div class="card text-white bg-success mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Closed Tickets</h5>
+                    <p class="card-text display-4">{{ closed_tickets_count }}</p>
+                </div>
+            </div>
+        </div>
     </div>
-
-    <!-- Tickets Table -->
-    <div class="card">
+    
+    <!-- Recent Activity Section -->
+    <div class="row">
+        <div class="col-md-12">
+        <h3>Recent Activity</h3>
+        <div class="card">
         <div class="card-body">
             <table class="table">
                 <thead>
@@ -39,7 +58,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for ticket in tickets %}
+                    {% for ticket in recent_activities %}
                     <tr>
                         <td>#{{ ticket.id }}</td>
                         <td>{{ ticket.subject }}</td>
@@ -52,9 +71,6 @@
                         <td>{{ ticket.email }}</td>
                         <td>
                             <div class="btn-group">
-                                <a href="{% url 'staff_ticket_detail' ticket.id %}" class="btn btn-sm btn-info me-2">
-                                    View
-                                </a>
                                 {% if ticket.status == 'open' %}
                                 <form method="post" action="{% url 'manage_ticket' ticket.id %}" class="d-inline">
                                     {% csrf_token %}
@@ -82,6 +98,8 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+    </div>
         </div>
     </div>
 </div>

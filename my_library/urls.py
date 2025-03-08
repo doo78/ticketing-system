@@ -8,16 +8,18 @@ from django.urls import reverse
 from django.conf import settings
 from ticket import views
 from ticket.views import (
-    DashboardView, home, LogInView, LogOutView, StaffTicketListView, 
-    ManageTicketView, StaffProfileView, staff_dashboard,SignUpView, StaffUpdateProfileView
+     DashboardView, StaffUpdateProfileView, home, LogInView, LogOutView, StaffTicketListView, StaffTicketDetailView,
+    ManageTicketView, StaffProfileView, staff_dashboard, SignUpView,AdminTicketListView, AdminAccountsView,AdminAccountView,AdminAccountEditView
 )
 
 from django.conf.urls.static import static
 
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('admin-panel/', admin.site.urls),
     path('', home, name='home'),
+    path('about/' , views.about, name='about'),
+    path('faq/',views.faq,name='faq'),
     
     #------------------------------------AUTHENTICATION URLS------------------------------------#
     path('login/', LogInView.as_view(), name='log_in'),
@@ -28,6 +30,7 @@ urlpatterns = [
     #------------------------------------STAFF URLS------------------------------------#
     path('staff/dashboard/', staff_dashboard, name='staff_dashboard'),
     path('staff/tickets/', StaffTicketListView.as_view(), name='staff_ticket_list'),
+    path('staff/ticket/<int:ticket_id>/', StaffTicketDetailView.as_view(), name='staff_ticket_detail'),
     path('staff/ticket/<int:ticket_id>/manage/', ManageTicketView.as_view(), name='manage_ticket'),
     path('staff/profile', StaffProfileView.as_view(), name='staff_profile'),
     path('staff/update_profile', StaffUpdateProfileView.as_view(), name='staff_update_profile'),
@@ -53,7 +56,17 @@ urlpatterns = [
         path('tickets/', StaffTicketListView.as_view(), name='staff_ticket_list'),
         path('ticket/<int:ticket_id>/manage/', ManageTicketView.as_view(), name='manage_ticket'),
     ])),
-    
+     #------------------------------------STAFF URLS------------------------------------#
+
+    path('control-panel/', include([
+        path('dashboard/', views.admin_dashboard, name='admin_dashboard'),
+        path('tickets/', AdminTicketListView.as_view(), name='admin_ticket_list'),
+
+        path('account/<int:account_id>/', AdminAccountEditView.as_view(), name='admin_edit_account'),
+        path('account/', AdminAccountView.as_view(), name='admin_account'),
+        path('accounts/', AdminAccountsView.as_view(), name='admin_accounts_list'),
+    ])),
     # General dashboard redirect
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
