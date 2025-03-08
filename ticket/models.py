@@ -87,6 +87,7 @@ class Ticket(models.Model):
     closed_by = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True, related_name='closed_tickets')
     expiration_date = models.DateTimeField(default=now() + timedelta(days=30))
 
+    message_id = models.CharField(max_length=255, blank=True, null=True)
     ai_response = models.BooleanField(default=False)
 
     def __str__(self):
