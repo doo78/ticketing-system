@@ -28,12 +28,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-EMAIL_HOST = "imap.gmail.com"
-EMAIL_PORT = 993
-EMAIL_HOST_USER = "testingteamsk@gmail.com"
-EMAIL_HOST_PASSWORD = "kqlnawtipijjcvdv"
-
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -161,3 +155,42 @@ DEPT_CHOICES = [
     ('social_science', 'Social Science')
 ]
 
+DEPT_EMAILS = {
+    'arts_humanities': {
+        'email': 'artshumanities.teamsk@gmail.com',
+        'password': 'zhwewyafoeszdqtz'
+    },
+    'business': {
+        'email': 'businessdept.teamsk@gmail.com',
+        'password': 'wvfxzznugpegzeey'
+    },
+    'dentistry': {
+        'email': 'dentistry.teamsk@gmail.com',
+        'password': 'jumxjedgyngmgnge'
+    },
+}
+
+MAIN_EMAIL_HOST_USER = "testingteamsk@gmail.com"
+MAIN_EMAIL_HOST_PASSWORD = "kqlnawtipijjcvdv"
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = MAIN_EMAIL_HOST_USER
+EMAIL_HOST_PASSWORD = MAIN_EMAIL_HOST_PASSWORD 
+
+"""
+    'law': {
+    'email': 'law.teamsk@outlook.com',
+    'password': 'awoypaeerjtohbxk'
+},
+    'life_sciences_medicine': {
+    'email': 'lifesciencesmedicine.teamsk@outlook.com',
+    'password': 'fqubcuhfhqrstarz'
+},
+    'natural_mathematical_engineering': {
+    'email': 'nme.teamsk@outlook.com',
+    'password': 'cnwmkjrvikrpktgb'
+},
+"""
