@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 from pathlib import Path
 import os
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -28,20 +29,22 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-
 # Application definition
 
 INSTALLED_APPS = [
+    'ticket',
+    'django_apscheduler',
+    'django_mailbox',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'ticket',
     'crispy_forms',
     'crispy_bootstrap4',
 ]
+
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
 
 MIDDLEWARE = [
@@ -59,7 +62,7 @@ ROOT_URLCONF = 'my_library.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'ticket', 'templates')],  
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -120,9 +123,15 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
+STATIC_URL = '/static/'
+
+STATICFILES_DIRS = [
+    BASE_DIR / "static",  
+]
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -152,6 +161,46 @@ DEPT_CHOICES = [
     ('psychiatry', 'Psychiatry'),
     ('social_science', 'Social Science')
 ]
+
+DEPT_EMAILS = {
+    'arts_humanities': {
+        'email': 'artshumanities.teamsk@gmail.com',
+        'password': 'zhwewyafoeszdqtz'
+    },
+    'business': {
+        'email': 'businessdept.teamsk@gmail.com',
+        'password': 'wvfxzznugpegzeey'
+    },
+    'dentistry': {
+        'email': 'dentistry.teamsk@gmail.com',
+        'password': 'jumxjedgyngmgnge'
+    },
+}
+
+MAIN_EMAIL_HOST_USER = "testingteamsk@gmail.com"
+MAIN_EMAIL_HOST_PASSWORD = "kqlnawtipijjcvdv"
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = MAIN_EMAIL_HOST_USER
+EMAIL_HOST_PASSWORD = MAIN_EMAIL_HOST_PASSWORD 
+
+"""
+    'law': {
+    'email': 'law.teamsk@outlook.com',
+    'password': 'awoypaeerjtohbxk'
+},
+    'life_sciences_medicine': {
+    'email': 'lifesciencesmedicine.teamsk@outlook.com',
+    'password': 'fqubcuhfhqrstarz'
+},
+    'natural_mathematical_engineering': {
+    'email': 'nme.teamsk@outlook.com',
+    'password': 'cnwmkjrvikrpktgb'
+},
+"""
 
 # AWS Configuration
 AWS_REGION = 'eu-west-2'  # Keep only the region

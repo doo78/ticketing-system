@@ -343,19 +343,6 @@ class StudentDashboardTest(TestCase):
             date_closed=timezone.now()
         )
         
-        # Debug: Print all tickets
-        print("\nAll tickets before test:")
-        for ticket in Ticket.objects.all().order_by('subject'):
-            print(f"- {ticket.subject} (Status: {ticket.status})")
-        
-        response = self.client.get(reverse('student_dashboard'))
-        
-        # Debug: Print tickets from response context
-        print("\nTickets in response context:")
-        print(f"Open tickets: {len(response.context['open_tickets'])}")
-        for ticket in response.context['open_tickets'].order_by('subject'):
-            print(f"- {ticket.subject} (Status: {ticket.status})")
-        
         # Verify ticket counts
         self.assertEqual(len(response.context['open_tickets']), 2)  # Two open tickets
         self.assertEqual(len(response.context['closed_tickets']), 1)  # One closed ticket

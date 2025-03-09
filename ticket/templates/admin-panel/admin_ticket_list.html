@@ -1,0 +1,138 @@
+{% extends 'admin-panel/base.html' %}
+
+{% block title %}Admin Dashboard - University Helpdesk{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+   <div class="row mb-4">
+        <div class="col">
+            <h2>Tickets</h2>
+        </div>
+    </div>
+
+ <!-- Ticket Status Filter -->
+    <div class="btn-group mb-4" role="group" aria-label="Ticket status filter">
+        <a href="?status=all" class="btn btn-outline-primary {% if status == 'all' %}active{% endif %}">
+            All
+        </a>
+        <a href="?status=open" class="btn btn-outline-primary {% if status == 'open' %}active{% endif %}">
+            Open ({{ open_count }})
+        </a>
+        <a href="?status=pending" class="btn btn-outline-primary {% if status == 'pending' %}active{% endif %}">
+            Pending ({{ pending_count }})
+        </a>
+        <a href="?status=closed" class="btn btn-outline-primary {% if status == 'closed' %}active{% endif %}">
+            Closed ({{ closed_count }})
+        </a>
+    </div>
+
+    <!-- Tickets Table -->
+    <div class="card">
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>
+                            {% if order_attr != "id" %}
+                                <a href="?status={{ status }}&order=desc&order_attr=id">ID</a>
+                            {% else %}
+                                {% if order == "desc" %}
+                                     <a href="?status={{ status }}&order=asce&order_attr=id">ID</a>
+                                     <i style="color:black" class="bi bi-chevron-up"></i>
+                                {% else %}
+                                     <a href="?status={{ status }}&order=desc&order_attr=id">ID</a>
+                                     <i style="color:black" class="bi bi-chevron-down"></i>
+                                {% endif %}
+                            {% endif %}
+                        </th>
+                        <th>
+                            {% if order_attr != "subject" %}
+                                <a href="?status={{ status }}&order=desc&order_attr=subject">Subject</a>
+                            {% else %}
+                                {% if order == "desc" %}
+                                     <a href="?status={{ status }}&order=asce&order_attr=subject">Subject</a>
+                                     <i style="color:black" class="bi bi-chevron-up"></i>
+                                {% else %}
+                                     <a href="?status={{ status }}&order=desc&order_attr=subject">Subject</a>
+                                     <i style="color:black" class="bi bi-chevron-down"></i>
+                                {% endif %}
+                            {% endif %}
+                        </th>
+                        <th>
+                            {% if order_attr != "status" %}
+                                <a href="?status={{ status }}&order=desc&order_attr=status">Status</a>
+                            {% else %}
+                                {% if order == "desc" %}
+                                     <a href="?status={{ status }}&order=asce&order_attr=status">Status</a>
+                                     <i style="color:black" class="bi bi-chevron-up"></i>
+                                {% else %}
+                                     <a href="?status={{ status }}&order=desc&order_attr=status">Status</a>
+                                     <i style="color:black" class="bi bi-chevron-down"></i>
+                                {% endif %}
+                            {% endif %}
+
+                        </th>
+                        <th>
+                            {% if order_attr != "date_submitted" %}
+                                <a href="?status={{ status }}&order=desc&order_attr=date_submitted">Submitted</a>
+                            {% else %}
+                                {% if order == "desc" %}
+                                     <a href="?status={{ status }}&order=asce&order_attr=date_submitted">Submitted</a>
+                                     <i style="color:black" class="bi bi-chevron-up"></i>
+                                {% else %}
+                                     <a href="?status={{ status }}&order=desc&order_attr=date_submitted">Submitted</a>
+                                     <i style="color:black" class="bi bi-chevron-down"></i>
+                                {% endif %}
+                            {% endif %}
+                        </th>
+                        <th>Email</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ticket in tickets %}
+                    <tr>
+                        <td>#{{ ticket.id }}</td>
+                        <td>{{ ticket.subject }}</td>
+                        <td>
+                            <span class="badge {% if ticket.status == 'open' %}bg-primary{% elif ticket.status == 'pending' %}bg-warning{% else %}bg-success{% endif %}">
+                                {{ ticket.status|title }}
+                            </span>
+                        </td>
+                        <td>{{ ticket.date_submitted|date:"M d, Y" }}</td>
+                        <td>{{ ticket.email }}</td>
+                        <td>
+                            <div class="btn-group">
+                                {% if ticket.status == 'open' %}
+                                <form method="post" action="{% url 'manage_ticket' ticket.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" name="action" value="assign" class="btn btn-sm btn-primary">
+                                        Assign to Me
+                                    </button>
+                                </form>
+                                {% endif %}
+
+                                {% if ticket.status != 'closed' and ticket.assigned_staff == request.user.staff %}
+                                <form method="post" action="{% url 'manage_ticket' ticket.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" name="action" value="close" class="btn btn-sm btn-success">
+                                        Close
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">No tickets found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+
+</div>
+{% endblock %}

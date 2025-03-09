@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings  
-
+from django.utils.timezone import now, timedelta
 DEPT_CHOICES = settings.DEPT_CHOICES
 
 
@@ -85,15 +85,23 @@ class Ticket(models.Model):
     date_updated = models.DateTimeField(auto_now=True)
     date_closed = models.DateTimeField(blank=True, null=True)
     closed_by = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True, related_name='closed_tickets')
+    expiration_date = models.DateTimeField(default=now() + timedelta(days=30))
 
+    message_id = models.CharField(max_length=255, blank=True, null=True)
     ai_response = models.BooleanField(default=False)
 
     def __str__(self):
         return f"Ticket #{self.id} - {self.subject}"
-      
+    
+    def save(self, *args, **kwargs):
+        """Auto-close tickets if expiration time has passed."""
+        if self.status in ['open', 'pending'] and now() >= self.expiration_date:
+            self.status = 'closed'
+            self.date_closed = now()
+            self.closed_by = self.assigned_staff if self.assigned_staff else None
+        super().save(*args, **kwargs)
     class Meta:
-        ordering = ['-date_submitted']  # Most recent tickets first
-
+        ordering = ['-date_submitted'] 
 class Message(models.Model):
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='messages')
     author = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
