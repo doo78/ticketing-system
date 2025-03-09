@@ -11,7 +11,7 @@ from django.urls import reverse
 from django.conf import settings
 from django.http import JsonResponse
 from ticket.mixins import RoleBasedRedirectMixin,AdminRoleRequiredMixin
-from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm,EditAccountForm
+from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm,EditAccountForm,AdminUpdateProfileForm
 from .models import Ticket, Staff, Student, CustomUser, Message
 from .forms import TicketForm
 from django.views.generic.edit import UpdateView
@@ -141,6 +141,10 @@ class StaffRequiredMixin(UserPassesTestMixin):
 class AdminRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return self.request.user.role == 'admin'
+
+class AdminOrStaffRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.role == 'admin' or self.request.user.role == 'staff'
         # return hasattr(self.request.user, 'admin')
 
 def home(request):
@@ -351,7 +355,7 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
         }
         return render(request, 'staff/staff_ticket_list.html', context)
 
-class StaffTicketDetailView(LoginRequiredMixin,AdminRequiredMixin, StaffRequiredMixin, View):
+class StaffTicketDetailView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
     """Display ticket details for staff members"""
     def get(self, request, ticket_id):
         ticket = get_object_or_404(Ticket, id=ticket_id)
@@ -467,66 +471,68 @@ class StaffTicketDetailView(LoginRequiredMixin,AdminRequiredMixin, StaffRequired
         
         return redirect('staff_ticket_detail', ticket_id=ticket_id)
 
-class StaffProfileView(LoginRequiredMixin, StaffRequiredMixin, View):
+class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
     """
     Loads relevant data and template for staff profile
     """
     
     def get(self, request):
-        staff_member = request.user.staff
+        if request.user.role == 'staff':
+            staff_member = request.user.staff
+            assigned_tickets = Ticket.objects.filter(assigned_staff=staff_member)
 
-        assigned_tickets = Ticket.objects.filter(assigned_staff=staff_member)
-        
-        open_tickets = assigned_tickets.filter(status="open").count()
-        pending_tickets = assigned_tickets.filter(status="pending").count()
-        closed_tickets = assigned_tickets.filter(status="closed").count()
-        
-        total_tickets = open_tickets + pending_tickets + closed_tickets
+            open_tickets = assigned_tickets.filter(status="open").count()
+            pending_tickets = assigned_tickets.filter(status="pending").count()
+            closed_tickets = assigned_tickets.filter(status="closed").count()
 
-        if total_tickets > 0:
-            open_percentage = (open_tickets / total_tickets) * 100
-            pending_percentage = (pending_tickets / total_tickets) * 100
-            closed_percentage = (closed_tickets / total_tickets) * 100
-        else:
-            open_percentage = 0 
-            pending_percentage = 0 
-            closed_percentage = 0
+            total_tickets = open_tickets + pending_tickets + closed_tickets
 
-        if closed_tickets == 0:
-            avg_close_time_days_display = "N/A"
-        else:
-            avg_close_time = Ticket.objects.filter(
-                status="closed", 
-                date_closed__isnull=False
-            ).aggregate(
-                avg_duration=Avg(ExpressionWrapper(Case(When(date_closed__gte=F("date_submitted"),  
-                            then=F("date_closed") - F("date_submitted")),
-                            default=Value(0),
-                            output_field=DurationField()  
-                        ),
-                        output_field=DurationField()  
+            if total_tickets > 0:
+                open_percentage = (open_tickets / total_tickets) * 100
+                pending_percentage = (pending_tickets / total_tickets) * 100
+                closed_percentage = (closed_tickets / total_tickets) * 100
+            else:
+                open_percentage = 0
+                pending_percentage = 0
+                closed_percentage = 0
+
+            if closed_tickets == 0:
+                avg_close_time_days_display = "N/A"
+            else:
+                avg_close_time = Ticket.objects.filter(
+                    status="closed",
+                    date_closed__isnull=False
+                ).aggregate(
+                    avg_duration=Avg(ExpressionWrapper(Case(When(date_closed__gte=F("date_submitted"),
+                                then=F("date_closed") - F("date_submitted")),
+                                default=Value(0),
+                                output_field=DurationField()
+                            ),
+                            output_field=DurationField()
+                        )
                     )
                 )
-            )
 
-            avg_duration = avg_close_time["avg_duration"]
-            if avg_duration:
-                avg_close_time_days = avg_duration.days + avg_duration.seconds / (3600 * 24)
-                avg_close_time_days = round(avg_close_time_days, 2)
-                avg_close_time_days_display = f"{avg_close_time_days} days"
-            else:
-                avg_close_time_days_display = "N/A"
+                avg_duration = avg_close_time["avg_duration"]
+                if avg_duration:
+                    avg_close_time_days = avg_duration.days + avg_duration.seconds / (3600 * 24)
+                    avg_close_time_days = round(avg_close_time_days, 2)
+                    avg_close_time_days_display = f"{avg_close_time_days} days"
+                else:
+                    avg_close_time_days_display = "N/A"
 
-        context = {
-            "open_tickets": open_tickets,
-            "pending_tickets": pending_tickets,
-            "closed_tickets": closed_tickets,
-            "total_tickets": total_tickets,
-            "open_percentage": open_percentage,
-            "pending_percentage": pending_percentage,
-            "closed_percentage": closed_percentage,
-            "avg_close_time_days": avg_close_time_days_display
-        }
+            context = {
+                "open_tickets": open_tickets,
+                "pending_tickets": pending_tickets,
+                "closed_tickets": closed_tickets,
+                "total_tickets": total_tickets,
+                "open_percentage": open_percentage,
+                "pending_percentage": pending_percentage,
+                "closed_percentage": closed_percentage,
+                "avg_close_time_days": avg_close_time_days_display
+            }
+        else:
+            context={}
         
         return render(request, 'staff/profile.html', context)
 
@@ -537,8 +543,12 @@ class StaffUpdateProfileView(UpdateView):
     
     model = CustomUser
     template_name = "staff/update_profile.html"
-    form_class = StaffUpdateProfileForm
-    
+    def get_form_class(self):
+        """Return the appropriate form class based on user role."""
+        if self.request.user.role == 'staff':
+            return StaffUpdateProfileForm
+        return AdminUpdateProfileForm
+
     def get_object(self):
         """Return the object (user) to be updated."""
         return self.request.user
