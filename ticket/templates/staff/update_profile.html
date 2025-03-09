@@ -12,11 +12,7 @@
 
     <form action="{% url 'staff_update_profile' %}" method="post" enctype="multipart/form-data">
         {% csrf_token %}
-
-        
         {{ form.as_p }}
-
-
         <input type="submit" value="Update" class="btn btn-primary">
     </form>
 </div>

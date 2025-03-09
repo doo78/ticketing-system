@@ -20,6 +20,21 @@ class ManageTicketViewTest(TestCase):
             status='open',
         )
         
+        self.pending_ticket = Ticket.objects.create(
+            subject='Test Ticket',
+            description='This is a test ticket.',
+            status='pending', 
+            department='business',  
+        )
+        
+        self.pending_ticket_assigned = Ticket.objects.create(
+            subject='Pending Ticket Assigned to Me',
+            description='This is a pending ticket assigned to the current user.',
+            status='pending',
+            department='business',
+            assigned_staff=self.staff 
+        )
+        
         self.client.login(username='staffuser', password='password123')
     
     def test_assign_ticket(self):
@@ -40,7 +55,39 @@ class ManageTicketViewTest(TestCase):
         self.assertEqual(self.ticket.closed_by, self.staff)
         self.assertIsNotNone(self.ticket.date_closed)
         self.assertRedirects(response, reverse('staff_ticket_list'))
+        
+    def test_redirect_ticket_assigned_to_user(self):
+        """Test that the redirect button is visible when the ticket is assigned to the current user."""
+        data = {
+            'action': 'redirect',
+            'department': 'law',  
+        }
 
+        response = self.client.post(reverse('manage_ticket', args=[self.pending_ticket_assigned.id]), data)
+        self.pending_ticket_assigned.refresh_from_db()
+        
+        self.assertEqual(self.pending_ticket_assigned.department, 'law')
+        self.assertEqual(self.pending_ticket_assigned.status, 'open')
+        
+        self.assertIsNone(self.pending_ticket_assigned.assigned_staff)
+        
+        self.assertRedirects(response, reverse('staff_ticket_list'))
+        
+    def test_redirect_ticket_assigned_to_other_user(self):
+        """Test that the redirect button is not shown when the ticket is assigned to another user."""
+        other_staff_user = User.objects.create_user(username='otherstaff', password='password123', email='otherstaff@gmail.com')
+        other_staff = Staff.objects.create(user=other_staff_user)
+        
+        self.pending_ticket.assigned_staff = other_staff
+        self.pending_ticket.save()
+        
+        self.client.login(username='staffuser', password='password123')
+        
+        response = self.client.get(reverse('manage_ticket', args=[self.pending_ticket.id]))
+        
+        self.assertNotContains(response, 'Redirect Ticket')
+        
+        self.assertEqual(response.status_code, 200)
 
 class StaffTicketListViewTest(TestCase):
     def setUp(self):
