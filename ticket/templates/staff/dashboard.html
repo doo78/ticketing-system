@@ -3,46 +3,70 @@
 {% block content %}
 <div class="container-fluid">
     <!-- Welcome Section -->
-    <div class="welcome-container">
-        <h2>Welcome, {{ request.user.get_full_name|default:request.user.username }}</h2>
-        <p>Staff Dashboard</p>
+    <div class="welcome-container text-center py-5">
+        <h1 class="fw-bold">Welcome, {{ request.user.get_full_name|default:request.user.username }}</h1>
+        <p class="lead text-muted">Your Staff Dashboard</p>
     </div>
-    
 
     <!-- Stats Row -->
     <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="card bg-primary text-white">
-                <div class="card-body">
-                    <h5 class="card-title">Assigned Tickets</h5>
-                    <h2 class="card-text">{{ assigned_tickets_count|default:"0" }}</h2>
+        <div class="col-md-6">
+            <div class="card text-white bg-gradient-primary shadow-lg border-0">
+                <div class="card-body text-center py-4">
+                    <h4 class="card-title fw-bold">Assigned Tickets</h4>
+                    <h1 class="display-3 fw-bold">{{ assigned_tickets_count|default:"0" }}</h1>
                 </div>
             </div>
         </div>
         <div class="col-md-6">
-            <div class="card bg-primary text-white">
-                <div class="card-body">
-                    <h5 class="card-title">Department</h5>
-                    <h2 class="card-text">{{ request.user.staff.get_department_display|default:"Not Assigned" }}</h2>
+            <div class="card text-white bg-gradient-secondary shadow-lg border-0">
+                <div class="card-body text-center py-4">
+                    <h4 class="card-title fw-bold">Department</h4>
+                    <h1 class="display-5">{{ request.user.staff.get_department_display|default:"Not Assigned" }}</h1>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Custom Quick Actions Card -->
-  <!-- Quick Actions Card -->
-<div class="quick-actions-card">
-    <h5 class="card-title">Quick Actions</h5>
-    <div class="card-content">
-        <a href="{% url 'staff_ticket_list' %}" class="quick-action-btn">
-            <i class="bi bi-ticket-detailed me-2"></i>View Tickets
-        </a>
-        <a href="{% url 'staff_profile' %}" class="quick-action-btn">
-            <i class="bi bi-person-circle me-2"></i>My Profile
-        </a>
+    <!-- Quick Actions Card -->
+    <div class="card shadow-lg border-0">
+        <div class="card-body text-center py-4">
+            <h3 class="fw-bold">Quick Actions</h3>
+            <div class="d-flex justify-content-center mt-3">
+                <a href="{% url 'staff_ticket_list' %}" class="btn btn-lg btn-primary mx-3 px-4 py-3 shadow-lg">
+                    <i class="bi bi-ticket-detailed me-2"></i> View Tickets
+                </a>
+                <a href="{% url 'staff_profile' %}" class="btn btn-lg btn-secondary mx-3 px-4 py-3 shadow-lg">
+                    <i class="bi bi-person-circle me-2"></i> My Profile
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 
-    
+<!-- Custom CSS -->
+<style>
+    .bg-gradient-primary {
+        background: linear-gradient(135deg, #6a11cb, #2575fc);
+    }
+
+    .bg-gradient-secondary {
+        background: linear-gradient(135deg, #ff7eb3, #ff758c);
+    }
+
+    .card {
+        border-radius: 15px;
+    }
+
+    .btn-lg {
+        font-size: 1.2rem;
+        font-weight: bold;
+        transition: transform 0.2s ease-in-out;
+    }
+
+    .btn-lg:hover {
+        transform: scale(1.05);
+    }
+</style>
 
 {% endblock %}
