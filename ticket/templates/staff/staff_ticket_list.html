@@ -35,6 +35,9 @@
                         <th>Status</th>
                         <th>Submitted</th>
                         <th>Email</th>
+                        {% if status == 'closed' %}
+                        <th>Rating</th>
+                        {% endif %}
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -50,6 +53,23 @@
                         </td>
                         <td>{{ ticket.date_submitted|date:"M d, Y" }}</td>
                         <td>{{ ticket.email }}</td>
+                        {% if status == 'closed' %}
+                        <td>
+                            {% if ticket.rating %}
+                            <div title="{{ ticket.rating }} out of 5 stars">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= ticket.rating %}
+                                    <span style="color: #FFD700;">★</span>
+                                    {% else %}
+                                    <span style="color: #e0e0e0;">★</span>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <span class="text-muted">Not rated</span>
+                            {% endif %}
+                        </td>
+                        {% endif %}
                         <td>
                             <div class="btn-group">
                                 <a href="{% url 'staff_ticket_detail' ticket.id %}" class="btn btn-sm btn-info me-2">

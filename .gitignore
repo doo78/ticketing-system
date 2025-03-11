@@ -44,4 +44,23 @@ ENV/
 
 # OS
 .DS_Store
-Thumbs.db 
+Thumbs.db
+
+# Testing and Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Docker
+docker-compose.override.yml
+
+# Local development
+get-pip.py 

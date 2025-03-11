@@ -54,6 +54,80 @@
                 </div>
             </div>
 
+            <!-- Rating Section for Closed Tickets -->
+            {% if ticket.status == 'closed' %}
+                {% if ticket.rating %}
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0"><i class="fas fa-star text-warning me-2"></i>Your Feedback</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-muted mb-3">Your Rating</h6>
+                                <div class="rating-display mb-2">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= ticket.rating %}
+                                            <span class="star-filled">★</span>
+                                        {% else %}
+                                            <span class="star-empty">★</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                <p class="text-muted"><small>{{ ticket.rating }} out of 5 stars</small></p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-muted mb-3">Your Comments</h6>
+                                <div class="p-3 bg-light rounded">
+                                    {% if ticket.rating_comment %}
+                                        <p class="mb-0">{{ ticket.rating_comment }}</p>
+                                    {% else %}
+                                        <p class="text-muted mb-0 fst-italic">No comments provided.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% elif rating_form %}
+                <div class="card mb-4 border-0 shadow-sm">
+                    <div class="card-header text-white py-2" style="background-color: #4a7bff;">
+                        <h5 class="mb-0 d-flex align-items-center"><i class="fas fa-star me-2"></i>Rate Your Experience</h5>
+                    </div>
+                    <div class="card-body px-4 py-3">
+                        <form method="post">
+                            {% csrf_token %}
+                            <h5 class="mb-3">How would you rate your experience?</h5>
+                            
+                            <div class="star-rating mb-1">
+                                {% for radio in rating_form.rating %}
+                                {% if forloop.counter <= 5 %}
+                                <div class="star-item">
+                                    {{ radio.tag }}
+                                    <label for="{{ radio.id_for_label }}">★</label>
+                                </div>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="rating-description mb-4 text-muted">
+                                <!-- This is where the rating description will appear -->
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label mb-1">Tell us about your experience (optional)</label>
+                                <textarea name="rating_comment" class="form-control" rows="3" placeholder="Share your thoughts about the support you received..."></textarea>
+                            </div>
+                            
+                            <button type="submit" name="submit_rating" class="btn btn-primary" style="background-color: #4a7bff; border-color: #4a7bff;">
+                                <i class="fas fa-paper-plane me-2"></i>Submit Rating
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+            {% endif %}
+
             <!-- Messages/Updates Section -->
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -124,4 +198,128 @@
         </div>
     </div>
 </div>
+
+{% block extra_js %}
+<style>
+/* Rating display styles */
+.rating-display {
+    font-size: 2rem;
+    letter-spacing: 5px;
+}
+.star-filled {
+    color: #FFD700;
+}
+.star-empty {
+    color: #e0e0e0;
+}
+
+/* Star rating input styles */
+.star-rating {
+    display: flex;
+    justify-content: flex-start;
+    gap: 20px;
+    margin-left: 0;
+    margin-bottom: 10px;
+}
+.star-item {
+    position: relative;
+}
+.star-item input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.star-item label {
+    display: inline-block;
+    font-size: 3.2rem;
+    color: #e0e0e0;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+.star-item input:checked + label {
+    color: #FFD700;
+}
+.star-item:hover label {
+    color: #FFD700;
+}
+/* Fix the hover effect direction */
+.star-rating {
+    flex-direction: row;
+}
+.star-item:hover ~ .star-item label {
+    color: #e0e0e0;
+}
+
+/* Rating description */
+.rating-description {
+    min-height: 20px;
+    font-weight: 500;
+    padding-left: 5px;
+    font-size: 0.9rem;
+}
+
+/* Form styles */
+textarea.form-control {
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    padding: 10px;
+    resize: none;
+}
+textarea.form-control:focus {
+    border-color: #4a7bff;
+    box-shadow: 0 0 0 0.25rem rgba(74, 123, 255, 0.25);
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle star rating selection with descriptions
+    const starInputs = document.querySelectorAll('.star-item input');
+    const ratingDescription = document.querySelector('.rating-description');
+    
+    if (starInputs.length && ratingDescription) {
+        // Shorter descriptions for each star rating
+        const descriptions = [
+            "Poor",
+            "Fair",
+            "Good",
+            "Very Good",
+            "Excellent"
+        ];
+
+        // Handle hover and selection
+        starInputs.forEach(input => {
+            // Show description on hover
+            input.parentElement.addEventListener('mouseenter', function() {
+                ratingDescription.textContent = descriptions[input.value - 1];
+            });
+            
+            // Update description when star is selected
+            input.addEventListener('change', function() {
+                // Update selected stars
+                const value = this.value;
+                starInputs.forEach(inp => {
+                    inp.checked = inp.value <= value;
+                });
+                // Update description text
+                ratingDescription.textContent = descriptions[value - 1];
+            });
+        });
+
+        // Clear description when not hovering over any star (unless one is selected)
+        const starContainer = document.querySelector('.star-rating');
+        starContainer.addEventListener('mouseleave', function() {
+            const selectedStar = document.querySelector('.star-item input:checked');
+            if (selectedStar) {
+                ratingDescription.textContent = descriptions[selectedStar.value - 1];
+            } else {
+                ratingDescription.textContent = '';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+
 {% endblock %} 

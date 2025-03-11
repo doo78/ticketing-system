@@ -71,6 +71,13 @@ class Ticket(models.Model):
         ('normal', 'Normal'),
         ('urgent', 'Urgent'),
     ]
+    RATING_CHOICES = [
+        (1, '⭐'),
+        (2, '⭐⭐'),
+        (3, '⭐⭐⭐'),
+        (4, '⭐⭐⭐⭐'),
+        (5, '⭐⭐⭐⭐⭐'),
+    ]
 
     subject = models.CharField(max_length=200)
     description = models.TextField()
@@ -89,6 +96,10 @@ class Ticket(models.Model):
 
     message_id = models.CharField(max_length=255, blank=True, null=True)
     ai_response = models.BooleanField(default=False)
+    
+    # Rating field - nullable because rating is only available after closure
+    rating = models.IntegerField(choices=RATING_CHOICES, null=True, blank=True)
+    rating_comment = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"Ticket #{self.id} - {self.subject}"

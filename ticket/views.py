@@ -11,9 +11,8 @@ from django.urls import reverse
 from django.conf import settings
 from django.http import JsonResponse
 from ticket.mixins import RoleBasedRedirectMixin,AdminRoleRequiredMixin
-from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm,EditAccountForm
 from .models import Ticket, Staff, Student, CustomUser, Message
-from .forms import TicketForm
+from .forms import LogInForm, SignUpForm, StaffUpdateProfileForm, EditAccountForm, TicketForm, RatingForm
 from django.views.generic.edit import UpdateView
 from django.shortcuts import render
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -108,27 +107,43 @@ def ticket_detail(request, ticket_id):
         return redirect('home')
     
     ticket = get_object_or_404(Ticket, id=ticket_id, student=request.user.student)
+    rating_form = None
+    
+    # Initialize rating form for closed tickets
+    if ticket.status == 'closed' and ticket.rating is None:
+        rating_form = RatingForm(instance=ticket)
     
     if request.method == 'POST':
-        message_content = request.POST.get('message')
-        if message_content:
-            if ticket.status == 'closed':
-                messages.error(request, 'Cannot add messages to a closed ticket.')
-                return render(request, 'student/ticket_detail.html', {
-                    'ticket': ticket,
-                    'ticket_messages': ticket.messages.all().order_by('created_at')
-                })
-            Message.objects.create(
-                ticket=ticket,
-                author=request.user,
-                content=message_content
-            )
-            messages.success(request, 'Message sent successfully.')
-            return redirect('ticket_detail', ticket_id=ticket_id)
+        # Handle rating submission
+        if 'submit_rating' in request.POST and ticket.status == 'closed':
+            rating_form = RatingForm(request.POST, instance=ticket)
+            if rating_form.is_valid():
+                rating_form.save()
+                messages.success(request, 'Thank you for your feedback!')
+                return redirect('ticket_detail', ticket_id=ticket_id)
+        # Handle message submission
+        else:
+            message_content = request.POST.get('message')
+            if message_content:
+                if ticket.status == 'closed':
+                    messages.error(request, 'Cannot add messages to a closed ticket.')
+                    return render(request, 'student/ticket_detail.html', {
+                        'ticket': ticket,
+                        'ticket_messages': ticket.messages.all().order_by('created_at'),
+                        'rating_form': rating_form
+                    })
+                Message.objects.create(
+                    ticket=ticket,
+                    author=request.user,
+                    content=message_content
+                )
+                messages.success(request, 'Message sent successfully.')
+                return redirect('ticket_detail', ticket_id=ticket_id)
     
     context = {
         'ticket': ticket,
-        'ticket_messages': ticket.messages.all().order_by('created_at')
+        'ticket_messages': ticket.messages.all().order_by('created_at'),
+        'rating_form': rating_form
     }
     return render(request, 'student/ticket_detail.html', context)
 
@@ -509,6 +524,18 @@ class StaffProfileView(LoginRequiredMixin, StaffRequiredMixin, View):
             pending_percentage = 0 
             closed_percentage = 0
 
+        # Calculate average rating for closed tickets
+        rated_tickets = assigned_tickets.filter(status="closed", rating__isnull=False)
+        rated_tickets_count = rated_tickets.count()
+        
+        if rated_tickets_count > 0:
+            avg_rating = rated_tickets.aggregate(avg_rating=Avg('rating'))['avg_rating']
+            avg_rating = round(avg_rating, 1) if avg_rating else 0
+            avg_rating_display = f"{avg_rating}"
+        else:
+            avg_rating = 0
+            avg_rating_display = "N/A"
+
         if closed_tickets == 0:
             avg_close_time_days_display = "N/A"
         else:
@@ -542,7 +569,10 @@ class StaffProfileView(LoginRequiredMixin, StaffRequiredMixin, View):
             "open_percentage": open_percentage,
             "pending_percentage": pending_percentage,
             "closed_percentage": closed_percentage,
-            "avg_close_time_days": avg_close_time_days_display
+            "avg_close_time_days": avg_close_time_days_display,
+            "avg_rating": avg_rating,
+            "avg_rating_display": avg_rating_display,
+            "rated_tickets_count": rated_tickets_count
         }
         
         return render(request, 'staff/profile.html', context)

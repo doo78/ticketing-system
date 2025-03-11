@@ -3,6 +3,7 @@ from django.urls import reverse
 from ticket.models import CustomUser, Student, Ticket, Message, Staff
 from django.utils import timezone
 from datetime import timedelta
+from ticket.forms import RatingForm
 
 class StudentDashboardTest(TestCase):
     def setUp(self):
@@ -343,6 +344,9 @@ class StudentDashboardTest(TestCase):
             date_closed=timezone.now()
         )
         
+        # Get the dashboard response
+        response = self.client.get(reverse('student_dashboard'))
+        
         # Verify ticket counts
         self.assertEqual(len(response.context['open_tickets']), 2)  # Two open tickets
         self.assertEqual(len(response.context['closed_tickets']), 1)  # One closed ticket
@@ -389,6 +393,9 @@ class StudentDashboardTest(TestCase):
         """Test that tickets are displayed in correct order"""
         self.client.login(username='testuser', password='testpass123')
         
+        # Delete existing tickets first
+        Ticket.objects.all().delete()
+        
         # Create tickets with specific dates
         older_ticket = Ticket.objects.create(
             student=self.student,
@@ -409,9 +416,9 @@ class StudentDashboardTest(TestCase):
         )
         
         response = self.client.get(reverse('student_dashboard'))
-        open_tickets = response.context['open_tickets']
+        open_tickets = list(response.context['open_tickets'])
         self.assertEqual(open_tickets[0], newer_ticket)  # Newest should be first
-        self.assertEqual(open_tickets[2], older_ticket)  # Oldest should be last
+        self.assertEqual(open_tickets[1], older_ticket)  # Oldest should be last
 
     def test_dashboard_preferred_name_display(self):
         """Test that dashboard uses preferred name when available"""
@@ -484,4 +491,140 @@ class StudentDashboardTest(TestCase):
             2
         )
         self.assertEqual(response1.status_code, 302)
-        self.assertEqual(response2.status_code, 302) 
+        self.assertEqual(response2.status_code, 302)
+
+    def test_closed_ticket_shows_rating_form(self):
+        """Test that a closed ticket shows the rating form if not yet rated"""
+        self.client.login(username='testuser', password='testpass123')
+        
+        # Ensure ticket is closed but not rated
+        self.closed_ticket.rating = None
+        self.closed_ticket.save()
+        
+        response = self.client.get(reverse('ticket_detail', args=[self.closed_ticket.id]))
+        self.assertEqual(response.status_code, 200)
+        
+        # Check that the rating form is in the context
+        self.assertIn('rating_form', response.context)
+        # Check for rating form elements
+        self.assertContains(response, 'Rate Your Experience')
+
+    def test_submit_ticket_rating(self):
+        """Test submitting a rating for a closed ticket"""
+        self.client.login(username='testuser', password='testpass123')
+        
+        # Ensure ticket is closed but not rated
+        self.closed_ticket.rating = None
+        self.closed_ticket.save()
+        
+        # Check that the form exists first
+        response = self.client.get(reverse('ticket_detail', args=[self.closed_ticket.id]))
+        self.assertIn('rating_form', response.context)
+        
+        # Create data that matches the actual form fields
+        rating_data = {
+            'rating': '4',  # Make sure this is a string to match form input
+            'rating_comment': 'Great service, very helpful!',
+            'submit_rating': 'Submit'  # Include the submit button name
+        }
+        
+        response = self.client.post(
+            reverse('ticket_detail', args=[self.closed_ticket.id]), 
+            rating_data
+        )
+        
+        # Check the redirect
+        self.assertRedirects(response, reverse('ticket_detail', args=[self.closed_ticket.id]))
+        
+        # Refresh ticket from db and check rating was saved
+        self.closed_ticket.refresh_from_db()
+        self.assertEqual(self.closed_ticket.rating, 4)
+        self.assertEqual(self.closed_ticket.rating_comment, 'Great service, very helpful!')
+
+    def test_already_rated_ticket_shows_rating(self):
+        """Test that a closed ticket that has been rated shows the rating instead of form"""
+        self.client.login(username='testuser', password='testpass123')
+        
+        # Set a rating for the closed ticket
+        self.closed_ticket.rating = 5
+        self.closed_ticket.rating_comment = "Excellent support!"
+        self.closed_ticket.save()
+        
+        response = self.client.get(reverse('ticket_detail', args=[self.closed_ticket.id]))
+        self.assertEqual(response.status_code, 200)
+        
+        # Check that the rating is displayed
+        self.assertContains(response, 'Your Feedback')
+        self.assertContains(response, 'Your Rating')
+        self.assertContains(response, 'Excellent support!')
+        
+        # Rating form should not be present
+        self.assertNotContains(response, 'Rate Your Experience')
+
+    def test_submit_invalid_rating(self):
+        """Test submitting an invalid rating"""
+        self.client.login(username='testuser', password='testpass123')
+        
+        # Ensure ticket is closed but not rated
+        self.closed_ticket.rating = None
+        self.closed_ticket.save()
+        
+        # Submit invalid rating (6 is outside the valid range of 1-5)
+        rating_data = {
+            'rating': 6,
+            'rating_comment': 'Test comment',
+            'submit_rating': 'Submit'
+        }
+        
+        response = self.client.post(
+            reverse('ticket_detail', args=[self.closed_ticket.id]), 
+            rating_data
+        )
+        
+        # Form should be invalid and redisplayed
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context['rating_form'].is_valid())
+        self.assertIn('rating', response.context['rating_form'].errors)
+        
+        # Rating should not be saved
+        self.closed_ticket.refresh_from_db()
+        self.assertIsNone(self.closed_ticket.rating)
+
+    def test_open_ticket_has_no_rating_form(self):
+        """Test that open tickets don't show rating form"""
+        self.client.login(username='testuser', password='testpass123')
+        
+        response = self.client.get(reverse('ticket_detail', args=[self.open_ticket.id]))
+        self.assertEqual(response.status_code, 200)
+        
+        # The rating_form might be included but set to None,
+        # so check that it's None or not present
+        if 'rating_form' in response.context:
+            self.assertIsNone(response.context['rating_form'])
+        
+        # Rating form element should not be present in the HTML
+        self.assertNotContains(response, 'Rate Your Experience')
+
+    def test_dashboard_shows_ticket_ratings(self):
+        """Test that the dashboard shows ratings for closed tickets"""
+        self.client.login(username='testuser', password='testpass123')
+        
+        # Set a rating for the closed ticket
+        self.closed_ticket.rating = 4
+        self.closed_ticket.save()
+        
+        # Create another closed ticket without rating
+        unrated_ticket = Ticket.objects.create(
+            student=self.student,
+            subject='Unrated Closed Ticket',
+            description='This closed ticket has no rating',
+            department='business',
+            status='closed',
+            date_closed=timezone.now()
+        )
+        
+        response = self.client.get(self.dashboard_url)
+        self.assertEqual(response.status_code, 200)
+        
+        # Check for the rating display
+        self.assertContains(response, 'Not Rated') 
