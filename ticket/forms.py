@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth import authenticate
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import UserCreationForm,UserChangeForm
 from ticket.models import CustomUser, Ticket
 
 DEPT_CHOICES = [
@@ -134,7 +134,65 @@ class SignUpForm(UserCreationForm):
                 self.add_error('year_of_study', 'This field is required for students.')
 
         return cleaned_data
-  
+
+class EditAccountForm(UserChangeForm):
+    role = forms.ChoiceField(
+        choices=[('', 'Select Role')] + list(CustomUser.ROLE_CHOICES),
+        required=True
+    )
+    first_name = forms.CharField(max_length=150, required=True)
+    last_name = forms.CharField(max_length=150, required=True)
+
+    # Student specific fields
+    department = forms.CharField(max_length=100, required=False)
+    program = forms.CharField(max_length=100, required=False)
+    year_of_study = forms.IntegerField(min_value=1, max_value=7, required=False)
+
+    class Meta:
+        model = CustomUser
+        fields = ['username', 'email', 'first_name', 'last_name', 'role']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['department'].widget = forms.Select(choices=[
+            ('', 'Select Department'),
+            ('arts_humanities', 'Arts & Humanities'),
+            ('business', 'Business'),
+            ('dentistry', 'Dentistry'),
+            ('law', 'Law'),
+            ('life_sciences_medicine', 'Life Sciences & Medicine'),
+            ('natural_mathematical_engineering', 'Natural, Mathematical & Engineering Sciences'),
+            ('nursing', 'Nursing'),
+            ('psychiatry', 'Psychiatry'),
+            ('social_science', 'Social Science')
+        ])
+
+        # Initially hide student-specific fields
+        for field in ['department', 'program', 'year_of_study']:
+            self.fields[field].widget.attrs['class'] = 'student-field d-none'
+
+    def clean(self):
+        cleaned_data = super().clean()
+        role = cleaned_data.get('role')
+        password1 = cleaned_data.get('password1')
+        password2 = cleaned_data.get('password2')
+
+        # Ensure password mismatch error is correctly raised
+        if password1 and password2 and password1 != password2:
+            self.add_error('password2', "The two password fields didn't match.")
+
+        # Validate required fields for students
+        if role == 'student':
+            if not cleaned_data.get('department'):
+                self.add_error('department', 'This field is required for students.')
+            if not cleaned_data.get('program'):
+                self.add_error('program', 'This field is required for students.')
+            if not cleaned_data.get('year_of_study'):
+                self.add_error('year_of_study', 'This field is required for students.')
+
+        return cleaned_data
+
+
 class TicketForm(forms.ModelForm):
     class Meta:
         model = Ticket
@@ -180,4 +238,22 @@ class TicketForm(forms.ModelForm):
         if commit:
             ticket.save()
         return ticket
+
+class RatingForm(forms.ModelForm):
+    """Form for students to rate their ticket experience after closure."""
+    class Meta:
+        model = Ticket
+        fields = ['rating', 'rating_comment']
+        widgets = {
+            'rating': forms.RadioSelect(),
+            'rating_comment': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Share your thoughts about the support you received...'}),
+        }
+        labels = {
+            'rating': 'How would you rate your experience?',
+            'rating_comment': 'Comments (optional)',
+        }
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['rating_comment'].required = False
 

@@ -10,13 +10,10 @@ from django.contrib.auth import login, logout
 from django.urls import reverse
 from django.conf import settings
 from django.http import JsonResponse
-from ticket.mixins import RoleBasedRedirectMixin
-from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm
+from ticket.mixins import RoleBasedRedirectMixin,AdminRoleRequiredMixin
 from .models import Ticket, Staff, Student, CustomUser, Message
-from .forms import TicketForm
+from .forms import LogInForm, SignUpForm, StaffUpdateProfileForm, EditAccountForm, TicketForm, RatingForm
 from django.views.generic.edit import UpdateView
-
-
 from django.shortcuts import render
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
@@ -139,27 +136,43 @@ def ticket_detail(request, ticket_id):
         return redirect('home')
     
     ticket = get_object_or_404(Ticket, id=ticket_id, student=request.user.student)
+    rating_form = None
+    
+    # Initialize rating form for closed tickets
+    if ticket.status == 'closed' and ticket.rating is None:
+        rating_form = RatingForm(instance=ticket)
     
     if request.method == 'POST':
-        message_content = request.POST.get('message')
-        if message_content:
-            if ticket.status == 'closed':
-                messages.error(request, 'Cannot add messages to a closed ticket.')
-                return render(request, 'student/ticket_detail.html', {
-                    'ticket': ticket,
-                    'ticket_messages': ticket.messages.all().order_by('created_at')
-                })
-            Message.objects.create(
-                ticket=ticket,
-                author=request.user,
-                content=message_content
-            )
-            messages.success(request, 'Message sent successfully.')
-            return redirect('ticket_detail', ticket_id=ticket_id)
+        # Handle rating submission
+        if 'submit_rating' in request.POST and ticket.status == 'closed':
+            rating_form = RatingForm(request.POST, instance=ticket)
+            if rating_form.is_valid():
+                rating_form.save()
+                messages.success(request, 'Thank you for your feedback!')
+                return redirect('ticket_detail', ticket_id=ticket_id)
+        # Handle message submission
+        else:
+            message_content = request.POST.get('message')
+            if message_content:
+                if ticket.status == 'closed':
+                    messages.error(request, 'Cannot add messages to a closed ticket.')
+                    return render(request, 'student/ticket_detail.html', {
+                        'ticket': ticket,
+                        'ticket_messages': ticket.messages.all().order_by('created_at'),
+                        'rating_form': rating_form
+                    })
+                Message.objects.create(
+                    ticket=ticket,
+                    author=request.user,
+                    content=message_content
+                )
+                messages.success(request, 'Message sent successfully.')
+                return redirect('ticket_detail', ticket_id=ticket_id)
     
     context = {
         'ticket': ticket,
-        'ticket_messages': ticket.messages.all().order_by('created_at')
+        'ticket_messages': ticket.messages.all().order_by('created_at'),
+        'rating_form': rating_form
     }
     return render(request, 'student/ticket_detail.html', context)
 
@@ -168,6 +181,11 @@ def ticket_detail(request, ticket_id):
 class StaffRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return hasattr(self.request.user, 'staff')
+
+class AdminRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.role == 'admin'
+        # return hasattr(self.request.user, 'admin')
 
 def home(request):
     return render(request, 'home.html')
@@ -284,7 +302,7 @@ class DashboardView(LoginRequiredMixin, View):
 
     def get(self, request, *args, **kwargs):
         role_dispatch = {
-            'admin': self.render_staff_dashboard,  # Admin users see staff dashboard
+            'admin': self.render_admin_dashboard,  # Admin users see staff dashboard
             'staff': self.render_staff_dashboard,
             'student': self.render_student_dashboard,
         }
@@ -324,9 +342,14 @@ class DashboardView(LoginRequiredMixin, View):
         }
         return render(request, 'student/dashboard.html', context)
 
+    def render_admin_dashboard(self,request):
+        """Render admin-panel dashbaord."""
+        return render(request, "admin-panel/admin_dashboard.html")
+
     def redirect_to_home(self, request):
         """Redirect to home page if the role is undefined."""
         return redirect(reverse("home"))    
+    
     
 class StaffRequiredMixin(UserPassesTestMixin):
     def test_func(self):
@@ -360,6 +383,11 @@ def student_dashboard(request):
     return render(request, 'student/dashboard.html', context)
 
 class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
+    def get(self, request, ticket_id):
+        ticket = Ticket.objects.get(id=ticket_id)
+        return render(request, 'staff/ticket_detail.html', {'ticket': ticket})
+        
+        
     def post(self, request, ticket_id):
         ticket = Ticket.objects.get(id=ticket_id)
         action = request.POST.get('action')
@@ -375,6 +403,18 @@ class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
             ticket.status = 'closed'
             ticket.closed_by = request.user.staff
             ticket.date_closed = timezone.now()
+        else:
+            new_department = request.POST.get('department')
+            
+            if not new_department:
+                messages.error(request, 'Please select a department to redirect the ticket to.')
+                return redirect('manage_ticket', ticket_id=ticket.id)
+            
+            ticket.department = new_department
+            ticket.assigned_staff = None  
+
+            if ticket.status == 'pending':
+                ticket.status = 'open'
 
         ticket.save()
 
@@ -428,6 +468,11 @@ class StaffTicketDetailView(LoginRequiredMixin, StaffRequiredMixin, View):
     """Display ticket details for staff members"""
     def get(self, request, ticket_id):
         ticket = get_object_or_404(Ticket, id=ticket_id)
+        if ticket.status in ['open', 'pending'] and now() >= ticket.expiration_date:
+            ticket.status = 'closed'
+            ticket.date_closed = now()
+            ticket.closed_by = ticket.assigned_staff if ticket.assigned_staff else None
+            ticket.save()
         context = {
             'ticket': ticket,
             'ticket_messages': ticket.messages.all().order_by('created_at')
@@ -519,7 +564,7 @@ class StaffTicketDetailView(LoginRequiredMixin, StaffRequiredMixin, View):
                     'success': False,
                     'error': 'An unexpected error occurred'
                 })
-            
+
         # Handle regular form submission (adding messages)
         message_content = request.POST.get('message')
         if message_content:
@@ -560,6 +605,18 @@ class StaffProfileView(LoginRequiredMixin, StaffRequiredMixin, View):
             pending_percentage = 0 
             closed_percentage = 0
 
+        # Calculate average rating for closed tickets
+        rated_tickets = assigned_tickets.filter(status="closed", rating__isnull=False)
+        rated_tickets_count = rated_tickets.count()
+        
+        if rated_tickets_count > 0:
+            avg_rating = rated_tickets.aggregate(avg_rating=Avg('rating'))['avg_rating']
+            avg_rating = round(avg_rating, 1) if avg_rating else 0
+            avg_rating_display = f"{avg_rating}"
+        else:
+            avg_rating = 0
+            avg_rating_display = "N/A"
+
         if closed_tickets == 0:
             avg_close_time_days_display = "N/A"
         else:
@@ -593,7 +650,10 @@ class StaffProfileView(LoginRequiredMixin, StaffRequiredMixin, View):
             "open_percentage": open_percentage,
             "pending_percentage": pending_percentage,
             "closed_percentage": closed_percentage,
-            "avg_close_time_days": avg_close_time_days_display
+            "avg_close_time_days": avg_close_time_days_display,
+            "avg_rating": avg_rating,
+            "avg_rating_display": avg_rating_display,
+            "rated_tickets_count": rated_tickets_count
         }
         
         return render(request, 'staff/profile.html', context)
@@ -626,3 +686,168 @@ def check_email(request):
     email = request.GET.get('email', '')
     exists = CustomUser.objects.filter(email=email).exists()
     return JsonResponse({'exists': exists})
+
+
+def about(request):
+    """View function for the about page.Displays information about the University Helpdesk, its mission, team, values, and services offered. """
+    return render(request, 'about.html')
+
+def faq(request):
+    """View function for the FAQ page.Displays frequently asked questions organized by categories."""
+    return render(request, 'faq.html')
+
+
+#class AdminDashboardView(AdminRoleRequiredMixin,View):
+    template_name = 'admin-panel/admin_dashboard.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['total_tickets'] = Ticket.objects.count()
+        context['open_tickets'] = Ticket.objects.filter(status='open').count()
+        context['closed_tickets'] = Ticket.objects.filter(status='closed').count()
+        context['recent_activities'] = Ticket.objects.order_by('-created_at')[:5]
+        return context
+
+@login_required
+def admin_dashboard(request):
+    context={}
+    context["open_tickets_count"] = Ticket.objects.filter(status='open').exclude(status='closed').exclude(status='pending').count()
+    context["closed_tickets_count"] = Ticket.objects.filter(status='closed').exclude(status='pending').exclude(status='open').count()
+    context["tickets_count"]=Ticket.objects.count()
+    context["recent_activities"]=Ticket.objects.order_by('-date_updated')[:10]
+    print(context)
+    return render(request, 'admin-panel/admin_dashboard.html', context)
+
+# def admin_ticket_list(request):
+#     return render(request, 'admin-panel/admin_ticket_list.html')
+
+class AdminTicketListView(LoginRequiredMixin,AdminRequiredMixin, View):
+    def get(self, request):
+        status = request.GET.get('status', 'all')
+        order = request.GET.get('order', 'asce')
+        order_attr = request.GET.get('order_attr', 'id')
+        order_by=order_attr  if order == 'asce' else "-" + order_attr
+        # Base queryset
+        tickets = Ticket.objects.all().order_by(order_by)
+
+        # Filter by status if specified
+        if status != 'all':
+            tickets = tickets.filter(status=status)
+
+
+        if order != 'asce':
+            tickets = tickets.order_by('-id')
+
+        # Get counts for the filter buttons
+        context = {
+            'tickets': tickets,
+            'status': status,
+            'order': order,
+            'order_attr': order_attr,
+            'open_count': Ticket.objects.filter(status='open').count(),
+            'pending_count': Ticket.objects.filter(status='pending').count(),
+            'closed_count': Ticket.objects.filter(status='closed').count(),
+        }
+        return render(request, 'admin-panel/admin_ticket_list.html', context)
+
+
+class AdminAccountView(View):
+    """
+    Handles user registration using Django's Class-Based Views.
+    """
+
+    def get(self, request):
+        form = SignUpForm()
+        return render(request, "admin-panel/admin_accounts.html", {"form": form,"is_update":False})
+
+    def post(self, request):
+        form = SignUpForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            if user.role == 'staff':
+                Staff.objects.create(user=user, department='', role='Staff Member')
+            elif user.role == 'student':
+                Student.objects.create(
+                    user=user,
+                    department=form.cleaned_data.get('department', ''),
+                    program=form.cleaned_data.get('program', 'Undeclared'),
+                    year_of_study=form.cleaned_data.get('year_of_study', 1)
+                )
+            messages.success(request, "Account created successfully!.")
+            return redirect('admin_accounts_list')
+        return render(request, "admin-panel/admin_accounts.html", {"form": form,"is_update":False})
+
+class AdminAccountEditView(View):
+    """
+    Handles user registration using Django's Class-Based Views.
+    """
+
+    def get(self, request,account_id):
+        account=get_object_or_404(CustomUser, id=account_id)
+        form = EditAccountForm(instance=account)
+        return render(request, "admin-panel/admin_accounts.html", {"form": form,"is_update":True})
+
+    def post(self, request,account_id):
+        account = get_object_or_404(CustomUser, id=account_id)
+        form = EditAccountForm(request.POST,instance=account)
+
+        if form.is_valid():
+            user = form.save()
+            if user.role == 'staff':
+                Staff.objects.create(user=user, department='', role='Staff Member')
+            elif user.role == 'student':
+                Student.objects.create(
+                    user=user,
+                    department=form.cleaned_data.get('department', ''),
+                    program=form.cleaned_data.get('program', 'Undeclared'),
+                    year_of_study=form.cleaned_data.get('year_of_study', 1)
+                )
+            messages.success(request, "Account updated successfully!.")
+            return redirect('admin_accounts_list')
+        return render(request, "admin-panel/admin_accounts.html", {"form": form,"is_update":True})
+class AdminAccountsView(View):
+    """
+    Handles user registration using Django's Class-Based Views.
+    """
+    def get(self, request):
+        admin_count=CustomUser.objects.filter(role="admin").count()
+        staff_count = CustomUser.objects.filter(role= "staff").count()
+        student_count = CustomUser.objects.filter(role= "student").count()
+        account_type = request.GET.get('account_type', 'all')
+        order = request.GET.get('order', 'asce')
+        order_attr = request.GET.get('order_attr', 'id')
+        order_by = order_attr if order == 'asce' else "-" + order_attr
+        # Base queryset
+        accounts = CustomUser.objects.all().order_by(order_by)
+
+        # Filter by status if specified
+        if account_type != 'all':
+            accounts = accounts.filter(role=account_type)
+
+
+        # Get counts for the filter buttons
+        context = {
+            'accounts': accounts,
+            'account_type': account_type,
+            'order': order,
+            'order_attr': order_attr,
+            'admin_count': admin_count,
+            'staff_count': staff_count,
+            'student_count': student_count,
+        }
+        return render(request, 'admin-panel/admin_accounts_list.html', context)
+
+
+    def post(self, request):
+        account_id = request.POST.get("account_id")  # Get the ID
+
+        if account_id:
+            try:
+                user = get_object_or_404(CustomUser, id=account_id)
+                user.delete()  # Delete from the database
+                messages.success(request, f"User with ID {account_id} deleted successfully.")
+            except Exception as e:
+                messages.success(request, f"Error deleting user: {e}")
+
+        return redirect("admin_accounts_list")
+

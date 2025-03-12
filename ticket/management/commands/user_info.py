@@ -16,4 +16,4 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Listing all users:\n"))
 
         for user in users:
-            self.stdout.write(f"Username: {user.username}, Role: {user.role}, Password: password123")
+            self.stdout.write(f"Username: {user.username}, Name : {user.first_name , user.last_name} Role: {user.role}, Password: password123")

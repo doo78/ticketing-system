@@ -3,10 +3,8 @@ from django.core.management.base import BaseCommand
 from django.utils.timezone import now
 from faker import Faker
 from ticket.models import CustomUser, Staff, Student, Ticket
-from django.utils.timezone import now, timedelta
-from django.conf import settings
+from datetime import timedelta
 
-DEPT_CHOICES = settings.DEPT_CHOICES
 
 fake = Faker()
 
@@ -14,6 +12,19 @@ fake = Faker()
 ROLE_ADMIN = "admin"
 ROLE_STAFF = "staff"
 ROLE_STUDENT = "student"
+
+# Department Choices
+DEPT_CHOICES = [
+    "arts_humanities",
+    "business",
+    "dentistry",
+    "law",
+    "life_sciences_medicine",
+    "natural_mathematical_engineering",
+    "nursing",
+    "psychiatry",
+    "social_science",
+]
 
 # Fixed Users
 DEFAULT_USERS = [
@@ -88,14 +99,17 @@ class Command(BaseCommand):
                 "role": data["role"],
             },
         )
-        
-        valid_departments = [choice[0] for choice in DEPT_CHOICES if choice[0]]
 
         if created:
             if data["role"] == ROLE_STAFF:
-                Staff.objects.create(user=user, department=random.choice(valid_departments) if valid_departments else "", role="Support Staff")
+                Staff.objects.create(user=user, department=random.choice(DEPT_CHOICES), role="Support Staff")
             elif data["role"] == ROLE_STUDENT:
-                Student.objects.create(user=user, department=random.choice(valid_departments) if valid_departments else "", program=fake.job(), year_of_study=random.randint(1, 4))
+                Student.objects.create(
+                    user=user,
+                    department=random.choice(DEPT_CHOICES),
+                    program=fake.job(),
+                    year_of_study=random.randint(1, 4)
+                )
 
             user.set_password("password123")  
             user.save()
@@ -108,8 +122,8 @@ class Command(BaseCommand):
 
         if not students.exists() or not staff.exists():
             self.stdout.write(self.style.ERROR("No students or staff available for ticket creation!"))
-            return
-
+            return    
+            
         for _ in range(self.TICKET_COUNT):
             student = random.choice(students)
             status = random.choice(["open", "pending", "closed"])
@@ -118,8 +132,8 @@ class Command(BaseCommand):
             assigned_staff = random.choice(staff) if status in ["pending", "closed"] else None
             
             date_submitted = now() - timedelta(days=random.randint(1, 30))  
-
             date_closed = date_submitted + timedelta(days=random.randint(1, 10)) if status == "closed" else None
+            closed_by = assigned_staff if status == "closed" else None
 
             Ticket.objects.create(
                 subject=fake.sentence(),
@@ -129,7 +143,8 @@ class Command(BaseCommand):
                 status=status,
                 priority=random.choice(["low", "normal", "urgent"]),
                 date_submitted=date_submitted,
-                date_closed=date_closed
+                date_closed=date_closed,
+                department=random.choice(DEPT_CHOICES)[0],
             )
 
         self.stdout.write(self.style.SUCCESS(f"{self.TICKET_COUNT} tickets generated."))
