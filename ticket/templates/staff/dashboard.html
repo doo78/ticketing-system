@@ -10,35 +10,62 @@
 
     <!-- Stats Row -->
     <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card text-white bg-gradient-primary shadow-lg border-0">
-                <div class="card-body text-center py-4">
-                    <h4 class="card-title fw-bold">Assigned Tickets</h4>
-                    <h1 class="display-3 fw-bold">{{ assigned_tickets_count|default:"0" }}</h1>
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">My Assigned Tickets</h5>
+                    <h2 class="card-text">{{ assigned_tickets_count|default:"0" }}</h2>
                 </div>
             </div>
         </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5 class="card-title">My Department Tickets</h5>
+                    <h2 class="card-text">{{ department_tickets_count|default:"0" }}</h2>
+                    {% if unassigned_dept_tickets > 0 %}
+                    <p class="mb-0"><span class="badge bg-danger">{{ unassigned_dept_tickets }} unassigned</span></p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
         <div class="col-md-6">
-            <div class="card text-white bg-gradient-secondary shadow-lg border-0">
-                <div class="card-body text-center py-4">
-                    <h4 class="card-title fw-bold">Department</h4>
-                    <h1 class="display-5">{{ request.user.staff.get_department_display|default:"Not Assigned" }}</h1>
+            <div class="card bg-secondary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Department</h5>
+                    <h2 class="card-text">{{ department }}</h2>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Quick Actions Card -->
-    <div class="card shadow-lg border-0">
-        <div class="card-body text-center py-4">
-            <h3 class="fw-bold">Quick Actions</h3>
-            <div class="d-flex justify-content-center mt-3">
-                <a href="{% url 'staff_ticket_list' %}" class="btn btn-lg btn-primary mx-3 px-4 py-3 shadow-lg">
-                    <i class="bi bi-ticket-detailed me-2"></i> View Tickets
-                </a>
-                <a href="{% url 'staff_profile' %}" class="btn btn-lg btn-secondary mx-3 px-4 py-3 shadow-lg">
-                    <i class="bi bi-person-circle me-2"></i> My Profile
-                </a>
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex gap-3">
+                        <a href="{% url 'staff_ticket_list' %}" class="btn btn-primary">
+                            <i class="bi bi-ticket-detailed me-2"></i>View All Tickets
+                        </a>
+                        <a href="{% url 'staff_ticket_list' %}?department_filter=mine" class="btn btn-info">
+                            <i class="bi bi-filter me-2"></i>My Department Tickets
+                        </a>
+                        {% if unassigned_dept_tickets > 0 %}
+                        <a href="{% url 'staff_ticket_list' %}?department_filter=mine&status=open" class="btn btn-danger">
+                            <i class="bi bi-exclamation-circle me-2"></i>Unassigned Department Tickets ({{ unassigned_dept_tickets }})
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'staff_profile' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-person-circle me-2"></i>My Profile
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
