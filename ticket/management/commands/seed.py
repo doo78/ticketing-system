@@ -144,7 +144,7 @@ class Command(BaseCommand):
                 priority=random.choice(["low", "normal", "urgent"]),
                 date_submitted=date_submitted,
                 date_closed=date_closed,
-                department=random.choice(DEPT_CHOICES)[0],
+                department=random.choice(DEPT_CHOICES),
             )
 
         self.stdout.write(self.style.SUCCESS(f"{self.TICKET_COUNT} tickets generated."))
