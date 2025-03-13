@@ -56,7 +56,7 @@ urlpatterns = [
         path('tickets/', StaffTicketListView.as_view(), name='staff_ticket_list'),
         path('ticket/<int:ticket_id>/manage/', ManageTicketView.as_view(), name='manage_ticket'),
     ])),
-     #------------------------------------STAFF URLS------------------------------------#
+     #------------------------------------admin URLS------------------------------------#
 
     path('control-panel/', include([
         path('dashboard/', views.admin_dashboard, name='admin_dashboard'),
@@ -65,8 +65,14 @@ urlpatterns = [
         path('account/<int:account_id>/', AdminAccountEditView.as_view(), name='admin_edit_account'),
         path('account/', AdminAccountView.as_view(), name='admin_account'),
         path('accounts/', AdminAccountsView.as_view(), name='admin_accounts_list'),
+        path('analytics/', views.analytics_dashboard, name='admin_analytics'),
+        path('admin/export/tickets/', views.export_tickets_csv, name='export_tickets_csv'),
+        path('admin/export/performance/', views.export_performance_csv, name='export_performance_csv'),
+   
+
     ])),
     # General dashboard redirect
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
 
