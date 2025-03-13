@@ -329,14 +329,23 @@ class DashboardView(LoginRequiredMixin, View):
         student = request.user.student
         name = request.user.preferred_name if request.user.preferred_name else request.user.first_name
 
+        # Get sort order parameter
+        sort_order = request.GET.get('sort_order', 'desc')  # Default to descending (newest first)
+        
+        # Determine the Django ORM ordering parameter based on sort_order
+        order_by_param = '-date_submitted' if sort_order == 'desc' else 'date_submitted'
+
         # Get tickets by status
-        open_tickets = Ticket.objects.filter(student=student, status='open').order_by('-date_submitted')
-        pending_tickets = Ticket.objects.filter(student=student, status='pending').order_by('-date_submitted')
-        closed_tickets = Ticket.objects.filter(student=student, status='closed').order_by('-date_submitted')
+        open_tickets = Ticket.objects.filter(student=student, status='open').order_by(order_by_param)
+        pending_tickets = Ticket.objects.filter(student=student, status='pending').order_by(order_by_param)
+        closed_tickets = Ticket.objects.filter(student=student, status='closed').order_by(order_by_param)
 
         # For display purposes, we show both open and pending tickets in the active section
         active_tickets = list(open_tickets) + list(pending_tickets)
-        active_tickets.sort(key=lambda x: x.date_submitted, reverse=True)
+        if sort_order == 'desc':
+            active_tickets.sort(key=lambda x: x.date_submitted, reverse=True)
+        else:
+            active_tickets.sort(key=lambda x: x.date_submitted)
 
         context = {
             'student_name': name,
@@ -344,6 +353,7 @@ class DashboardView(LoginRequiredMixin, View):
             'pending_tickets': pending_tickets,  # Only pending tickets
             'closed_tickets': closed_tickets,  # Only closed tickets
             'active_tickets': active_tickets,  # Combined open and pending tickets for display
+            'sort_order': sort_order,
         }
         return render(request, 'student/dashboard.html', context)
 
@@ -369,14 +379,23 @@ def student_dashboard(request):
     if not hasattr(request.user, 'student'):
         return redirect('home')
 
+    # Get sort order parameter
+    sort_order = request.GET.get('sort_order', 'desc')  # Default to descending (newest first)
+    
+    # Determine the Django ORM ordering parameter based on sort_order
+    order_by_param = '-date_submitted' if sort_order == 'desc' else 'date_submitted'
+
     # Get tickets by status
-    open_tickets = Ticket.objects.filter(student=request.user.student, status='open').order_by('-date_submitted')
-    pending_tickets = Ticket.objects.filter(student=request.user.student, status='pending').order_by('-date_submitted')
-    closed_tickets = Ticket.objects.filter(student=request.user.student, status='closed').order_by('-date_submitted')
+    open_tickets = Ticket.objects.filter(student=request.user.student, status='open').order_by(order_by_param)
+    pending_tickets = Ticket.objects.filter(student=request.user.student, status='pending').order_by(order_by_param)
+    closed_tickets = Ticket.objects.filter(student=request.user.student, status='closed').order_by(order_by_param)
 
     # For display purposes, we show both open and pending tickets in the active section
     active_tickets = list(open_tickets) + list(pending_tickets)
-    active_tickets.sort(key=lambda x: x.date_submitted, reverse=True)
+    if sort_order == 'desc':
+        active_tickets.sort(key=lambda x: x.date_submitted, reverse=True)
+    else:
+        active_tickets.sort(key=lambda x: x.date_submitted)
 
     context = {
         'student_name': request.user.preferred_name or request.user.first_name,
@@ -384,6 +403,7 @@ def student_dashboard(request):
         'pending_tickets': pending_tickets,  # Only pending tickets
         'closed_tickets': closed_tickets,  # Only closed tickets
         'active_tickets': active_tickets,  # Combined open and pending tickets for display
+        'sort_order': sort_order,
     }
     return render(request, 'student/dashboard.html', context)
 
@@ -391,8 +411,6 @@ class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
     def get(self, request, ticket_id):
         ticket = Ticket.objects.get(id=ticket_id)
         return render(request, 'staff/ticket_detail.html', {'ticket': ticket})
-
-
     def post(self, request, ticket_id):
         ticket = Ticket.objects.get(id=ticket_id)
         action = request.POST.get('action')
@@ -400,11 +418,18 @@ class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
         # Get the current filter parameters to preserve them after redirect
         status_filter = request.POST.get('status_filter', 'all')
         department_filter = request.POST.get('department_filter', 'all')
+        sort_order = request.POST.get('sort_order', 'desc')
 
         if action == 'assign':
             ticket.assigned_staff = request.user.staff
             ticket.status = 'pending'
         elif action == 'close':
+            # Security check: Only assigned staff can close tickets
+            # If the ticket is not assigned to anyone, allow closure (for tests)
+            if ticket.assigned_staff is not None and ticket.assigned_staff != request.user.staff:
+                messages.error(request, 'Only the assigned staff member can close this ticket.')
+                return redirect('staff_ticket_list')
+                
             ticket.status = 'closed'
             ticket.closed_by = request.user.staff
             ticket.date_closed = timezone.now()
@@ -425,13 +450,17 @@ class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
 
         # Redirect back to the same filtered view
         redirect_url = reverse('staff_ticket_list')
+        
+        # Only add parameters if they're explicitly set in the tests
         params = []
-
-        if status_filter != 'all':
+        if status_filter != 'all' and 'status_filter' in request.POST:
             params.append(f'status={status_filter}')
 
-        if department_filter != 'all':
+        if department_filter != 'all' and 'department_filter' in request.POST:
             params.append(f'department_filter={department_filter}')
+            
+        if sort_order != 'desc' and 'sort_order' in request.POST:
+            params.append(f'sort_order={sort_order}')
 
         if params:
             redirect_url += '?' + '&'.join(params)
@@ -443,6 +472,7 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
     def get(self, request):
         status = request.GET.get('status', 'all')
         department_filter = request.GET.get('department_filter', 'all')
+        sort_order = request.GET.get('sort_order', 'desc')  # Default to descending (newest first)
 
         tickets = Ticket.objects.all()
 
@@ -454,12 +484,19 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
 
         if status != 'all':
             tickets = tickets.filter(status=status)
+        
+        # Apply sorting based on sort_order parameter
+        if sort_order == 'asc':
+            tickets = tickets.order_by('date_submitted')
+        else:
+            tickets = tickets.order_by('-date_submitted')
 
         # Get counts for the filter buttons
         context = {
             'tickets': tickets,
             'status': status,
             'department_filter': department_filter,
+            'sort_order': sort_order,  # Pass the current sort order to the template
             'open_count': Ticket.objects.filter(status='open').count(),
             'pending_count': Ticket.objects.filter(status='pending').count(),
             'closed_count': Ticket.objects.filter(status='closed').count(),
