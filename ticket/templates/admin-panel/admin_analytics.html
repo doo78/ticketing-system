@@ -1,0 +1,322 @@
+{% extends 'admin-panel/base.html' %}
+
+{% block title %}Analytics - University Helpdesk{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Analytics Dashboard</h2>
+            <p class="text-muted">Detailed insights about helpdesk performance</p>
+        </div>
+    </div>
+
+    <!-- Date Range Filter and Export Tools -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <form method="get" class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label for="date_from" class="form-label">From Date</label>
+                            <input type="date" class="form-control" id="date_from" name="date_from" value="{{ date_from|date:'Y-m-d' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="date_to" class="form-label">To Date</label>
+                            <input type="date" class="form-control" id="date_to" name="date_to" value="{{ date_to|date:'Y-m-d' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-primary w-100">Apply Filter</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex justify-content-end h-100 align-items-end">
+                        <a href="{% url 'export_tickets_csv' %}?date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}" class="btn btn-success me-2">
+                            <i class="bi bi-file-earmark-excel me-1"></i> Export Tickets
+                        </a>
+                        <a href="{% url 'export_performance_csv' %}?date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}" class="btn btn-outline-success">
+                            <i class="bi bi-file-earmark-excel me-1"></i> Export Performance
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards Row -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Total Tickets</h5>
+                    <p class="card-text display-4">{{ analytics.total_tickets }}</p>
+                </div>
+                <div class="card-footer">
+                    <small class="text-white">{{ analytics.total_tickets_change }}% change from previous period</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Resolution Rate</h5>
+                    <p class="card-text display-4">{{ analytics.resolution_rate }}%</p>
+                </div>
+                <div class="card-footer">
+                    <small class="text-white">Based on {{ analytics.closed_tickets }} closed tickets</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Avg. Response Time</h5>
+                    <p class="card-text display-4">{{ analytics.avg_response_time }}</p>
+                </div>
+                <div class="card-footer">
+                    <small class="text-white">Hours until first response</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-dark h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Avg. Resolution Time</h5>
+                    <p class="card-text display-4">{{ analytics.avg_resolution_time }}</p>
+                </div>
+                <div class="card-footer">
+                    <small class="text-white">Hours until ticket closed</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <!-- Tickets by Status -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    Tickets by Status
+                </div>
+                <div class="card-body">
+                    <canvas id="statusChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tickets by Department -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    Tickets by Department
+                </div>
+                <div class="card-body">
+                    <canvas id="departmentChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <!-- Tickets Over Time -->
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    Ticket Volume Trend
+                </div>
+                <div class="card-body">
+                    <canvas id="trendChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Staff Performance -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    Staff Performance Metrics
+                </div>
+                <div class="card-body">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Staff Member</th>
+                                <th>Tickets Resolved</th>
+                                <th>Avg. Resolution Time (hrs)</th>
+                                <th>Satisfaction Rating</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for staff in analytics.staff_performance %}
+                            <tr>
+                                <td>{{ staff.name }}</td>
+                                <td>{{ staff.tickets_resolved }}</td>
+                                <td>{{ staff.avg_resolution_time }}</td>
+                                <td>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-success" role="progressbar" 
+                                             style="width: {{ staff.satisfaction_rating }}%;" 
+                                             aria-valuenow="{{ staff.satisfaction_rating }}" 
+                                             aria-valuemin="0" aria-valuemax="100">
+                                            {{ staff.satisfaction_rating }}%
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center">No staff performance data available.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Priority and Satisfaction -->
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    Tickets by Priority
+                </div>
+                <div class="card-body">
+                    <canvas id="priorityChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Satisfaction Ratings -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    Customer Satisfaction Ratings
+                </div>
+                <div class="card-body">
+                    <canvas id="satisfactionChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Status Chart (Pie chart)
+        const statusCtx = document.getElementById('statusChart').getContext('2d');
+        new Chart(statusCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Open', 'Pending', 'Closed'],
+                datasets: [{
+                    data: [
+                        {{ analytics.status_counts.open|default:0 }},
+                        {{ analytics.status_counts.pending|default:0 }},
+                        {{ analytics.status_counts.closed|default:0 }}
+                    ],
+                    backgroundColor: ['#0d6efd', '#ffc107', '#198754']
+                }]
+            }
+        });
+
+        // Department Chart (Bar chart)
+        const deptCtx = document.getElementById('departmentChart').getContext('2d');
+        new Chart(deptCtx, {
+            type: 'bar',
+            data: {
+                labels: [{% for dept in analytics.department_counts %}'{{ dept.name }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                datasets: [{
+                    label: 'Ticket Count',
+                    data: [{% for dept in analytics.department_counts %}{{ dept.count }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                    backgroundColor: '#6610f2'
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // Trend Chart (Line chart)
+        const trendCtx = document.getElementById('trendChart').getContext('2d');
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: [{% for date in analytics.date_trend %}'{{ date.date }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                datasets: [{
+                    label: 'New Tickets',
+                    data: [{% for date in analytics.date_trend %}{{ date.count }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                    borderColor: '#0dcaf0',
+                    backgroundColor: 'rgba(13, 202, 240, 0.1)',
+                    tension: 0.1,
+                    fill: true
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // Priority Chart (Doughnut chart)
+        const priorityCtx = document.getElementById('priorityChart').getContext('2d');
+        new Chart(priorityCtx, {
+            type: 'doughnut',
+            data: {
+                labels: [{% for cat in analytics.category_counts %}'{{ cat.name }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                datasets: [{
+                    data: [{% for cat in analytics.category_counts %}{{ cat.count }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                    backgroundColor: [
+                        '#fd7e14', '#20c997', '#6f42c1', '#d63384', '#dc3545'
+                    ]
+                }]
+            }
+        });
+
+        // Satisfaction Chart (Horizontal bar chart)
+        const satCtx = document.getElementById('satisfactionChart').getContext('2d');
+        new Chart(satCtx, {
+            type: 'bar',
+            data: {
+                labels: ['5 Stars', '4 Stars', '3 Stars', '2 Stars', '1 Star'],
+                datasets: [{
+                    label: 'Rating Count',
+                    data: [
+                        {{ analytics.satisfaction.five_star|default:0 }},
+                        {{ analytics.satisfaction.four_star|default:0 }},
+                        {{ analytics.satisfaction.three_star|default:0 }},
+                        {{ analytics.satisfaction.two_star|default:0 }},
+                        {{ analytics.satisfaction.one_star|default:0 }}
+                    ],
+                    backgroundColor: [
+                        '#198754', '#20c997', '#0dcaf0', '#fd7e14', '#dc3545'
+                    ]
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                scales: {
+                    x: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
