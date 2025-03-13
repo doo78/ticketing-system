@@ -1366,6 +1366,3 @@ def export_performance_csv(request):
 
     
 
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
-

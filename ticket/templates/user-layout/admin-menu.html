@@ -7,6 +7,10 @@
                        href="{% url 'admin_ticket_list' %}">
                         <i class="bi bi-ticket-detailed me-2"></i> Tickets
                     </a>
+                    <a class="nav-link {% if request.resolver_match.url_name == 'admin_analytics' %}active{% endif %}"
+                    href="{% url 'admin_analytics' %}">
+                        <i class="bi bi-graph-up me-2"></i> Analytics
+                    </a>
                     <a class="nav-link
                                 {% if request.resolver_match.url_name == 'admin_accounts_list' or request.resolver_match.url_name ==  'admin_account' or request.resolver_match.url_name == 'admin_edit_account' %}
                                 active
