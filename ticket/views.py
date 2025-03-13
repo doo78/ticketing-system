@@ -1189,13 +1189,15 @@ def export_performance_csv(request):
             status='closed', 
             date_closed__isnull=False
         )
-        
+    
         avg_resolution_time = ''
         if closed_tickets_with_dates.exists():
             resolution_times = []
             for ticket in closed_tickets_with_dates:
-                time_diff = ticket.date_closed - ticket.date_submitted
-                resolution_times.append(time_diff.total_seconds() / 3600)  # Convert to hours
+                if ticket.date_closed > ticket.date_submitted:
+
+                    time_diff = ticket.date_closed - ticket.date_submitted
+                    resolution_times.append(time_diff.total_seconds() / 3600)  # Convert to hours
             
             avg_resolution_time = round(sum(resolution_times) / len(resolution_times), 2) if resolution_times else ''
         
