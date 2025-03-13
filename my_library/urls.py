@@ -9,7 +9,8 @@ from django.conf import settings
 from ticket import views
 from ticket.views import (
      DashboardView, StaffUpdateProfileView, home, LogInView, LogOutView, StaffTicketListView, StaffTicketDetailView,
-    ManageTicketView, StaffProfileView, staff_dashboard, SignUpView,AdminTicketListView, AdminAccountsView,AdminAccountView,AdminAccountEditView
+    ManageTicketView, StaffProfileView, staff_dashboard, SignUpView,AdminTicketListView, AdminAccountsView,AdminAccountView,AdminAccountEditView,
+     AdminAPITicketDetailsView,AdminAPIStaffByDepartmentView,AdminAPITicketAssignView
 )
 
 from django.conf.urls.static import static
@@ -61,7 +62,7 @@ urlpatterns = [
     path('control-panel/', include([
         path('dashboard/', views.admin_dashboard, name='admin_dashboard'),
         path('tickets/', AdminTicketListView.as_view(), name='admin_ticket_list'),
-
+        path('ticket/<int:ticket_id>/', StaffTicketDetailView.as_view(), name='admin_ticket_detail'),
         path('account/<int:account_id>/', AdminAccountEditView.as_view(), name='admin_edit_account'),
         path('account/', AdminAccountView.as_view(), name='admin_account'),
         path('accounts/', AdminAccountsView.as_view(), name='admin_accounts_list'),
@@ -69,6 +70,13 @@ urlpatterns = [
         path('admin/export/tickets/', views.export_tickets_csv, name='export_tickets_csv'),
         path('admin/export/performance/', views.export_performance_csv, name='export_performance_csv'),
    
+
+
+        path('api/ticket_details', AdminAPITicketDetailsView.as_view(), name='api_ticket'),
+        path('api/get_staff_by_department', AdminAPIStaffByDepartmentView.as_view(), name='api_get_staff_by_deparment'),
+        path('api/ticket_assign', AdminAPITicketAssignView.as_view(), name='ticket_assign'),
+        path('profile/', StaffProfileView.as_view(), name='admin_profile'),
+        path('update_profile', StaffUpdateProfileView.as_view(), name='admin_update_profile'),
 
     ])),
     # General dashboard redirect

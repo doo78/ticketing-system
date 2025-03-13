@@ -1,9 +1,9 @@
-{% extends 'admin-panel/base.html' %}
+{% extends 'user-layout/base.html' %}
 
 {% block title %}Admin Dashboard - University Helpdesk{% endblock %}
 
 {% block content %}
-<div class="container">
+<div class="container" style="margin-left: 10px;">
    <div class="row mb-4">
         <div class="col">
             <h2>Welcome, {{ request.user.get_full_name|default:request.user.username }}</h2>
@@ -54,7 +54,6 @@
                         <th>Status</th>
                         <th>Submitted</th>
                         <th>Email</th>
-                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -69,27 +68,6 @@
                         </td>
                         <td>{{ ticket.date_submitted|date:"M d, Y" }}</td>
                         <td>{{ ticket.email }}</td>
-                        <td>
-                            <div class="btn-group">
-                                {% if ticket.status == 'open' %}
-                                <form method="post" action="{% url 'manage_ticket' ticket.id %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button type="submit" name="action" value="assign" class="btn btn-sm btn-primary">
-                                        Assign to Me
-                                    </button>
-                                </form>
-                                {% endif %}
-
-                                {% if ticket.status != 'closed' and ticket.assigned_staff == request.user.staff %}
-                                <form method="post" action="{% url 'manage_ticket' ticket.id %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button type="submit" name="action" value="close" class="btn btn-sm btn-success">
-                                        Close
-                                    </button>
-                                </form>
-                                {% endif %}
-                            </div>
-                        </td>
                     </tr>
                     {% empty %}
                     <tr>

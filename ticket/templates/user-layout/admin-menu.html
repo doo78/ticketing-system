@@ -1,0 +1,27 @@
+<nav class="nav flex-column">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'staff_dashboard' %}active{% endif %}"
+                       href="{% url 'admin_dashboard' %}">
+                        <i class="bi bi-speedometer2 me-2"></i> Dashboard
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.url_name == 'admin_ticket_list' %}active{% endif %}"
+                       href="{% url 'admin_ticket_list' %}">
+                        <i class="bi bi-ticket-detailed me-2"></i> Tickets
+                    </a>
+                    <a class="nav-link
+                                {% if request.resolver_match.url_name == 'admin_accounts_list' or request.resolver_match.url_name ==  'admin_account' or request.resolver_match.url_name == 'admin_edit_account' %}
+                                active
+                                {% endif %}"
+                       href="{% url 'admin_accounts_list' %}"> <i class="bi bi-people"></i> Accounts
+                    </a>
+                    <a class="nav-link {% if request.resolver_match.url_name == 'staff_profile' %}active{% endif %}"
+                       href="{% url 'staff_profile' %}">
+                        <i class="bi bi-person-circle me-2"></i> Profile
+                    </a>
+
+                    <!-- Logout Section -->
+                    <div class="mt-auto"></div>
+                    <hr class="my-3">
+                    <a class="nav-link text-danger" href="{% url 'logout' %}">
+                        <i class="bi bi-box-arrow-right me-2"></i> Logout
+                    </a>
+                </nav>
