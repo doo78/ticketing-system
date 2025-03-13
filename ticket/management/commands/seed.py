@@ -3,6 +3,8 @@ from django.core.management.base import BaseCommand
 from django.utils.timezone import now
 from faker import Faker
 from ticket.models import CustomUser, Staff, Student, Ticket
+from datetime import timedelta
+
 
 fake = Faker()
 
@@ -120,27 +122,29 @@ class Command(BaseCommand):
 
         if not students.exists() or not staff.exists():
             self.stdout.write(self.style.ERROR("No students or staff available for ticket creation!"))
-            return
-        
+            return    
+            
         for _ in range(self.TICKET_COUNT):
             student = random.choice(students)
-            assigned_staff = random.choice(staff)  # Ensure every ticket has staff
-            department = assigned_staff.department  # Assign ticket to staff's department
             status = random.choice(["open", "pending", "closed"])
+
+            # Ensures open tickets aren't assigned staff
+            assigned_staff = random.choice(staff) if status in ["pending", "closed"] else None
+            
+            date_submitted = now() - timedelta(days=random.randint(1, 30))  
+            date_closed = date_submitted + timedelta(days=random.randint(1, 10)) if status == "closed" else None
             closed_by = assigned_staff if status == "closed" else None
-            date_closed = now().date() if status == "closed" else None
 
             Ticket.objects.create(
                 subject=fake.sentence(),
                 description=fake.paragraph(),
-                department=department,
-                priority=random.choice(["low", "normal", "urgent"]),
-                student=student,
+                student=student,  
                 assigned_staff=assigned_staff,
                 status=status,
-                closed_by=closed_by,
+                priority=random.choice(["low", "normal", "urgent"]),
+                date_submitted=date_submitted,
                 date_closed=date_closed,
-                date_submitted=now(),
+                department=random.choice(DEPT_CHOICES),
             )
 
         self.stdout.write(self.style.SUCCESS(f"{self.TICKET_COUNT} tickets generated."))

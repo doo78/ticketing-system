@@ -13,7 +13,7 @@ from django.http import JsonResponse
 from ticket.mixins import RoleBasedRedirectMixin,AdminRoleRequiredMixin
 from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm,EditAccountForm,AdminUpdateProfileForm
 from .models import Ticket, Staff, Student, CustomUser, Message
-from .forms import TicketForm
+from .forms import LogInForm, SignUpForm, StaffUpdateProfileForm, EditAccountForm, TicketForm, RatingForm
 from django.views.generic.edit import UpdateView
 from django.shortcuts import render
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -21,7 +21,7 @@ from django.views import View
 from django.db.models import Avg
 from datetime import timedelta
 from .models import Ticket
-from django.db import models 
+from django.db import models
 from django.utils.timezone import now
 from django.db.models import F, Avg
 
@@ -47,6 +47,35 @@ def create_ticket(request):
         form = TicketForm(request.POST, student=request.user.student)
         if form.is_valid():
             ticket = form.save()
+
+            if ticket.department:
+                matching_staff = Staff.objects.filter(department=ticket.department)
+                if matching_staff.exists():
+                    assigned_staff = None
+                    min_active_tickets = float('inf')
+
+                    for staff in matching_staff:
+                        active_ticket_count = Ticket.objects.filter(
+                            assigned_staff=staff,
+                        ).exclude(
+                            status = 'closed'
+                        ).count()
+
+                        if active_ticket_count < min_active_tickets:
+                            min_active_tickets = active_ticket_count
+                            assigned_staff = staff
+
+                    if assigned_staff:
+                        ticket.assigned_staff = assigned_staff
+                        ticket.status = 'pending'
+                        ticket.save()
+
+                        messages.success(
+                            request,
+                            f'Your ticket #{ticket.id} has been successfully submitted and assigned to a staff member from {ticket.get_department_display()}'
+                        )
+                        return redirect('student_dashboard')
+
             messages.success(
                 request,
                 f'Your ticket #{ticket.id} has been submitted successfully. We will review it shortly.'
@@ -106,29 +135,45 @@ def ticket_list(request):
 def ticket_detail(request, ticket_id):
     if not hasattr(request.user, 'student'):
         return redirect('home')
-    
+
     ticket = get_object_or_404(Ticket, id=ticket_id, student=request.user.student)
-    
+    rating_form = None
+
+    # Initialize rating form for closed tickets
+    if ticket.status == 'closed' and ticket.rating is None:
+        rating_form = RatingForm(instance=ticket)
+
     if request.method == 'POST':
-        message_content = request.POST.get('message')
-        if message_content:
-            if ticket.status == 'closed':
-                messages.error(request, 'Cannot add messages to a closed ticket.')
-                return render(request, 'student/ticket_detail.html', {
-                    'ticket': ticket,
-                    'ticket_messages': ticket.messages.all().order_by('created_at')
-                })
-            Message.objects.create(
-                ticket=ticket,
-                author=request.user,
-                content=message_content
-            )
-            messages.success(request, 'Message sent successfully.')
-            return redirect('ticket_detail', ticket_id=ticket_id)
-    
+        # Handle rating submission
+        if 'submit_rating' in request.POST and ticket.status == 'closed':
+            rating_form = RatingForm(request.POST, instance=ticket)
+            if rating_form.is_valid():
+                rating_form.save()
+                messages.success(request, 'Thank you for your feedback!')
+                return redirect('ticket_detail', ticket_id=ticket_id)
+        # Handle message submission
+        else:
+            message_content = request.POST.get('message')
+            if message_content:
+                if ticket.status == 'closed':
+                    messages.error(request, 'Cannot add messages to a closed ticket.')
+                    return render(request, 'student/ticket_detail.html', {
+                        'ticket': ticket,
+                        'ticket_messages': ticket.messages.all().order_by('created_at'),
+                        'rating_form': rating_form
+                    })
+                Message.objects.create(
+                    ticket=ticket,
+                    author=request.user,
+                    content=message_content
+                )
+                messages.success(request, 'Message sent successfully.')
+                return redirect('ticket_detail', ticket_id=ticket_id)
+
     context = {
         'ticket': ticket,
-        'ticket_messages': ticket.messages.all().order_by('created_at')
+        'ticket_messages': ticket.messages.all().order_by('created_at'),
+        'rating_form': rating_form
     }
     return render(request, 'student/ticket_detail.html', context)
 
@@ -150,16 +195,40 @@ class AdminOrStaffRequiredMixin(UserPassesTestMixin):
 def home(request):
     return render(request, 'home.html')
 
+
 @login_required
 def staff_dashboard(request):
     if not hasattr(request.user, 'staff'):
         return redirect('home')
 
+    staff_department = request.user.staff.department
+
+    # Count tickets assigned to this staff member
+    assigned_tickets_count = Ticket.objects.filter(
+        assigned_staff=request.user.staff
+    ).exclude(status='closed').count()
+
+    # Count tickets for their department (not necessarily assigned to them)
+    department_tickets_count = 0
+    if staff_department:
+        department_tickets_count = Ticket.objects.filter(
+            department=staff_department
+        ).exclude(status='closed').count()
+
+    # Count unassigned tickets in their department
+    unassigned_dept_tickets = 0
+    if staff_department:
+        unassigned_dept_tickets = Ticket.objects.filter(
+            department=staff_department,
+            assigned_staff=None,
+            status='open'
+        ).count()
+
     context = {
-        'assigned_tickets_count': Ticket.objects.filter(
-            assigned_staff=request.user.staff
-        ).exclude(status='closed').count(),
-        'department': request.user.staff.department or "Not Assigned"
+        'assigned_tickets_count': assigned_tickets_count,
+        'department_tickets_count': department_tickets_count,
+        'unassigned_dept_tickets': unassigned_dept_tickets,
+        'department': request.user.staff.get_department_display() if staff_department else "Not Assigned"
     }
     return render(request, 'staff/dashboard.html', context)
 
@@ -183,7 +252,7 @@ class LogInView(View, RoleBasedRedirectMixin):
                 return redirect(redirect_url)
             return redirect(redirect_url)
         messages.error(request, "Invalid username or password.")
-        return render(request, 'login.html', {'form': form})  
+        return render(request, 'login.html', {'form': form})
 
     def render(self, request, next_page=''):
         """Render login template with blank log in form."""
@@ -198,14 +267,14 @@ class LogOutView(View):
         # Clear all existing messages
         storage = messages.get_messages(request)
         storage.used = True
-        
+
         # Perform logout
         logout(request)
-        
+
         # Add only the logout success message
         messages.success(request, "You have been logged out successfully.")
         return redirect(reverse("log_in"))
-    
+
 class SignUpView(View):
     """
     Handles user registration using Django's Class-Based Views.
@@ -230,7 +299,7 @@ class SignUpView(View):
             messages.success(request, "Account created successfully! Please log in.")
             return redirect('log_in')
         return render(request, "sign_up.html", {"form": form})
-    
+
 class DashboardView(LoginRequiredMixin, View):
     """
     Display the appropriate dashboard based on the user's role.
@@ -247,7 +316,7 @@ class DashboardView(LoginRequiredMixin, View):
 
     def render_staff_dashboard(self, request):
         """Render staff dashboard."""
-        
+
         context = {
             'assigned_tickets_count': Ticket.objects.filter(
                 assigned_staff=request.user.staff if hasattr(request.user, 'staff') else None
@@ -284,9 +353,9 @@ class DashboardView(LoginRequiredMixin, View):
 
     def redirect_to_home(self, request):
         """Redirect to home page if the role is undefined."""
-        return redirect(reverse("home"))    
-    
-    
+        return redirect(reverse("home"))
+
+
 class StaffRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return hasattr(self.request.user, 'staff')
@@ -319,9 +388,18 @@ def student_dashboard(request):
     return render(request, 'student/dashboard.html', context)
 
 class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
+    def get(self, request, ticket_id):
+        ticket = Ticket.objects.get(id=ticket_id)
+        return render(request, 'staff/ticket_detail.html', {'ticket': ticket})
+
+
     def post(self, request, ticket_id):
         ticket = Ticket.objects.get(id=ticket_id)
         action = request.POST.get('action')
+
+        # Get the current filter parameters to preserve them after redirect
+        status_filter = request.POST.get('status_filter', 'all')
+        department_filter = request.POST.get('department_filter', 'all')
 
         if action == 'assign':
             ticket.assigned_staff = request.user.staff
@@ -330,18 +408,50 @@ class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
             ticket.status = 'closed'
             ticket.closed_by = request.user.staff
             ticket.date_closed = timezone.now()
+        else:
+            new_department = request.POST.get('department')
+
+            if not new_department:
+                messages.error(request, 'Please select a department to redirect the ticket to.')
+                return redirect('manage_ticket', ticket_id=ticket.id)
+
+            ticket.department = new_department
+            ticket.assigned_staff = None
+
+            if ticket.status == 'pending':
+                ticket.status = 'open'
 
         ticket.save()
-        return redirect('staff_ticket_list')
+
+        # Redirect back to the same filtered view
+        redirect_url = reverse('staff_ticket_list')
+        params = []
+
+        if status_filter != 'all':
+            params.append(f'status={status_filter}')
+
+        if department_filter != 'all':
+            params.append(f'department_filter={department_filter}')
+
+        if params:
+            redirect_url += '?' + '&'.join(params)
+
+        return redirect(redirect_url)
 
 
 class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
     def get(self, request):
         status = request.GET.get('status', 'all')
-        # Base queryset
+        department_filter = request.GET.get('department_filter', 'all')
+
         tickets = Ticket.objects.all()
 
         # Filter by status if specified
+        if department_filter == 'mine':
+            staff_department = request.user.staff.department
+            if staff_department:
+                tickets = tickets.filter(department=staff_department)
+
         if status != 'all':
             tickets = tickets.filter(status=status)
 
@@ -349,9 +459,13 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
         context = {
             'tickets': tickets,
             'status': status,
+            'department_filter': department_filter,
             'open_count': Ticket.objects.filter(status='open').count(),
             'pending_count': Ticket.objects.filter(status='pending').count(),
             'closed_count': Ticket.objects.filter(status='closed').count(),
+            'my_department_count': Ticket.objects.filter(
+                department= request.user.staff.department
+            ).count() if request.user.staff.department else 0,
         }
         return render(request, 'staff/staff_ticket_list.html', context)
 
@@ -372,7 +486,7 @@ class StaffTicketDetailView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View)
 
     def post(self, request, ticket_id):
         ticket = get_object_or_404(Ticket, id=ticket_id)
-        
+
         # Check if this is a JSON request (AI generation)
         if request.content_type == 'application/json':
             try:
@@ -391,7 +505,7 @@ class StaffTicketDetailView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View)
                         )
                     )
                 )
-                
+
                 lambda_payload = {
                     "ticket_id": ticket.id,
                     "department": ticket.department,
@@ -418,12 +532,12 @@ class StaffTicketDetailView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View)
                         InvocationType='RequestResponse',
                         Payload=json.dumps(lambda_payload)
                     )
-                    
+
                     if response['StatusCode'] != 200:
                         raise Exception(f"Lambda returned status code {response['StatusCode']}")
-                    
+
                     response_payload = json.loads(response['Payload'].read())
-                    
+
                     if 'errorMessage' in response_payload:
                         raise Exception(response_payload['errorMessage'])
 
@@ -455,7 +569,7 @@ class StaffTicketDetailView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View)
                     'success': False,
                     'error': 'An unexpected error occurred'
                 })
-            
+
         # Handle regular form submission (adding messages)
         message_content = request.POST.get('message')
         if message_content:
@@ -468,14 +582,14 @@ class StaffTicketDetailView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View)
                     content=message_content
                 )
                 messages.success(request, 'Message sent successfully.')
-        
+
         return redirect('staff_ticket_detail', ticket_id=ticket_id)
 
 class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
     """
     Loads relevant data and template for staff profile
     """
-    
+
     def get(self, request):
         if request.user.role == 'staff':
             staff_member = request.user.staff
@@ -496,6 +610,18 @@ class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
                 pending_percentage = 0
                 closed_percentage = 0
 
+            # Calculate average rating for closed tickets
+            rated_tickets = assigned_tickets.filter(status="closed", rating__isnull=False)
+            rated_tickets_count = rated_tickets.count()
+
+            if rated_tickets_count > 0:
+                avg_rating = rated_tickets.aggregate(avg_rating=Avg('rating'))['avg_rating']
+                avg_rating = round(avg_rating, 1) if avg_rating else 0
+                avg_rating_display = f"{avg_rating}"
+            else:
+                avg_rating = 0
+                avg_rating_display = "N/A"
+
             if closed_tickets == 0:
                 avg_close_time_days_display = "N/A"
             else:
@@ -504,15 +630,13 @@ class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
                     date_closed__isnull=False
                 ).aggregate(
                     avg_duration=Avg(ExpressionWrapper(Case(When(date_closed__gte=F("date_submitted"),
-                                then=F("date_closed") - F("date_submitted")),
-                                default=Value(0),
-                                output_field=DurationField()
-                            ),
-                            output_field=DurationField()
-                        )
-                    )
-                )
-
+                     then=F("date_closed") - F("date_submitted")),
+                    default=Value(0),
+                    output_field=DurationField()
+                    ),
+                    output_field=DurationField()
+                                                       )
+                ))
                 avg_duration = avg_close_time["avg_duration"]
                 if avg_duration:
                     avg_close_time_days = avg_duration.days + avg_duration.seconds / (3600 * 24)
@@ -520,7 +644,6 @@ class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
                     avg_close_time_days_display = f"{avg_close_time_days} days"
                 else:
                     avg_close_time_days_display = "N/A"
-
             context = {
                 "open_tickets": open_tickets,
                 "pending_tickets": pending_tickets,
@@ -529,18 +652,20 @@ class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
                 "open_percentage": open_percentage,
                 "pending_percentage": pending_percentage,
                 "closed_percentage": closed_percentage,
-                "avg_close_time_days": avg_close_time_days_display
+                "avg_close_time_days": avg_close_time_days_display,
+                "avg_rating": avg_rating,
+                "avg_rating_display": avg_rating_display,
+                "rated_tickets_count": rated_tickets_count
             }
         else:
             context={}
-        
         return render(request, 'staff/profile.html', context)
 
 class StaffUpdateProfileView(UpdateView):
     """
     Loads the page and form to update the staff profile
     """
-    
+
     model = CustomUser
     template_name = "staff/update_profile.html"
     def get_form_class(self):
@@ -555,8 +680,8 @@ class StaffUpdateProfileView(UpdateView):
 
     def get_success_url(self):
         """Return redirect URL after successful update."""
-        
-        return reverse("staff_profile")  
+
+        return reverse("staff_profile")
 
 
 def check_username(request):
@@ -581,7 +706,7 @@ def faq(request):
 
 #class AdminDashboardView(AdminRoleRequiredMixin,View):
     template_name = 'admin-panel/admin_dashboard.html'
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['total_tickets'] = Ticket.objects.count()

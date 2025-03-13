@@ -72,7 +72,11 @@
                                     <h6 class="card-title">Open</h6>
                                     <p class="card-text">{{ open_tickets }} ({{ open_percentage|floatformat:1 }}%)</p>
                                     <div class="progress">
-                                        <div class="progress-bar" role="progressbar" style="width: {{ open_percentage }}%" aria-valuenow="{{ open_tickets }}" aria-valuemin="0" aria-valuemax="{{ total_tickets }}"></div>
+                                        <div class="progress-bar open-progress-bar" role="progressbar" 
+                                             data-percentage="{{ open_percentage }}"
+                                             aria-valuenow="{{ open_tickets }}" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="{{ total_tickets }}"></div>
                                     </div>
                                 </div>
                             </div>
@@ -83,7 +87,11 @@
                                     <h6 class="card-title">Pending</h6>
                                     <p class="card-text">{{ pending_tickets }} ({{ pending_percentage|floatformat:1 }}%)</p>
                                     <div class="progress">
-                                        <div class="progress-bar" role="progressbar" style="width: {{ pending_percentage }}%" aria-valuenow="{{ pending_tickets }}" aria-valuemin="0" aria-valuemax="{{ total_tickets }}"></div>
+                                        <div class="progress-bar pending-progress-bar" role="progressbar" 
+                                             data-percentage="{{ pending_percentage }}"
+                                             aria-valuenow="{{ pending_tickets }}" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="{{ total_tickets }}"></div>
                                     </div>
                                 </div>
                             </div>
@@ -94,25 +102,87 @@
                                     <h6 class="card-title">Closed</h6>
                                     <p class="card-text">{{ closed_tickets }} ({{ closed_percentage|floatformat:1 }}%)</p>
                                     <div class="progress">
-                                        <div class="progress-bar" role="progressbar" style="width: {{ closed_percentage }}%" aria-valuenow="{{ closed_tickets }}" aria-valuemin="0" aria-valuemax="{{ total_tickets }}"></div>
-                                    </div>                                </div>
+                                        <div class="progress-bar closed-progress-bar" role="progressbar" 
+                                             data-percentage="{{ closed_percentage }}"
+                                             aria-valuenow="{{ closed_tickets }}" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="{{ total_tickets }}"></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Average Response Time -->
-            <div class="card shadow-sm">
-                <div class="card-header">
-                    <h5 class="mb-0">Average Response Time</h5>
+            <!-- Average Response Time and Rating (side by side) -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">Average Response Time</h5>
+                        </div>
+                        <div class="card-body text-center">
+                            <h3><strong>{{ avg_close_time_days }}</strong></h3>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body text-center">
-                    <h3><strong>{{ avg_close_time_days }}</strong></h3>
+                
+                <div class="col-md-6">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">Average Rating</h5>
+                        </div>
+                        <div class="card-body text-center">
+                            {% if avg_rating_display != "N/A" %}
+                            <div class="d-flex justify-content-center align-items-center">
+                                <h3 class="mb-0 me-3"><strong>{{ avg_rating_display }}</strong></h3>
+                                <div>
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= avg_rating %}
+                                            <span style="color: #FFD700; font-size: 1.5rem;">★</span>
+                                        {% else %}
+                                            {% if forloop.counter <= avg_rating|add:0.5 and avg_rating|floatformat:0 != avg_rating %}
+                                                <span style="color: #FFD700; font-size: 1.5rem;">★</span>
+                                            {% else %}
+                                                <span style="color: #e0e0e0; font-size: 1.5rem;">★</span>
+                                            {% endif %}
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <p class="text-muted mt-2 mb-0">Based on {{ rated_tickets_count }} rated ticket{{ rated_tickets_count|pluralize }}</p>
+                            {% else %}
+                            <h3><strong>{{ avg_rating_display }}</strong></h3>
+                            <p class="text-muted mt-2 mb-0">No rated tickets yet</p>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
         {% endif %}
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set progress bar widths dynamically after page load
+        const openBar = document.querySelector('.open-progress-bar');
+        const pendingBar = document.querySelector('.pending-progress-bar');
+        const closedBar = document.querySelector('.closed-progress-bar');
+        
+        if (openBar) {
+            openBar.style.width = openBar.dataset.percentage + '%';
+        }
+        
+        if (pendingBar) {
+            pendingBar.style.width = pendingBar.dataset.percentage + '%';
+        }
+        
+        if (closedBar) {
+            closedBar.style.width = closedBar.dataset.percentage + '%';
+        }
+    });
+</script>
 {% endblock %}

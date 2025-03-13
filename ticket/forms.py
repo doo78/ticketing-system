@@ -264,3 +264,21 @@ class TicketForm(forms.ModelForm):
             ticket.save()
         return ticket
 
+class RatingForm(forms.ModelForm):
+    """Form for students to rate their ticket experience after closure."""
+    class Meta:
+        model = Ticket
+        fields = ['rating', 'rating_comment']
+        widgets = {
+            'rating': forms.RadioSelect(),
+            'rating_comment': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Share your thoughts about the support you received...'}),
+        }
+        labels = {
+            'rating': 'How would you rate your experience?',
+            'rating_comment': 'Comments (optional)',
+        }
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['rating_comment'].required = False
+

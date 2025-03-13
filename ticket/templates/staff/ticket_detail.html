@@ -154,6 +154,50 @@
                 </div>
             </div>
 
+            <!-- Student Rating (for closed tickets) -->
+            {% if ticket.status == 'closed' and ticket.rating %}
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-star text-warning me-2"></i>Student Feedback</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-2">Rating</h6>
+                        <div class="d-flex align-items-center">
+                            <div class="me-2">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= ticket.rating %}
+                                        <span style="color: #FFD700; font-size: 1.5rem;">★</span>
+                                    {% else %}
+                                        <span style="color: #e0e0e0; font-size: 1.5rem;">★</span>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            <span class="text-muted">({{ ticket.rating }} out of 5)</span>
+                        </div>
+                    </div>
+                    
+                    {% if ticket.rating_comment %}
+                    <div>
+                        <h6 class="text-muted mb-2">Comments</h6>
+                        <div class="p-3 bg-light rounded">
+                            <p class="mb-0">{{ ticket.rating_comment }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% elif ticket.status == 'closed' and not ticket.rating %}
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-star text-muted me-2"></i>Student Feedback</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-0">No rating has been provided by the student yet.</p>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Ticket Actions -->
             <div class="card">
                 <div class="card-header">
@@ -167,8 +211,36 @@
                             <i class="fas fa-user-check me-2"></i>Assign to Me
                         </button>
                         {% endif %}
+                        {% if ticket.status == 'open' or ticket.status == 'pending' and ticket.assigned_staff == request.user.staff %}
+                        <div class="mb-2">
+                            <button class="btn btn-warning w-100" type="button" data-bs-toggle="collapse" data-bs-target="#redirectSection" aria-expanded="false" aria-controls="redirectSection">
+                                <i class="fas fa-arrow-right me-2"></i>Redirect Ticket
+                            </button>
+                            <div class="collapse" id="redirectSection">
+                                <div class="card card-body mt-3">
+                                    <label for="department" class="form-label">Select Department</label>
+                                    <select name="department" class="form-control" required>
+                                        <option value="">Select Department</option>
+                                        <option value="arts_humanities">Arts & Humanities</option>
+                                        <option value="business">Business</option>
+                                        <option value="dentistry">Dentistry</option>
+                                        <option value="law">Law</option>
+                                        <option value="life_sciences_medicine">Life Sciences & Medicine</option>
+                                        <option value="natural_mathematical_engineering">Natural, Mathematical & Engineering Sciences</option>
+                                        <option value="nursing">Nursing</option>
+                                        <option value="psychiatry">Psychiatry</option>
+                                        <option value="social_science">Social Science</option>
+                                    </select>
+                                    <button type="submit" name="action" value="redirect" class="btn btn-warning w-100 mt-2">
+                                        <i class="fas fa-arrow-right me-2"></i>Confirm
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
                         {% if ticket.status != 'closed' %}
-                        <button type="submit" name="action" value="close" class="btn btn-secondary w-100">
+                        <button type="submit" name="action" value="close" class="btn btn-success w-100">
                             <i class="fas fa-check-circle me-2"></i>Close Ticket
                         </button>
                         {% endif %}

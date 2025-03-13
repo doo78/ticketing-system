@@ -29,7 +29,7 @@ class Staff(models.Model):
     department = models.CharField(max_length=100)
     role = models.CharField(max_length=50)
     date_joined = models.DateTimeField(auto_now_add=True)
-    profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
+    profile_picture = models.ImageField(upload_to='media/profile_pics/', blank=True, null=True)
 
     def __str__(self):
         return f"{self.user.username} - {self.role}"
@@ -71,6 +71,13 @@ class Ticket(models.Model):
         ('normal', 'Normal'),
         ('urgent', 'Urgent'),
     ]
+    RATING_CHOICES = [
+        (1, '⭐'),
+        (2, '⭐⭐'),
+        (3, '⭐⭐⭐'),
+        (4, '⭐⭐⭐⭐'),
+        (5, '⭐⭐⭐⭐⭐'),
+    ]
 
     subject = models.CharField(max_length=200)
     description = models.TextField()
@@ -87,7 +94,12 @@ class Ticket(models.Model):
     closed_by = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True, related_name='closed_tickets')
     expiration_date = models.DateTimeField(default=now() + timedelta(days=30))
 
+    message_id = models.CharField(max_length=255, blank=True, null=True)
     ai_response = models.BooleanField(default=False)
+    
+    # Rating field - nullable because rating is only available after closure
+    rating = models.IntegerField(choices=RATING_CHOICES, null=True, blank=True)
+    rating_comment = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"Ticket #{self.id} - {self.subject}"

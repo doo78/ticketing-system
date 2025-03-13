@@ -99,7 +99,8 @@
                                     <th>Ticket ID</th>
                                     <th>Subject</th>
                                     <th>Status</th>
-                                    <th>Created</th>
+                                    <th>Closed</th>
+                                    <th>Rating</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -111,7 +112,22 @@
                                     <td>
                                         <span class="badge bg-secondary">{{ ticket.status }}</span>
                                     </td>
-                                    <td>{{ ticket.date_submitted|date:"M d, Y" }}</td>
+                                    <td>{{ ticket.date_closed|date:"M d, Y" }}</td>
+                                    <td>
+                                        {% if ticket.rating %}
+                                        <div class="text-warning">
+                                            {% for i in "12345" %}
+                                                {% if forloop.counter <= ticket.rating %}
+                                                    ★
+                                                {% else %}
+                                                    <span class="text-muted">★</span>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                        {% else %}
+                                        <span class="badge bg-warning text-dark">Not Rated</span>
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         <a href="{% url 'ticket_detail' ticket.id %}" class="btn btn-sm btn-outline-secondary">View</a>
                                     </td>
