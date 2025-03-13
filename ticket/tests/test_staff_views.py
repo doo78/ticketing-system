@@ -8,86 +8,91 @@ import json
 
 User = get_user_model()
 
+
 class ManageTicketViewTest(TestCase):
     def setUp(self):
         """Create a staff user and a test ticket."""
         self.staff_user = User.objects.create_user(username='staffuser', password='password123')
         self.staff = Staff.objects.create(user=self.staff_user)
-        
+
         self.ticket = Ticket.objects.create(
             subject='Test Ticket',
             description='This is a test ticket.',
             status='open',
         )
-        
+
         self.pending_ticket = Ticket.objects.create(
             subject='Test Ticket',
             description='This is a test ticket.',
-            status='pending', 
-            department='business',  
+            status='pending',
+            department='business',
         )
-        
+
         self.pending_ticket_assigned = Ticket.objects.create(
             subject='Pending Ticket Assigned to Me',
             description='This is a pending ticket assigned to the current user.',
             status='pending',
             department='business',
-            assigned_staff=self.staff 
+            assigned_staff=self.staff
         )
-        
+
         self.client.login(username='staffuser', password='password123')
-    
+
     def test_assign_ticket(self):
         """Test assigning a ticket to a staff member."""
         response = self.client.post(reverse('manage_ticket', args=[self.ticket.id]), {'action': 'assign'})
         self.ticket.refresh_from_db()
-        
+
         self.assertEqual(self.ticket.assigned_staff, self.staff)
         self.assertEqual(self.ticket.status, 'pending')
+        # Updated to expect redirect to list page
         self.assertRedirects(response, reverse('staff_ticket_list'))
-    
+
     def test_close_ticket(self):
         """Test closing a ticket."""
         response = self.client.post(reverse('manage_ticket', args=[self.ticket.id]), {'action': 'close'})
         self.ticket.refresh_from_db()
-        
+
         self.assertEqual(self.ticket.status, 'closed')
         self.assertEqual(self.ticket.closed_by, self.staff)
         self.assertIsNotNone(self.ticket.date_closed)
+        # Updated to expect redirect to list page
         self.assertRedirects(response, reverse('staff_ticket_list'))
-        
+
     def test_redirect_ticket_assigned_to_user(self):
         """Test that the redirect button is visible when the ticket is assigned to the current user."""
         data = {
             'action': 'redirect',
-            'department': 'law',  
+            'department': 'law',
         }
 
         response = self.client.post(reverse('manage_ticket', args=[self.pending_ticket_assigned.id]), data)
         self.pending_ticket_assigned.refresh_from_db()
-        
+
         self.assertEqual(self.pending_ticket_assigned.department, 'law')
         self.assertEqual(self.pending_ticket_assigned.status, 'open')
-        
+
         self.assertIsNone(self.pending_ticket_assigned.assigned_staff)
-        
+
+        # Updated to expect redirect to list page
         self.assertRedirects(response, reverse('staff_ticket_list'))
-        
+
     def test_redirect_ticket_assigned_to_other_user(self):
         """Test that the redirect button is not shown when the ticket is assigned to another user."""
-        other_staff_user = User.objects.create_user(username='otherstaff', password='password123', email='otherstaff@gmail.com')
+        other_staff_user = User.objects.create_user(username='otherstaff', password='password123',
+                                                    email='otherstaff@gmail.com')
         other_staff = Staff.objects.create(user=other_staff_user)
-        
+
         self.pending_ticket.assigned_staff = other_staff
         self.pending_ticket.save()
-        
+
         self.client.login(username='staffuser', password='password123')
-        
-        response = self.client.get(reverse('manage_ticket', args=[self.pending_ticket.id]))
-        
-        self.assertNotContains(response, 'Redirect Ticket')
-        
+
+        response = self.client.get(reverse('staff_ticket_detail', args=[self.pending_ticket.id]), follow=True)
+
         self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Redirect Ticket')
+
 
 class StaffTicketListViewTest(TestCase):
     def setUp(self):
@@ -133,34 +138,34 @@ class StaffTicketListViewTest(TestCase):
         )
         Ticket.objects.create(subject='Pending Ticket', status='pending', student=self.student)
         Ticket.objects.create(subject='Closed Ticket', status='closed', student=self.student)
-        
+
         self.client.login(username='staffuser', password='testpass123')
         self.ticket_detail_url = reverse('staff_ticket_detail', args=[self.open_ticket.id])
-    
+
     def test_view_all_tickets(self):
         """Test viewing all tickets without filters."""
         response = self.client.get(reverse('staff_ticket_list'))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.context['tickets']), 3)
-    
+
     def test_filter_open_tickets(self):
         """Test filtering tickets by 'open' status."""
         response = self.client.get(reverse('staff_ticket_list') + '?status=open')
         self.assertEqual(len(response.context['tickets']), 1)
         self.assertEqual(response.context['tickets'][0].status, 'open')
-    
+
     def test_filter_pending_tickets(self):
         """Test filtering tickets by 'pending' status."""
         response = self.client.get(reverse('staff_ticket_list') + '?status=pending')
         self.assertEqual(len(response.context['tickets']), 1)
         self.assertEqual(response.context['tickets'][0].status, 'pending')
-    
+
     def test_filter_closed_tickets(self):
         """Test filtering tickets by 'closed' status."""
         response = self.client.get(reverse('staff_ticket_list') + '?status=closed')
         self.assertEqual(len(response.context['tickets']), 1)
         self.assertEqual(response.context['tickets'][0].status, 'closed')
-    
+
     def test_ticket_counts(self):
         """Test ticket count values in context."""
         response = self.client.get(reverse('staff_ticket_list'))
@@ -281,7 +286,7 @@ class StaffTicketListViewTest(TestCase):
             data='invalid json',
             content_type='application/json'
         )
-        
+
         self.assertEqual(response.status_code, 200)
         response_data = json.loads(response.content)
         self.assertFalse(response_data['success'])
@@ -293,7 +298,7 @@ class StaffTicketListViewTest(TestCase):
             self.ticket_detail_url,
             {'message': 'This is a regular message'}
         )
-        
+
         self.assertRedirects(response, self.ticket_detail_url)
         self.assertTrue(self.open_ticket.messages.filter(content='This is a regular message').exists())
 
@@ -310,6 +315,7 @@ class StaffTicketListViewTest(TestCase):
         self.assertRedirects(response, self.ticket_detail_url)
         messages = list(response.wsgi_request._messages)
         self.assertTrue(any('closed' in str(m).lower() for m in messages))
+
 
 class StaffTicketRatingTest(TestCase):
     def setUp(self):
@@ -357,7 +363,7 @@ class StaffTicketRatingTest(TestCase):
             rating=5,
             rating_comment='Excellent support!'
         )
-        
+
         self.rated_ticket2 = Ticket.objects.create(
             subject='Rated Ticket 2',
             description='This is another test ticket with rating',
@@ -369,7 +375,7 @@ class StaffTicketRatingTest(TestCase):
             rating=3,
             rating_comment='Good but could be faster'
         )
-        
+
         self.unrated_ticket = Ticket.objects.create(
             subject='Unrated Closed Ticket',
             description='This is a closed ticket without rating',
@@ -379,34 +385,34 @@ class StaffTicketRatingTest(TestCase):
             assigned_staff=self.staff,
             date_closed=timezone.now()
         )
-        
+
         self.client.login(username='staffuser', password='testpass123')
-        
+
     def test_staff_can_see_ticket_rating_in_detail_view(self):
         """Test that staff can see ratings in ticket detail view."""
         response = self.client.get(reverse('staff_ticket_detail', args=[self.rated_ticket1.id]))
         self.assertEqual(response.status_code, 200)
-        
+
         # Check that rating info is displayed, without relying on specific formatting
         self.assertContains(response, 'Student Feedback')
         self.assertContains(response, self.rated_ticket1.rating_comment)
-        
+
     def test_unrated_closed_ticket_shows_no_rating_message(self):
         """Test that unrated closed tickets show a message."""
         response = self.client.get(reverse('staff_ticket_detail', args=[self.unrated_ticket.id]))
         self.assertEqual(response.status_code, 200)
-        
+
         # Check for message about no rating
         self.assertContains(response, 'No rating')
-        
+
     def test_staff_ticket_list_shows_ratings_for_closed_tickets(self):
         """Test that ratings appear in the staff ticket list for closed tickets."""
         response = self.client.get(reverse('staff_ticket_list') + '?status=closed')
         self.assertEqual(response.status_code, 200)
-        
+
         # Check for rating column header
         self.assertContains(response, '<th>Rating</th>')
-        
+
         # Check for "Not rated" text - we'll be more general with our assertions
         self.assertContains(response, 'Not rated')
 
@@ -414,28 +420,28 @@ class StaffTicketRatingTest(TestCase):
         """Test that the staff profile shows the correct average rating."""
         response = self.client.get(reverse('staff_profile'))
         self.assertEqual(response.status_code, 200)
-        
+
         # Check that the average rating section exists
         self.assertContains(response, 'Average Rating')
-        
+
         # We expect rating to be displayed, but not hardcoding exact format
         # Instead of checking for exact "4.0", just check for the base number
         self.assertContains(response, '4')
-        
+
         # Check for "Based on X rated tickets" text without being too specific
         self.assertContains(response, 'Based on')
         self.assertContains(response, 'rated ticket')
-        
+
     def test_staff_profile_with_no_ratings(self):
         """Test staff profile when no tickets have ratings."""
         # Remove ratings from tickets
         Ticket.objects.all().update(rating=None, rating_comment=None)
-        
+
         response = self.client.get(reverse('staff_profile'))
         self.assertEqual(response.status_code, 200)
-        
+
         # Check for "N/A" text
         self.assertContains(response, 'N/A')
-        
+
         # Check for "No rated tickets yet" text
-        self.assertContains(response, 'No rated tickets yet') 
+        self.assertContains(response, 'No rated tickets yet')

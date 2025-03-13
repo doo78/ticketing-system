@@ -81,7 +81,7 @@
         .main-content {
             margin-left: 250px;
             flex: 1;
-            padding: 20px;
+            padding: 50px 20px 20px 20px; /* Further increased top padding */
             transition: margin-left 0.3s ease-in-out;
             width: 100%;
         }
@@ -94,7 +94,7 @@
         .toggle-btn {
             font-size: 24px;
             cursor: pointer;
-            position: absolute;
+            position: fixed; /* Changed to fixed position */
             left: 260px;
             top: 15px;
             background: none;
@@ -102,6 +102,7 @@
             outline: none;
             transition: left 0.3s ease-in-out;
             color: #6a11cb;
+            z-index: 9999; /* Extremely high z-index */
         }
 
         .toggle-btn.hide {
@@ -150,12 +151,26 @@
         </nav>
     </div>
 
+    <!-- Toggle Button (moved outside the main content div) -->
+    <button class="toggle-btn" id="toggle-btn">
+        <i class="bi bi-list"></i>
+    </button>
+
     <!-- Main Content -->
     <div class="main-content" id="main-content">
-        <!-- Toggle Button -->
-        <button class="toggle-btn" id="toggle-btn">
-            <i class="bi bi-list"></i>
-        </button>
+        <!-- Messages Section -->
+        {% if messages %}
+        <div class="row mb-4">
+            <div class="col">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
 
         {% block content %}
         {% endblock %}
@@ -167,6 +182,21 @@
             document.getElementById("sidebar").classList.toggle("hide");
             document.getElementById("main-content").classList.toggle("full-width");
             document.getElementById("toggle-btn").classList.toggle("hide");
+        });
+        
+        // Auto-dismiss alerts after 5 seconds
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                const alerts = document.querySelectorAll('.alert');
+                alerts.forEach(function(alert) {
+                    // Create and dispatch a click event on the close button
+                    const closeBtn = alert.querySelector('.btn-close');
+                    if (closeBtn) {
+                        const closeEvent = new Event('click');
+                        closeBtn.dispatchEvent(closeEvent);
+                    }
+                });
+            }, 5000);
         });
     </script>
 

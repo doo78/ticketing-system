@@ -382,50 +382,75 @@ def student_dashboard(request):
     }
     return render(request, 'student/dashboard.html', context)
 
+
 class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
     def get(self, request, ticket_id):
-        ticket = Ticket.objects.get(id=ticket_id)
-        return render(request, 'staff/ticket_detail.html', {'ticket': ticket})
-        
-        
+        # For direct GET requests to the manage_ticket URL, redirect to the ticket list page
+        return redirect('staff_ticket_list')
+
     def post(self, request, ticket_id):
-        ticket = Ticket.objects.get(id=ticket_id)
+        ticket = get_object_or_404(Ticket, id=ticket_id)
         action = request.POST.get('action')
 
-        # Get the current filter parameters to preserve them after redirect
-        status_filter = request.POST.get('status_filter', 'all')
-        department_filter = request.POST.get('department_filter', 'all')
+        # Get the return URL if provided (for returning to previous page)
+        return_url = request.POST.get('return_url', '')
 
+        # Process the action
         if action == 'assign':
             ticket.assigned_staff = request.user.staff
             ticket.status = 'pending'
+            messages.success(request, f'Ticket #{ticket.id} has been assigned to you.')
+        elif action == 'unassign':
+            # Only allow unassigning if the current staff member is the assigned one
+            if ticket.assigned_staff == request.user.staff:
+                ticket.assigned_staff = None
+                ticket.status = 'open'
+                messages.success(request, f'Ticket #{ticket.id} has been unassigned and returned to open status.')
+            else:
+                messages.error(request, 'You can only unassign tickets that are assigned to you.')
         elif action == 'close':
             ticket.status = 'closed'
             ticket.closed_by = request.user.staff
             ticket.date_closed = timezone.now()
-        else:
+            messages.success(request, f'Ticket #{ticket.id} has been closed successfully.')
+        elif action == 'redirect':
             new_department = request.POST.get('department')
-            
+
             if not new_department:
                 messages.error(request, 'Please select a department to redirect the ticket to.')
-                return redirect('manage_ticket', ticket_id=ticket.id)
-            
+                if return_url:
+                    return redirect(return_url)
+                return redirect('staff_ticket_list')
+
             ticket.department = new_department
-            ticket.assigned_staff = None  
+            ticket.assigned_staff = None
 
             if ticket.status == 'pending':
                 ticket.status = 'open'
 
+            messages.success(request, f'Ticket #{ticket.id} has been redirected to the {ticket.get_department_display()} department.')
+        else:
+            messages.error(request, f"Unknown action: {action}")
+            if return_url:
+                return redirect(return_url)
+            return redirect('staff_ticket_list')
+
         ticket.save()
 
-        # Redirect back to the same filtered view
+        # If a return URL is provided and it's a valid internal URL, use it
+        if return_url and return_url.startswith('/'):
+            return redirect(return_url)
+
+        # Redirect back to the ticket list with the same filters if present
         redirect_url = reverse('staff_ticket_list')
         params = []
 
-        if status_filter != 'all':
+        status_filter = request.POST.get('status_filter', '')
+        if status_filter and status_filter != 'all':
             params.append(f'status={status_filter}')
 
-        if department_filter != 'all':
+        department_filter = request.POST.get('department_filter', '')
+        if department_filter and department_filter != 'all':
             params.append(f'department_filter={department_filter}')
 
         if params:
@@ -464,8 +489,10 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
         }
         return render(request, 'staff/staff_ticket_list.html', context)
 
+
 class StaffTicketDetailView(LoginRequiredMixin, StaffRequiredMixin, View):
     """Display ticket details for staff members"""
+
     def get(self, request, ticket_id):
         ticket = get_object_or_404(Ticket, id=ticket_id)
         if ticket.status in ['open', 'pending'] and now() >= ticket.expiration_date:
@@ -481,7 +508,17 @@ class StaffTicketDetailView(LoginRequiredMixin, StaffRequiredMixin, View):
 
     def post(self, request, ticket_id):
         ticket = get_object_or_404(Ticket, id=ticket_id)
-        
+
+        # Handle ticket management actions
+        action = request.POST.get('action')
+
+        if action in ['assign', 'unassign', 'close', 'redirect']:
+            # Forward the request to the ManageTicketView for ticket actions
+            # But add a return URL to come back to this page
+            request.POST = request.POST.copy()  # Make mutable
+            request.POST['return_url'] = reverse('staff_ticket_detail', args=[ticket_id])
+            return ManageTicketView().post(request, ticket_id)
+
         # Check if this is a JSON request (AI generation)
         if request.content_type == 'application/json':
             try:
@@ -500,7 +537,7 @@ class StaffTicketDetailView(LoginRequiredMixin, StaffRequiredMixin, View):
                         )
                     )
                 )
-                
+
                 lambda_payload = {
                     "ticket_id": ticket.id,
                     "department": ticket.department,
@@ -527,15 +564,15 @@ class StaffTicketDetailView(LoginRequiredMixin, StaffRequiredMixin, View):
                         InvocationType='RequestResponse',
                         Payload=json.dumps(lambda_payload)
                     )
-                    
+
                     if response['StatusCode'] != 200:
                         raise Exception(f"Lambda returned status code {response['StatusCode']}")
-                    
+
                     response_payload = json.loads(response['Payload'].read())
-                    
+
                     if 'errorMessage' in response_payload:
                         raise Exception(response_payload['errorMessage'])
-                    
+
                     if response_payload.get('statusCode') == 200:
                         body = json.loads(response_payload['body'])
                         return JsonResponse({
@@ -577,7 +614,7 @@ class StaffTicketDetailView(LoginRequiredMixin, StaffRequiredMixin, View):
                     content=message_content
                 )
                 messages.success(request, 'Message sent successfully.')
-        
+
         return redirect('staff_ticket_detail', ticket_id=ticket_id)
 
 class StaffProfileView(LoginRequiredMixin, StaffRequiredMixin, View):
