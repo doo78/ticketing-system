@@ -1,67 +1,118 @@
 {% extends 'user-layout/base.html' %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Welcome Section -->
-    <div class="welcome-container text-center py-5">
-        <h1 class="fw-bold">Welcome, {{ request.user.get_full_name|default:request.user.username }}</h1>
-        <p class="lead text-muted">Your Staff Dashboard</p>
-    </div>
-
-    <!-- Stats Row -->
+<div class="container">
+    <br>
+    <br>
+    <!-- Welcome Section with time-based greeting -->
     <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card bg-primary text-white">
+        <div class="col-12">
+            <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">My Assigned Tickets</h5>
-                    <h2 class="card-text">{{ assigned_tickets_count|default:"0" }}</h2>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h1 class="fw-bold" id="greeting"></h1>
+                        <span class="text-muted" id="date-display">Loading date...</span>
+                    </div>
+                    
+                    <div class="mt-3">
+                        {% if assigned_tickets_count > 0 %}
+                            <div class="alert alert-primary">
+                                <div>You have <strong>{{ assigned_tickets_count }}</strong> tickets assigned to you requiring attention.</div>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-success">
+                                <i class="bi bi-check-circle-fill me-2"></i>
+                                You're all caught up! No tickets are currently assigned to you.
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
-        
-        <div class="col-md-3">
-            <div class="card bg-info text-white">
+    </div>
+
+    <!-- Admin Messages Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Messages from Administration</h5>
+                </div>
                 <div class="card-body">
-                    <h5 class="card-title">My Department Tickets</h5>
-                    <h2 class="card-text">{{ department_tickets_count|default:"0" }}</h2>
-                    {% if unassigned_dept_tickets > 0 %}
-                    <p class="mb-0"><span class="badge bg-danger">{{ unassigned_dept_tickets }} unassigned</span></p>
+                    {% if admin_messages %}
+                        {% for message in admin_messages %}
+                            <div class="alert alert-info mb-3">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <strong>{{ message.title }}</strong>
+                                    <small class="text-muted">{{ message.date|date:"M d, Y" }}</small>
+                                </div>
+                                <p class="mb-0">{{ message.content }}</p>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="bi bi-envelope" style="font-size: 2rem; color: #6c757d;"></i>
+                            <p class="text-muted mt-2">No announcements at the moment. Check back later for updates from the administration.</p>
+                        </div>
                     {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards Row -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">My Assigned Tickets</h5>
+                </div>
+                <div class="card-body">
+                    <h1>{{ assigned_tickets_count|default:"0" }}</h1>
+                    <p>Tickets assigned directly to you</p>
+                    <a href="{% url 'staff_ticket_list' %}?status=open&assigned_to=me" class="btn btn-outline-secondary btn-sm">View all</a>
                 </div>
             </div>
         </div>
         
         <div class="col-md-6">
-            <div class="card bg-secondary text-white">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Department Tickets</h5>
+                </div>
                 <div class="card-body">
-                    <h5 class="card-title">Department</h5>
-                    <h2 class="card-text">{{ department }}</h2>
+                    <h1>{{ department_tickets_count|default:"0" }}</h1>
+                    <p>Total tickets in your department</p>
+                    {% if unassigned_dept_tickets > 0 %}
+                        <span class="badge bg-danger">{{ unassigned_dept_tickets }} unassigned</span>
+                    {% endif %}
+                    <a href="{% url 'staff_ticket_list' %}?department_filter=mine" class="btn btn-outline-secondary btn-sm">View all</a>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Quick Actions -->
+    <!-- Quick Actions Section -->
     <div class="row">
-        <div class="col">
+        <div class="col-12">
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">Quick Actions</h5>
                 </div>
                 <div class="card-body">
-                    <div class="d-flex gap-3">
-                        <a href="{% url 'staff_ticket_list' %}" class="btn btn-primary">
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="{% url 'staff_ticket_list' %}" class="btn" style="background-color: #e0e8ff; color: #2541b2;">
                             <i class="bi bi-ticket-detailed me-2"></i>View All Tickets
                         </a>
-                        <a href="{% url 'staff_ticket_list' %}?department_filter=mine" class="btn btn-info">
+                        <a href="{% url 'staff_ticket_list' %}?department_filter=mine" class="btn" style="background-color: #d7f5dd; color: #0e6c2f;">
                             <i class="bi bi-filter me-2"></i>My Department Tickets
                         </a>
                         {% if unassigned_dept_tickets > 0 %}
-                        <a href="{% url 'staff_ticket_list' %}?department_filter=mine&status=open" class="btn btn-danger">
+                        <a href="{% url 'staff_ticket_list' %}?department_filter=mine&status=open" class="btn" style="background-color: #ffe0e3; color: #cc0000;">
                             <i class="bi bi-exclamation-circle me-2"></i>Unassigned Department Tickets ({{ unassigned_dept_tickets }})
                         </a>
                         {% endif %}
-                        <a href="{% url 'staff_profile' %}" class="btn btn-outline-secondary">
+                        <a href="{% url 'staff_profile' %}" class="btn" style="background-color: #f8f9fa; color: #6c757d;">
                             <i class="bi bi-person-circle me-2"></i>My Profile
                         </a>
                     </div>
@@ -71,29 +122,39 @@
     </div>
 </div>
 
-<!-- Custom CSS -->
-<style>
-    .bg-gradient-primary {
-        background: linear-gradient(135deg, #6a11cb, #2575fc);
-    }
-
-    .bg-gradient-secondary {
-        background: linear-gradient(135deg, #ff7eb3, #ff758c);
-    }
-
-    .card {
-        border-radius: 15px;
-    }
-
-    .btn-lg {
-        font-size: 1.2rem;
-        font-weight: bold;
-        transition: transform 0.2s ease-in-out;
-    }
-
-    .btn-lg:hover {
-        transform: scale(1.05);
-    }
-</style>
+<!-- JavaScript for Time-based Greeting -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set current date with formatting
+        const now = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('date-display').textContent = now.toLocaleDateString('en-US', options);
+        
+        // Set time-based greeting
+        const hour = now.getHours();
+        let greeting = '';
+        
+        if (hour >= 5 && hour < 12) {
+            greeting = 'Good Morning';
+        } else if (hour >= 12 && hour < 18) {
+            greeting = 'Good Afternoon';
+        } else {
+            greeting = 'Good Evening';
+        }
+        
+        // Get full name and extract first name
+        const fullName = '{{ request.user.get_full_name|default:request.user.username }}';
+        if (fullName && fullName.trim()) {
+            const firstName = fullName.split(' ')[0];
+            // Capitalize first letter
+            const capitalizedName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+            greeting += ', ' + capitalizedName + '!';
+        } else {
+            greeting += '!';
+        }
+        
+        document.getElementById('greeting').textContent = greeting;
+    });
+</script>
 
 {% endblock %}
