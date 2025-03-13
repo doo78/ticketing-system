@@ -205,6 +205,7 @@
             ticket_id = $(this).data("ticketid");
             ajaxRequest('/control-panel/api/ticket_details', { ticket_id: ticket_id })
             .then(data => {
+                data=data.response
                 if (data && data.department) {
                     // Load staff based on department
                     get_staff_by_department(data.department, data.assigned_staff_id);

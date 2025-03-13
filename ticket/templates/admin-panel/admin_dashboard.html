@@ -54,7 +54,6 @@
                         <th>Status</th>
                         <th>Submitted</th>
                         <th>Email</th>
-                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -69,27 +68,6 @@
                         </td>
                         <td>{{ ticket.date_submitted|date:"M d, Y" }}</td>
                         <td>{{ ticket.email }}</td>
-                        <td>
-                            <div class="btn-group">
-                                {% if ticket.status == 'open' %}
-                                <form method="post" action="{% url 'manage_ticket' ticket.id %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button type="submit" name="action" value="assign" class="btn btn-sm btn-primary">
-                                        Assign to Me
-                                    </button>
-                                </form>
-                                {% endif %}
-
-                                {% if ticket.status != 'closed' and ticket.assigned_staff == request.user.staff %}
-                                <form method="post" action="{% url 'manage_ticket' ticket.id %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button type="submit" name="action" value="close" class="btn btn-sm btn-success">
-                                        Close
-                                    </button>
-                                </form>
-                                {% endif %}
-                            </div>
-                        </td>
                     </tr>
                     {% empty %}
                     <tr>
