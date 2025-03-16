@@ -122,3 +122,12 @@ class Message(models.Model):
 
     class Meta:
         ordering = ['created_at']
+
+class Announcement(models.Model):
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='announcements')
+    department = models.CharField(max_length=50, choices=DEPT_CHOICES, null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']

@@ -72,9 +72,7 @@
                                     <td>#{{ ticket.id }}</td>
                                     <td>{{ ticket.subject }}</td>
                                     <td>
-                                        <span class="badge" 
-                                              style="background-color: {% if ticket.status == 'open' %}#ffe0e3{% elif ticket.status == 'pending' %}#fff3cd{% else %}#f8f9fa{% endif %}; 
-                                                     color: {% if ticket.status == 'open' %}#cc0000{% elif ticket.status == 'pending' %}#856404{% else %}#6c757d{% endif %};">
+                                        <span class="badge {% if ticket.status == 'open' %}badge-open{% elif ticket.status == 'pending' %}badge-pending{% else %}badge-default{% endif %}">
                                             {{ ticket.status }}
                                         </span>
                                     </td>
@@ -130,7 +128,9 @@
                                     <td>#{{ ticket.id }}</td>
                                     <td>{{ ticket.subject }}</td>
                                     <td>
-                                        <span class="badge" style="background-color: #f0e6ff; color: #6b42c1;">{{ ticket.status }}</span>
+                                        <span class="badge {% if ticket.status == 'open' %}badge-open{% elif ticket.status == 'pending' %}badge-pending{% else %}badge-default{% endif %}">
+                                            {{ ticket.status }}
+                                        </span>
                                     </td>
                                     <td>{{ ticket.date_closed|date:"M d, Y" }}</td>
                                     <td>
@@ -164,4 +164,19 @@
         </div>
     </div>
 </div>
+
+<style>
+.badge-open {
+    background-color: #ffe0e3;
+    color: #cc0000;
+}
+.badge-pending {
+    background-color: #fff3cd;
+    color: #856404;
+}
+.badge-default {
+    background-color: #f8f9fa;
+    color: #6c757d;
+}
+</style>
 {% endblock %} 

@@ -17,6 +17,10 @@
                                 {% endif %}"
                        href="{% url 'admin_accounts_list' %}"> <i class="bi bi-people"></i> Accounts
                     </a>
+                    <a class="nav-link {% if request.resolver_match.url_name == 'admin_announcements' %}active{% endif %}"
+                       href="{% url 'admin_announcements' %}">
+                        <i class="bi bi-megaphone me-2"></i> Announcements
+                    </a>
                     <a class="nav-link {% if request.resolver_match.url_name == 'staff_profile' %}active{% endif %}"
                        href="{% url 'staff_profile' %}">
                         <i class="bi bi-person-circle me-2"></i> Profile

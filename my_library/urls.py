@@ -54,6 +54,7 @@ urlpatterns = [
     path('staff/', include([
         path('dashboard/', staff_dashboard, name='staff_dashboard'),
         path('profile/', StaffProfileView.as_view(), name='staff_profile'),
+        path('announcements/', views.staff_announcements, name='staff_announcements'),
         path('tickets/', StaffTicketListView.as_view(), name='staff_ticket_list'),
         path('ticket/<int:ticket_id>/manage/', ManageTicketView.as_view(), name='manage_ticket'),
     ])),
@@ -69,15 +70,17 @@ urlpatterns = [
         path('analytics/', views.analytics_dashboard, name='admin_analytics'),
         path('admin/export/tickets/', views.export_tickets_csv, name='export_tickets_csv'),
         path('admin/export/performance/', views.export_performance_csv, name='export_performance_csv'),
-   
-
-
+        path('announcements/', views.admin_announcements, name='admin_announcements'),
+        path('announcements/create/', views.create_announcement, name='create_announcement'),
+        path('announcements/delete/<int:announcement_id>/', views.delete_announcement, name='delete_announcement'),
         path('api/ticket_details', AdminAPITicketDetailsView.as_view(), name='api_ticket'),
         path('api/get_staff_by_department', AdminAPIStaffByDepartmentView.as_view(), name='api_get_staff_by_deparment'),
         path('api/ticket_assign', AdminAPITicketAssignView.as_view(), name='ticket_assign'),
         path('profile/', StaffProfileView.as_view(), name='admin_profile'),
         path('update_profile', StaffUpdateProfileView.as_view(), name='admin_update_profile'),
-
+        path('control-panel/announcements/', views.admin_announcements, name='admin_announcements'),
+        path('control-panel/announcements/create/', views.create_announcement, name='create_announcement'),
+        path('control-panel/announcements/delete/<int:announcement_id>/', views.delete_announcement, name='delete_announcement'),
     ])),
     # General dashboard redirect
     path('dashboard/', DashboardView.as_view(), name='dashboard'),

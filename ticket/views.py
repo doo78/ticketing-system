@@ -15,7 +15,7 @@ from django.conf import settings
 from django.http import HttpResponse, JsonResponse
 from ticket.mixins import RoleBasedRedirectMixin,AdminRoleRequiredMixin
 from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm,EditAccountForm,AdminUpdateProfileForm
-from .models import Ticket, Staff, Student, CustomUser, Message
+from .models import Ticket, Staff, Student, CustomUser, Message, Announcement
 from .forms import LogInForm, SignUpForm, StaffUpdateProfileForm, EditAccountForm, TicketForm, RatingForm
 from django.views.generic.edit import UpdateView
 from django.shortcuts import render
@@ -227,11 +227,17 @@ def staff_dashboard(request):
             status='open'
         ).count()
 
+    # Get recent announcements
+    announcements = Announcement.objects.filter(
+        models.Q(department=None) | models.Q(department=staff_department)  # Get both general and department-specific announcements
+    ).order_by('-created_at')[:3]  # Get 3 most recent announcements
+
     context = {
         'assigned_tickets_count': assigned_tickets_count,
         'department_tickets_count': department_tickets_count,
         'unassigned_dept_tickets': unassigned_dept_tickets,
-        'department': request.user.staff.get_department_display() if staff_department else "Not Assigned"
+        'department': request.user.staff.get_department_display() if staff_department else "Not Assigned",
+        'announcements': announcements
     }
     return render(request, 'staff/dashboard.html', context)
 
@@ -1365,4 +1371,70 @@ def export_performance_csv(request):
     return response
 
     
+
+@login_required
+def admin_announcements(request):
+    """View for admin to manage announcements"""
+    if request.user.role != 'admin':
+        raise PermissionDenied
+        
+    announcements = Announcement.objects.all().order_by('-created_at')
+    dept_choices = settings.DEPT_CHOICES[1:]  # Skip the empty choice
+    
+    return render(request, 'admin-panel/announcements.html', {
+        'announcements': announcements,
+        'dept_choices': dept_choices,
+    })
+
+@login_required
+def create_announcement(request):
+    """Handle creation of new announcements"""
+    if request.user.role != 'admin':
+        raise PermissionDenied
+        
+    if request.method == 'POST':
+        content = request.POST.get('content')
+        department = request.POST.get('department') or None
+        
+        if content:
+            Announcement.objects.create(
+                content=content,
+                department=department,
+                created_by=request.user
+            )
+            messages.success(request, 'Announcement posted successfully.')
+        else:
+            messages.error(request, 'Content is required.')
+            
+    return redirect('admin_announcements')
+
+@login_required
+def staff_announcements(request):
+    """View for staff to see all announcements"""
+    if not hasattr(request.user, 'staff'):
+        raise PermissionDenied
+        
+    staff_department = request.user.staff.department
+    announcements = Announcement.objects.filter(
+        models.Q(department=None) | models.Q(department=staff_department)  # Get both general and department-specific announcements
+    ).order_by('-created_at')
+    
+    return render(request, 'staff/announcements.html', {
+        'announcements': announcements
+    })
+
+@login_required
+def delete_announcement(request, announcement_id):
+    """Handle deletion of announcements"""
+    if request.user.role != 'admin':
+        raise PermissionDenied
+        
+    announcement = get_object_or_404(Announcement, id=announcement_id)
+    announcement.delete()
+    messages.success(request, 'Announcement deleted successfully.')
+            
+    return redirect('admin_announcements')
+
+
+
 

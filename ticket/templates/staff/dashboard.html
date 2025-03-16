@@ -35,24 +35,25 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Messages from Administration</h5>
+                    {% if announcements %}
+                        <a href="{% url 'staff_announcements' %}" class="btn btn-link btn-sm text-decoration-none">View All</a>
+                    {% endif %}
                 </div>
                 <div class="card-body">
-                    {% if admin_messages %}
-                        {% for message in admin_messages %}
-                            <div class="alert alert-info mb-3">
-                                <div class="d-flex justify-content-between mb-2">
-                                    <strong>{{ message.title }}</strong>
-                                    <small class="text-muted">{{ message.date|date:"M d, Y" }}</small>
+                    {% if announcements %}
+                        {% for announcement in announcements %}
+                            <div class="alert mb-2" style="background-color: #fff9e6; border: 1px solid #ffe0b2;">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>{{ announcement.content }}</span>
+                                    <small class="text-muted ms-3">{{ announcement.created_at|date:"M d, Y" }}</small>
                                 </div>
-                                <p class="mb-0">{{ message.content }}</p>
                             </div>
                         {% endfor %}
                     {% else %}
-                        <div class="text-center py-4">
-                            <i class="bi bi-envelope" style="font-size: 2rem; color: #6c757d;"></i>
-                            <p class="text-muted mt-2">No announcements at the moment. Check back later for updates from the administration.</p>
+                        <div class="text-center py-3">
+                            <p class="text-muted mb-0"><i class="bi bi-envelope me-2"></i>No announcements at the moment</p>
                         </div>
                     {% endif %}
                 </div>
