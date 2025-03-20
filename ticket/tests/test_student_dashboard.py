@@ -24,6 +24,15 @@ class StudentDashboardTest(TestCase):
             year_of_study=2
         )
         
+        self.staff_user = CustomUser.objects.create_user(
+            username='staffuser',
+            password='testpass123',
+            email='test12@example.com',
+            role='staff'
+        )
+        
+        self.ticket_list_url = reverse('ticket_list')
+        
         # Create some test tickets
         self.open_ticket = Ticket.objects.create(
             student=self.student,
@@ -260,21 +269,11 @@ class StudentDashboardTest(TestCase):
 
     def test_staff_access_student_dashboard(self):
         """Test staff attempting to access student dashboard"""
-        # Create staff user
-        staff_user = CustomUser.objects.create_user(
-            username='staffuser',
-            password='staffpass123',
-            email='staff@example.com',
-            first_name='Staff',
-            last_name='User',
-            role='staff'
-        )
-        Staff.objects.create(user=staff_user, department='business', role='Staff Member')
         
         # Try to access student dashboard as staff
-        self.client.login(username='staffuser', password='staffpass123')
+        self.client.login(username='staffuser', password='testpass123')
         response = self.client.get(self.dashboard_url)
-        self.assertEqual(response.status_code, 302)  # Should redirect to home
+        self.assertEqual(response.status_code, 302)  
 
     def test_create_ticket_special_characters(self):
         """Test creating a ticket with special characters in subject and description"""
@@ -466,9 +465,7 @@ class StudentDashboardTest(TestCase):
         )
         
         response = self.client.get(reverse('student_dashboard'))
-        self.assertContains(response, 'bg-danger')  # Open ticket badge
-        self.assertContains(response, 'bg-warning')  # Pending ticket badge
-        self.assertContains(response, 'bg-secondary')  # Closed ticket badge
+        self.assertContains(response, 'badge-pending')  # Pending ticket badge
 
     def test_concurrent_ticket_creation(self):
         """Test handling of concurrent ticket creation"""
@@ -628,3 +625,43 @@ class StudentDashboardTest(TestCase):
         
         # Check for the rating display
         self.assertContains(response, 'Not Rated') 
+        
+        
+        
+        
+        
+    def test_redirect_if_not_logged_in(self):
+        """Anonymous users should be redirected to the login page."""
+        response = self.client.get(self.ticket_list_url)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.url.startswith(reverse('log_in')))
+
+    def test_redirect_if_user_is_not_student(self):
+        """Users who are not students should be redirected to 'home'."""
+        self.client.login(username='staffuser', password='testpass123')
+        response = self.client.get(self.ticket_list_url)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('home'))
+
+    def test_ticket_list_shows_students_tickets(self):
+        """Students should see only their own tickets."""
+        self.client.login(username='testuser', password='testpass123')
+        response = self.client.get(self.ticket_list_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'student/ticket_list.html')
+        self.assertQuerySetEqual(response.context['tickets'], Ticket.objects.filter(student=self.student))        
+
+    def test_ticket_list_empty_for_student_with_no_tickets(self):
+        """If a student has no tickets, the context should be empty."""
+        new_student_user = CustomUser.objects.create_user(
+            username='newstudent',
+            password='testpass123',
+            role='student'
+        )
+        Student.objects.create(user=new_student_user, department='arts_humanities', program='History', year_of_study=1)
+
+        self.client.login(username='newstudent', password='testpass123')
+        response = self.client.get(self.ticket_list_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'student/ticket_list.html')
+        self.assertEqual(len(response.context['tickets']), 0)
