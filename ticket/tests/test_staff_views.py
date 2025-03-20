@@ -5,6 +5,8 @@ from django.contrib.auth import get_user_model
 from ticket.models import Ticket, Staff, Student, CustomUser, Message
 from unittest.mock import patch
 import json
+from django.contrib import messages
+
 
 User = get_user_model()
 
@@ -557,3 +559,27 @@ class StaffTicketRatingTest(TestCase):
         
         # Check for "No rated tickets yet" text
         self.assertContains(response, 'No rated tickets yet') 
+    
+    def test_logout_redirects_to_login_page(self):
+        """Test that the user is logged out and redirected to the login page."""
+        self.client.login(username='testuser', password='testpassword')
+
+        logout_url = reverse('logout')  
+
+        response = self.client.get(logout_url, follow=True) 
+
+        self.assertRedirects(response, reverse('log_in'))
+
+    def test_logout_sets_success_message(self):
+        """Test that the success message is set when a user logs out."""
+        self.client.login(username='testuser', password='testpassword')
+        
+        url = reverse('logout')
+        
+        response = self.client.get(url)
+        
+        storage = messages.get_messages(response.wsgi_request)
+        messages_list = list(storage) 
+        self.assertEqual(len(messages_list), 1)
+        self.assertEqual(str(messages_list[0]), "You have been logged out successfully.")
+    

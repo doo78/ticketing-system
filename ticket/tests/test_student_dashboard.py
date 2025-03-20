@@ -665,3 +665,9 @@ class StudentDashboardTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'student/ticket_list.html')
         self.assertEqual(len(response.context['tickets']), 0)
+        
+    def test_permission_denied_for_non_student(self):
+        """Test that non-students get a PermissionDenied exception when attempting to create a ticket."""
+        self.client.login(username='staffuser', password='password123') 
+        response = self.client.get(self.create_ticket_url)
+        self.assertEqual(response.status_code, 403)
