@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings  
@@ -17,6 +18,22 @@ class CustomUser(AbstractUser):
     preferred_name = models.CharField(max_length=150, blank=True, null=True)
     REQUIRED_FIELDS = ['email', 'first_name', 'last_name']
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
+    remember_token = models.CharField(max_length=64, blank=True, null=True, unique=True)
+    remember_token_expiry = models.DateTimeField(blank=True, null=True)
+
+    def generate_remember_token(self):
+        self.remember_token = uuid.uuid4().hex  # Generates a unique token
+        self.remember_token_expiry = now() + timedelta(hours=1)  # Token valid for 1 hour
+        self.save()
+        return self.remember_token
+
+    def is_remember_token_valid(self, token):
+        return self.remember_token == token and self.remember_token_expiry and now() < self.remember_token_expiry
+
+    def clear_remember_token(self):
+        self.remember_token = None
+        self.remember_token_expiry = None
+        self.save()
 
     def save(self, *args, **kwargs):
         if not self.preferred_name:
