@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+
+{% block body %}
+<div class="container d-flex justify-content-center align-items-center vh-100">
+    <div class="card shadow-lg p-4" style="max-width: 400px; width: 100%; border-radius: 10px;">
+        <h2 class="text-center">{{ title|default:"Error"}}</h2>
+        <p class="text-danger">{{ message }}</p>
+        {% if link %}
+            <a href="{{ link }}" class="btn btn-primary">Back</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
