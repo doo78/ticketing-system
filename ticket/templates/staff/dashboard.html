@@ -1,7 +1,7 @@
-{% extends 'user-layout/base.html' %}
+{% extends 'staff/base.html' %}
 
 {% block content %}
-<div class="container">
+<div class="container mt-5">
     <br>
     <br>
     <!-- Welcome Section with time-based greeting -->
@@ -93,35 +93,6 @@
         </div>
     </div>
 
-    <!-- Quick Actions Section -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Quick Actions</h5>
-                </div>
-                <div class="card-body">
-                    <div class="d-flex flex-wrap gap-2">
-                        <a href="{% url 'staff_ticket_list' %}" class="btn" style="background-color: #e0e8ff; color: #2541b2;">
-                            <i class="bi bi-ticket-detailed me-2"></i>View All Tickets
-                        </a>
-                        <a href="{% url 'staff_ticket_list' %}?department_filter=mine" class="btn" style="background-color: #d7f5dd; color: #0e6c2f;">
-                            <i class="bi bi-filter me-2"></i>My Department Tickets
-                        </a>
-                        {% if unassigned_dept_tickets > 0 %}
-                        <a href="{% url 'staff_ticket_list' %}?department_filter=mine&status=open" class="btn" style="background-color: #ffe0e3; color: #cc0000;">
-                            <i class="bi bi-exclamation-circle me-2"></i>Unassigned Department Tickets ({{ unassigned_dept_tickets }})
-                        </a>
-                        {% endif %}
-                        <a href="{% url 'staff_profile' %}" class="btn" style="background-color: #f8f9fa; color: #6c757d;">
-                            <i class="bi bi-person-circle me-2"></i>My Profile
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
 <!-- JavaScript for Time-based Greeting -->
 <script>

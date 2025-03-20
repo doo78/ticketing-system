@@ -1,107 +1,75 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block body %}
-<div class="container py-5">
-    <div class="row">
-        <div class="col-lg-8 mx-auto">
-            <h1 class="mb-4 text-center" style="color: #391164;">About University Helpdesk</h1>
-            
-            <div class="card shadow-sm mb-5">
-                <div class="card-body p-4">
-                    <h5 class="card-title mb-3">Our Mission</h5>
-                    <p class="card-text">
-                        University Helpdesk is dedicated to providing seamless technical support and assistance to students, faculty, and staff across campus. We believe that technology should enhance the educational experience, not hinder it. Our mission is to ensure that everyone in our university community has the technical resources and support they need to succeed.
-                    </p>
-                </div>
+<!-- Hero Section with Lower Opacity & Rounded Edges -->
+<div class="hero-section text-center d-flex align-items-center justify-content-center position-relative" 
+     style="height: 60vh; border-radius: 20px; overflow: hidden;">
+    <!-- Background Image with Opacity -->
+    <div style="position: absolute; width: 100%; height: 100%; background: url('{% static 'images/about-bg.png' %}') center/cover no-repeat; opacity: 0.5;">
+    </div>
+    <!-- Overlay Text -->
+    <h1 class="fw-bold position-relative" style="font-size: 3rem; text-shadow: 2px 2px 10px rgba(0,0,0,0.5); color: white;">
+        About University Helpdesk
+    </h1>
+</div>
+
+<!-- About Content Section -->
+<div class="container my-5">
+    <div class="row g-4">
+        <!-- Our Mission -->
+        <div class="col-md-12" data-aos="fade-up">
+            <div class="p-4 shadow bg-light rounded-3">
+                <h5 style="color: #1818bc; font-weight: bold;">Our Mission</h5>
+                <p>University Helpdesk is created by students, for students. We understand the unique technical challenges that students face because we experience them too. Our mission is to provide peer-to-peer technical support that's approachable, effective, and tailored to the student experience.</p>
             </div>
-            
-            <div class="row mb-5">
-                <div class="col-md-6 mb-4">
-                    <div class="card h-100 shadow-sm">
-                        <div class="card-body p-4">
-                            <h5 class="card-title mb-3">Who We Are</h5>
-                            <p class="card-text">
-                                Our team consists of experienced IT professionals and student assistants who are passionate about technology and problem-solving. We are committed to continuous learning to stay ahead of the ever-evolving technological landscape and provide the best support possible.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6 mb-4">
-                    <div class="card h-100 shadow-sm">
-                        <div class="card-body p-4">
-                            <h5 class="card-title mb-3">Our Values</h5>
-                            <ul>
-                                <li>Excellence in service delivery</li>
-                                <li>Respect for all users regardless of technical proficiency</li>
-                                <li>Continuous improvement and learning</li>
-                                <li>Transparency in our processes</li>
-                                <li>Collaboration across departments</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
+        </div>
+
+        <!-- Who We Are -->
+        <div class="col-md-12" data-aos="fade-up">
+            <div class="p-4 shadow bg-light rounded-3">
+                <h5 style="color: #1818bc; font-weight: bold;">Who We Are</h5>
+                <p>Our team consists entirely of student volunteers from various disciplines across campus. We're tech enthusiasts who love helping our fellow students overcome technical hurdles. Being students ourselves, we understand the time constraints and unique needs of the university community.</p>
             </div>
-            
-            <div class="card shadow-sm mb-5">
-                <div class="card-body p-4">
-                    <h5 class="card-title mb-3">Our Services</h5>
-                    <p class="card-text">
-                        We offer a wide range of services including but not limited to:
-                    </p>
-                    <div class="row mt-4">
-                        <div class="col-md-6">
-                            <div class="d-flex mb-3">
-                                <i class="bi bi-laptop fs-4 me-3" style="color: #391164;"></i>
-                                <div>
-                                    <h6>Hardware Support</h6>
-                                    <p class="small text-muted">Troubleshooting and repairs for university-owned devices</p>
-                                </div>
-                            </div>
-                            <div class="d-flex mb-3">
-                                <i class="bi bi-shield-lock fs-4 me-3" style="color: #391164;"></i>
-                                <div>
-                                    <h6>Account Security</h6>
-                                    <p class="small text-muted">Password resets and account management assistance</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="d-flex mb-3">
-                                <i class="bi bi-wifi fs-4 me-3" style="color: #391164;"></i>
-                                <div>
-                                    <h6>Network Connectivity</h6>
-                                    <p class="small text-muted">Wi-Fi connection and VPN access support</p>
-                                </div>
-                            </div>
-                            <div class="d-flex mb-3">
-                                <i class="bi bi-mortarboard fs-4 me-3" style="color: #391164;"></i>
-                                <div>
-                                    <h6>Academic Software</h6>
-                                    <p class="small text-muted">Installation and licensing help for educational tools</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        </div>
+
+        <!-- Our Values -->
+        <div class="col-md-12" data-aos="fade-up">
+            <div class="p-4 shadow bg-light rounded-3">
+                <h5 style="color: #1818bc; font-weight: bold;">Our Values</h5>
+                <p style="color: black;">
+                    Peer-to-peer support and understanding. Creating a judgment-free zone for all tech questions. 
+                    Knowledge sharing and skill development. Flexible support that works around student schedules. 
+                    Building community through technology.
+                </p>
             </div>
-            
-            <div class="card shadow-sm mb-5">
-                <div class="card-body p-4">
-                    <h5 class="card-title mb-3">Our Commitment</h5>
-                    <p class="card-text">
-                        We are committed to providing timely, professional, and effective solutions to all technical issues. We understand the importance of technology in modern education and research, and we strive to minimize downtime and disruption to your academic and administrative activities.
-                    </p>
-                    <p class="card-text">
-                        Our helpdesk is accessible through multiple channels including in-person visits, phone calls, emails, and our online ticketing system to ensure we are always available when you need us.
-                    </p>
-                </div>
+        </div>
+
+        <!-- By Students, For Students -->
+        <div class="col-md-12" data-aos="fade-up">
+            <div class="p-4 shadow bg-light rounded-3">
+                <h5 style="color: #1818bc; font-weight: bold;">By Students, For Students</h5>
+                <p>What makes our helpdesk unique is that we speak your language. We've sat in the same classrooms, used the same online platforms, and faced the same technical challenges. We're not just solving your tech problems—we're sharing solutions from one student to another.</p>
+                <p>Our volunteer hours accommodate student schedules, with extended support during midterms and finals. We're accessible through drop-in sessions at our campus locations, direct messaging on the university app, and our student-monitored email system.</p>
             </div>
-            
-            <div class="text-center">
-                <a href="{% url 'home' %}" class="btn btn-outline-primary me-2" style="background-color: #391164; color: white;">Back to Home</a>
-                <a href="#" class="btn btn-outline-secondary">Contact Us</a>
+        </div>
+
+        <!-- Join Our Team -->
+        <div class="col-md-12" data-aos="fade-up">
+            <div class="p-4 shadow bg-light rounded-3">
+                <h5 style="color: #1818bc; font-weight: bold;">Join Our Team</h5>
+                <p>Are you tech-savvy and enjoy helping others? The University Helpdesk is always looking for student volunteers! Joining our team is a great way to build your resume, develop technical skills, and connect with peers across campus. No advanced technical knowledge required—just a willingness to learn and help fellow students.</p>
             </div>
         </div>
     </div>
 </div>
+
+<div class="text-center my-5">  <!-- Added margin to separate from footer -->
+    <a href="{% url 'home' %}" class="btn btn-primary px-4 py-2" 
+       style="background-color: #1818bc; border: none; border-radius: 8px;">
+        Back to Home
+    </a>
+</div>
+
+
 {% endblock %}

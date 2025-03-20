@@ -1,7 +1,7 @@
 {% load static %}
 <!doctype html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     
@@ -11,82 +11,97 @@
     <!-- Custom Styles -->
     <link href="{% static 'styles.css' %}" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <!-- AOS Library for Scroll Animations -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css">
 
-    
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
-    
+
     <title>University Helpdesk</title>
-    
+
     <style>
-        body {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            margin: 0;
-            padding: 0;
-        }
-        .main-container {
-            flex: 1 0 auto;
-        }
-        .container.mt-5 {
-            padding-bottom: 2rem;
-        }
-        footer {
-            flex-shrink: 0;
+        /* Video Background Styling */
+        .video-container {
+            position: fixed; /* Ensures full-screen coverage */
+            top: 0;
+            left: 0;
             width: 100%;
+            height: 100vh;
+            overflow: hidden;
+            z-index: -1; /* Push video to the background */
         }
-        .signup-container {
-            max-height: calc(100vh - 200px);
-            overflow-y: auto;
-            padding: 2rem 0;
+
+        #bg-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Ensures full coverage */
+        }
+
+        /* Ensure content is above the video */
+        .content {
+            position: relative;
+            z-index: 1;
+            color: white; /* Ensure text is readable */
         }
     </style>
-    
-    {% block extra_imports %}{% endblock %}
-  </head>
-  
-  <body>
-    <div class="main-container">
-        <!-- Navigation Bar -->
+</head>
+
+<body>
+    <!-- Video Background -->
+    <div class="video-container">
+        <video autoplay muted loop id="bg-video">
+            <source src="{% static 'videos/white-staff.mp4' %}" type="video/mp4">
+        </video>
+    </div>
+
+    <!-- Main Content -->
+    <div class="content">
         <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm">
-          <div class="container">
-            <a class="navbar-brand fw-bold" href="{% url 'home' %}" style="color: #391164;">University Helpdesk</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-              <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-              <ul class="navbar-nav ms-auto">
-                <li class="nav-item">
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link" href={%url 'about' %}>About</a>
-                </li>
-                <li class="nav-item dropdown">
-                  <a class="nav-link dropdown-toggle" href="#" id="servicesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    Services
-                  </a>
-                  <ul class="dropdown-menu" aria-labelledby="servicesDropdown">
-                    <li><a class="dropdown-item" href={% url 'faq'     %}>FAQ</a></li>
-                  </ul>
-                </li>
-              </ul>
+            <div class="container">
+                <a class="navbar-brand fw-bold d-flex align-items-center" href="{% url 'home' %}" style="color: #14147f;">
+                    <img src="{% static 'images/uh_icon.png' %}" alt="UH Icon" style="height: 50px; width: auto;" class="me-2">
+                    University Helpdesk
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'about' %}">About</a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="servicesDropdown" data-bs-toggle="dropdown">
+                                Services
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'faq' %}">FAQ</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
             </div>
-          </div>
         </nav>
 
-        <!-- Main Content -->
         <div class="container mt-5">
-          {% block body %}{% endblock %}
+            {% block body %}{% endblock %}
         </div>
     </div>
 
-    <!-- Footer -->
-    <footer class="bg-dark text-light text-center py-3">
-      <p class="mb-0">&copy; 2025 University Helpdesk | All rights reserved.</p>
-    </footer>
-
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  </body>
+
+    <!-- AOS Initialization -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+    <script>
+    AOS.init({
+        duration: 1000, // Animation speed (1s)
+        once: true // Only animate once
+    });
+    </script>
+
+</body>
+
+<footer class="bg-dark text-light text-center py-3">
+    <p class="mb-0">&copy; 2025 University Helpdesk | All rights reserved.</p>
+</footer>
+
 </html>

@@ -1,42 +1,59 @@
 {% extends "base.html" %}
-
 {% block extra_imports %}
 <style>
     .accordion-button:not(.collapsed) {
         background-color: rgba(57, 17, 100, 0.1);
         color: #391164;
+
     }
     .accordion-button:focus {
         border-color: rgba(57, 17, 100, 0.25);
         box-shadow: 0 0 0 0.25rem rgba(57, 17, 100, 0.25);
+
     }
     .faq-search {
         max-width: 600px;
         margin: 0 auto 2rem;
     }
+
     .faq-search .form-control:focus {
         border-color: rgba(57, 17, 100, 0.25);
         box-shadow: 0 0 0 0.25rem rgba(57, 17, 100, 0.25);
     }
-    .faq-search .btn {
-        background-color: #391164;
-        border-color: #391164;
-    }
+
     .faq-category {
-        margin-bottom: 2rem;
+    background-color: #0b063e; 
+    padding: 10px 15px; 
+    border-radius: 8px; 
+    margin-bottom: 15px; 
     }
-    .faq-category-title {
-        color: #391164;
-        border-bottom: 2px solid #391164;
-        padding-bottom: 0.5rem;
-        margin-bottom: 1.5rem;
+
+    h3.faq-category-title {
+    color: #1818bc !important;
+    font-weight: bold;
     }
+
+    .faq-header-card {
+    background: rgba(255, 255, 255, 0.2); /* Light opacity white */
+    backdrop-filter: blur(10px); /* Blurred glass effect */
+    padding: 20px;
+    border-radius: 12px; /* Soft rounded edges */
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1); /* Soft shadow */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 900px; /* Keeps it balanced */
+    margin: 0 auto 2rem;
+}
+
 </style>
 {% endblock %}
 
 {% block body %}
+
 <div class="container py-5">
-    <h1 class="mb-4 text-center" style="color: #391164;">Frequently Asked Questions</h1>
+    <h1 class="mb-4 text-center" style="color: #1818bc;">Frequently Asked Questions</h1>
     
     <div class="faq-search">
         <div class="input-group mb-3">
@@ -48,17 +65,18 @@
     <div class="row mb-4">
         <div class="col text-center">
             <div class="btn-group" role="group" aria-label="FAQ Categories">
-                <button type="button" class="btn btn-outline-secondary active">All</button>
-                <button type="button" class="btn btn-outline-secondary">Accounts</button>
-                <button type="button" class="btn btn-outline-secondary">Network</button>
-                <button type="button" class="btn btn-outline-secondary">Software</button>
-                <button type="button" class="btn btn-outline-secondary">Hardware</button>
+                <button type="button" class="btn btn-outline-secondary active" data-category="all">All</button>
+                <button type="button" class="btn btn-outline-secondary" data-category="accounts">Accounts</button>
+                <button type="button" class="btn btn-outline-secondary" data-category="network">Network</button>
+                <button type="button" class="btn btn-outline-secondary" data-category="software">Software</button>
+                <button type="button" class="btn btn-outline-secondary" data-category="hardware">Hardware</button>
             </div>
         </div>
     </div>
     
-    <div class="faq-category">
-        <h3 class="faq-category-title">Account Management</h3>
+
+    <div class="faq-category" data-category="accounts">
+        <h3 class="mb-4 text-right" style="color: #1818bc;">Account Management</h3>
         <div class="accordion" id="accountAccordion">
             <div class="accordion-item">
                 <h2 class="accordion-header" id="accountHeading1">
@@ -106,10 +124,11 @@
                 </div>
             </div>
         </div>
+        <br>
     </div>
     
-    <div class="faq-category">
-        <h3 class="faq-category-title">Network & Connectivity</h3>
+    <div class="faq-category" data-category="network">
+        <h3 class="mb-4 text-right" style="color: #1818bc;">Network & Connectivity</h3>
         <div class="accordion" id="networkAccordion">
             <div class="accordion-item">
                 <h2 class="accordion-header" id="networkHeading1">
@@ -157,10 +176,11 @@
                 </div>
             </div>
         </div>
+        <br>
     </div>
     
-    <div class="faq-category">
-        <h3 class="faq-category-title">Software & Applications</h3>
+    <div class="faq-category" data-category="software">
+        <h3 class="mb-4 text-right" style="color: #1818bc;">Software & Applications</h3>
         <div class="accordion" id="softwareAccordion">
             <div class="accordion-item">
                 <h2 class="accordion-header" id="softwareHeading1">
@@ -220,10 +240,11 @@
                 </div>
             </div>
         </div>
+        <br>
     </div>
     
-    <div class="faq-category">
-        <h3 class="faq-category-title">Hardware & Equipment</h3>
+    <div class="faq-category" data-category="hardware">
+        <h3 class="mb-4 text-right" style="color: #1818bc;">Hardware & Equipment</h3>
         <div class="accordion" id="hardwareAccordion">
             <div class="accordion-item">
                 <h2 class="accordion-header" id="hardwareHeading1">
@@ -291,9 +312,10 @@
                 </div>
             </div>
         </div>
+        <br>
     </div>
     
-    <div class="alert alert-info mt-5">
+    <div class="alert alert-secondary mt-5">
         <div class="d-flex align-items-center">
             <i class="bi bi-info-circle-fill fs-4 me-3"></i>
             <div>
@@ -304,53 +326,44 @@
     </div>
 </div>
 
+<div class="text-center my-5">  <!-- Added margin to separate from footer -->
+    <a href="{% url 'home' %}" class="btn btn-primary px-4 py-2" 
+       style="background-color: #1818bc; border: none; border-radius: 8px;">
+        Back to Home
+    </a>
+</div>
+
+
 <script>
-    // Simple search functionality for FAQ items
-    document.addEventListener('DOMContentLoaded', function() {
-        const searchInput = document.querySelector('.faq-search input');
-        
-        searchInput.addEventListener('keyup', function() {
-            const searchText = this.value.toLowerCase();
-            const accordionItems = document.querySelectorAll('.accordion-item');
-            
-            accordionItems.forEach(item => {
-                const question = item.querySelector('.accordion-button').textContent.toLowerCase();
-                const answer = item.querySelector('.accordion-body').textContent.toLowerCase();
-                
-                if (question.includes(searchText) || answer.includes(searchText)) {
-                    item.style.display = 'block';
+document.addEventListener("DOMContentLoaded", function() {
+    const categoryButtons = document.querySelectorAll('.btn-group .btn-outline-secondary');
+    const faqCategories = document.querySelectorAll('.faq-category');
+
+    categoryButtons.forEach(button => {
+        button.addEventListener("click", function() {
+            // Remove 'active' class from all buttons
+            categoryButtons.forEach(btn => btn.classList.remove("active"));
+            this.classList.add("active");
+
+            // Get the selected category
+            const selectedCategory = this.getAttribute("data-category");
+
+            // Show/hide FAQ categories
+            faqCategories.forEach(categoryDiv => {
+                if (selectedCategory === "all") {
+                    categoryDiv.style.display = "block"; // Show all
+                } else if (categoryDiv.getAttribute("data-category") === selectedCategory) {
+                    categoryDiv.style.display = "block"; // Show selected category
                 } else {
-                    item.style.display = 'none';
-                }
-            });
-        });
-        
-        // Category filter buttons
-        const categoryButtons = document.querySelectorAll('.btn-group .btn-outline-secondary');
-        categoryButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                // Toggle active state
-                categoryButtons.forEach(btn => btn.classList.remove('active'));
-                this.classList.add('active');
-                
-                // Filter categories
-                const category = this.textContent.toLowerCase();
-                const faqCategories = document.querySelectorAll('.faq-category');
-                
-                if (category === 'all') {
-                    faqCategories.forEach(cat => cat.style.display = 'block');
-                } else {
-                    faqCategories.forEach(cat => {
-                        const categoryTitle = cat.querySelector('.faq-category-title').textContent.toLowerCase();
-                        if (categoryTitle.includes(category)) {
-                            cat.style.display = 'block';
-                        } else {
-                            cat.style.display = 'none';
-                        }
-                    });
+                    categoryDiv.style.display = "none"; // Hide others
                 }
             });
         });
     });
+
+    // Ensure all categories are shown by default on page load
+    faqCategories.forEach(categoryDiv => categoryDiv.style.display = "block");
+});
+
 </script>
 {% endblock %}
