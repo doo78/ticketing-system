@@ -247,6 +247,7 @@ def staff_dashboard(request):
     return render(request, 'staff/dashboard.html', context)
 
 
+
 class LogInView(View, RoleBasedRedirectMixin):
     """
     Handles user login and redirection based on role.
@@ -319,6 +320,7 @@ class DashboardView(LoginRequiredMixin, View):
     Display the appropriate dashboard based on the user's role.
     """
 
+    '''
     def get(self, request, *args, **kwargs):
         role_dispatch = {
             'admin': self.render_admin_dashboard,  # Admin users see staff dashboard
@@ -327,7 +329,9 @@ class DashboardView(LoginRequiredMixin, View):
         }
         handler = role_dispatch.get(request.user.role, self.redirect_to_home)
         return handler(request)
+    '''
 
+    '''
     def render_staff_dashboard(self, request):
         """Render staff dashboard."""
 
@@ -378,6 +382,8 @@ class DashboardView(LoginRequiredMixin, View):
     def redirect_to_home(self, request):
         """Redirect to home page if the role is undefined."""
         return redirect(reverse("home"))
+    '''
+
 
 
 class StaffRequiredMixin(UserPassesTestMixin):
@@ -387,6 +393,7 @@ class StaffRequiredMixin(UserPassesTestMixin):
 class StudentRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return hasattr(self.request.user, 'student')
+
 
 @login_required
 def student_dashboard(request):
@@ -420,6 +427,7 @@ def student_dashboard(request):
         'sort_order': sort_order,
     }
     return render(request, 'student/dashboard.html', context)
+
 
 class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
     def get(self, request, ticket_id):
