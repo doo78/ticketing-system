@@ -39,7 +39,12 @@ import boto3
 from botocore.config import Config
 import json
 from django.views.decorators.http import require_POST
-
+# from django.core.mail import send_mail
+# from django.utils.html import strip_tags
+# from django.template.loader import render_to_string
+# from django.core.mail import EmailMultiAlternatives
+from ticket.email_utils import sendHtmlMail
+from django.urls import reverse
 #------------------------------------STUDENT SECTION------------------------------------#
 @login_required
 def create_ticket(request):
@@ -904,6 +909,7 @@ class AdminAccountsView(LoginRequiredMixin,AdminRequiredMixin,View):
                 messages.success(request, f"Error deleting user: {e}")
 
         return redirect("admin_accounts_list")
+
 class AdminAPITicketDetailsView(LoginRequiredMixin,AdminRequiredMixin,View):
     def post(self, request):
         try:
@@ -1436,5 +1442,86 @@ def delete_announcement(request, announcement_id):
     return redirect('admin_announcements')
 
 
+class ForgetPasswordMailView(View):
+    """
+    Handles user registration using Django's Class-Based Views.
+    """
+    def get(self, request):
+        context={}
+        return render(request, 'forget-password/mail-page.html', context)
 
-
+    def post(self, request):
+        mail = request.POST.get("email")  # Get the ID
+        try:
+            user = CustomUser.objects.get(email=mail)
+            if user:
+                # Generate the reset link
+                token=user.generate_remember_token()
+                reset_link = f"{settings.MAIN_URL}/forget-password/reset?token={token}"
+                context={
+                    "user": user,
+                    "reset_link": reset_link,
+                    'website_name': settings.WEBSITE_NAME,
+                    'main_mail': settings.EMAIL_HOST_USER
+                }
+                sendHtmlMail(
+                    view="mail-template/reset-password-mail.html",
+                    subject=f"Reset Your Password - {settings.WEBSITE_NAME}",
+                    from_email=settings.EMAIL_HOST_USER,
+                    to_email=[mail],
+                    context=context,
+                )
+                return redirect('log_in')
+        except CustomUser.DoesNotExist:
+            return render(request, 'exception/error-page.html',
+                          {
+                              "title": "User Not Found",
+                              "message": "We couldn't find an account associated with this email. "
+                                         "Please check your email address and try again, or sign up for a new account.",
+                              "link": reverse('log_in')
+                          })
+class ForgetPasswordNewPasswordView(View):
+    def get(self, request):
+        token = request.GET.get('token')
+        try:
+            user = CustomUser.objects.get(remember_token=token)
+            if user:
+                if user.is_remember_token_valid(token):
+                    return render(request, 'forget-password/new-password.html', {"token": token})
+                else:
+                    return render(request, 'exception/error-page.html',
+                                  {
+                                      "title": "Invalid or Expired Token",
+                                      "message":"The password reset link is either incorrect or has expired. "
+                                                "Please request a new password reset.",
+                                      "link": reverse('log_in')
+                                  })
+        except CustomUser.DoesNotExist:
+            return render(request, 'exception/error-page.html',
+                          {
+                "title": "Invalid or Expired Token",
+                "message":"The password reset link is either incorrect or has expired. "
+                    "Please request a new password reset.",
+                "link": reverse('log_in')
+                      })
+    def post(self, request):
+        token = request.POST.get('token')
+        new_password = request.POST.get('new_password')
+        confirm_password = request.POST.get('confirm_password')
+        if new_password != confirm_password:
+            messages.error(request, 'Passwords do not match.')
+            return redirect(request.path+f"?token={token}")
+        try:
+            user = CustomUser.objects.get(remember_token=token)
+            user.set_password(new_password)
+            user.clear_remember_token()
+            user.save()
+            messages.success(request, 'Password updated successfully.')
+            return redirect("log_in")
+        except CustomUser.DoesNotExist:
+            return render(request, 'exception/error-page.html',
+                          {"title": "Invalid or Expired Token",
+                           "message":"The password reset link is either incorrect or has expired. "
+                                     "Please request a new password reset.",
+                           "link": reverse('log_in')
+                           })

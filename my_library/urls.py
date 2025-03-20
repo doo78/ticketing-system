@@ -10,7 +10,7 @@ from ticket import views
 from ticket.views import (
      DashboardView, StaffUpdateProfileView, home, LogInView, LogOutView, StaffTicketListView, StaffTicketDetailView,
     ManageTicketView, StaffProfileView, staff_dashboard, SignUpView,AdminTicketListView, AdminAccountsView,AdminAccountView,AdminAccountEditView,
-     AdminAPITicketDetailsView,AdminAPIStaffByDepartmentView,AdminAPITicketAssignView
+     AdminAPITicketDetailsView,AdminAPIStaffByDepartmentView,AdminAPITicketAssignView,ForgetPasswordMailView,ForgetPasswordNewPasswordView
 )
 
 from django.conf.urls.static import static
@@ -25,6 +25,8 @@ urlpatterns = [
     #------------------------------------AUTHENTICATION URLS------------------------------------#
     path('login/', LogInView.as_view(), name='log_in'),
     path('logout/', LogOutView.as_view(), name='logout'),
+    path('forget-password/mail', ForgetPasswordMailView.as_view(), name='forget_password_mail'),
+    path('forget-password/reset', ForgetPasswordNewPasswordView.as_view(), name='forget_password_reset_password'),
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
     path('sign_up/' , SignUpView.as_view() , name= 'sign_up'),
 
