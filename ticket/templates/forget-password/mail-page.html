@@ -3,8 +3,9 @@
 
 {% block body %}
 <div class="container d-flex justify-content-center align-items-center vh-100">
-    <div class="card shadow-lg p-4" style="max-width: 400px; width: 100%; border-radius: 10px;">
+    <div class="card shadow-lg p-4" style="max-width: 450px; width: 100%; border-radius: 10px;">
         <h2 class="text-center">Reset Password</h2>
+        <br>
 
         {% if messages %}
             {% for message in messages %}
@@ -16,9 +17,19 @@
 
         <form method="post">
             {% csrf_token %}
-            <input type="email" name="email" class="form-control mb-3"/>
-            <button type="submit" class="btn btn-primary w-100">Send Password Link</button>
+            <input type="email" name="email" class="form-control mb-3" placeholder="Enter your email" required autofocus>
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-envelope"></i> Send Reset Link
+            </button>
         </form>
+
+        <!-- Additional Actions -->
+        <div class="text-center mt-3">
+            <a href="{% url 'log_in' %}" class="text-decoration-none">
+                <i class="fas fa-arrow-left"></i> Back to Login
+            </a>
+        </div>
     </div>
 </div>
+
 {% endblock %}

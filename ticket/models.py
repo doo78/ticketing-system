@@ -1,8 +1,10 @@
-import uuid
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings  
 from django.utils.timezone import now, timedelta
+from datetime import timedelta 
+import uuid
+
 DEPT_CHOICES = settings.DEPT_CHOICES
 
 
@@ -14,7 +16,7 @@ class CustomUser(AbstractUser):
     )
     first_name = models.CharField(max_length=150, blank=False)  
     last_name = models.CharField(max_length=150, blank=False)   
-    email = models.EmailField(unique=True, blank=False)         
+    email = models.EmailField(unique=True, blank=False)
     preferred_name = models.CharField(max_length=150, blank=True, null=True)
     REQUIRED_FIELDS = ['email', 'first_name', 'last_name']
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
@@ -22,15 +24,19 @@ class CustomUser(AbstractUser):
     remember_token_expiry = models.DateTimeField(blank=True, null=True)
 
     def generate_remember_token(self):
-        self.remember_token = uuid.uuid4().hex  # Generates a unique token
-        self.remember_token_expiry = now() + timedelta(hours=1)  # Token valid for 1 hour
+        """Generate a unique password reset token and store it."""
+        import secrets
+        self.remember_token = secrets.token_urlsafe(32)  # Secure token
+        self.remember_token_expiry = now() + timedelta(hours=1)  # Expire in 1 hour
         self.save()
         return self.remember_token
 
     def is_remember_token_valid(self, token):
+        """Validate the token against the stored token and check expiry."""
         return self.remember_token == token and self.remember_token_expiry and now() < self.remember_token_expiry
 
     def clear_remember_token(self):
+        """Clear the reset token after use."""
         self.remember_token = None
         self.remember_token_expiry = None
         self.save()

@@ -13,6 +13,7 @@ from django.contrib.auth import login, logout
 from django.urls import reverse
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
+import urllib
 from ticket.mixins import RoleBasedRedirectMixin,AdminRoleRequiredMixin
 from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm,EditAccountForm,AdminUpdateProfileForm
 from .models import Ticket, Staff, Student, CustomUser, Message, Announcement
@@ -985,6 +986,7 @@ class AdminAPIStaffByDepartmentView(LoginRequiredMixin,AdminRequiredMixin,View):
 
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        
 class AdminAPITicketAssignView(LoginRequiredMixin,AdminRequiredMixin,View):
     def post(self, request):
         try:
@@ -1225,9 +1227,6 @@ def analytics_dashboard(request):
     })
 
 
-
-
-
 def export_tickets_csv(request):
     # Get date range from request or use default (last 30 days)
     today = timezone.now().date()
@@ -1299,8 +1298,6 @@ def export_tickets_csv(request):
         ])
     
     return response
-
-
 
 def export_performance_csv(request):
     """Export staff performance metrics as CSV"""
@@ -1383,7 +1380,6 @@ def export_performance_csv(request):
         ])
     
     return response
-
     
 
 @login_required
@@ -1454,24 +1450,27 @@ class ForgetPasswordMailView(View):
     """
     Handles user registration using Django's Class-Based Views.
     """
+    
     def get(self, request):
         context={}
         return render(request, 'forget-password/mail-page.html', context)
 
     def post(self, request):
-        mail = request.POST.get("email")  # Get the ID
+        mail = request.POST.get("email")
         try:
             user = CustomUser.objects.get(email=mail)
             if user:
-                # Generate the reset link
-                token=user.generate_remember_token()
-                reset_link = f"{settings.MAIN_URL}/forget-password/reset?token={token}"
-                context={
+                token = user.generate_remember_token()
+                encoded_token = quote(token)
+                reset_link = f"{settings.MAIN_URL}/forget-password/reset?token={encoded_token}"
+
+                context = {
                     "user": user,
                     "reset_link": reset_link,
                     'website_name': settings.WEBSITE_NAME,
                     'main_mail': settings.EMAIL_HOST_USER
                 }
+
                 sendHtmlMail(
                     view="mail-template/reset-password-mail.html",
                     subject=f"Reset Your Password - {settings.WEBSITE_NAME}",
@@ -1479,57 +1478,107 @@ class ForgetPasswordMailView(View):
                     to_email=[mail],
                     context=context,
                 )
-                return redirect('log_in')
+
+            # Clear previous messages first
+            storage = messages.get_messages(request)
+            storage.used = True  # This ensures old messages don’t get displayed again
+
+            # Add the new success message
+            messages.success(request, "Reset email has been sent. Please check your inbox.")
+
+            return render(request, 'forget-password/email-sent.html', {
+                "email": mail
+            })
+
+
         except CustomUser.DoesNotExist:
-            return render(request, 'exception/error-page.html',
-                          {
-                              "title": "User Not Found",
-                              "message": "We couldn't find an account associated with this email. "
-                                         "Please check your email address and try again, or sign up for a new account.",
-                              "link": reverse('log_in')
-                          })
+            return render(request, 'exception/error-page.html', {
+                "title": "User Not Found",
+                "message": "We couldn't find an account associated with this email.",
+                "link": reverse('log_in')
+            })
+        
+class PasswordResetSentView(View):
+    def get(self, request):
+        return render(request, 'forget-password/email-sent.html')
+    
+def password_reset_sent(request):
+    return render(request, 'forget-password/email-sent.html')
+
+def ForgetPasswordView(request):
+    return render(request, 'forget-password/mail-page.html')
+
+class PasswordResetView(View):
+    def get(self, request):
+        token = request.GET.get('token')
+        if not token:
+            return render(request, 'exception/error-page.html', {
+                "title": "Invalid Token",
+                "message": "No valid token provided. Please request a new password reset.",
+                "link": reverse('log_in')
+            })
+        return render(request, 'forget-password/new-password.html', {"token": token})
+
+from django.contrib import messages
+from django.shortcuts import render, redirect
+from django.urls import reverse
+from ticket.models import CustomUser
+from urllib.parse import quote 
+
 class ForgetPasswordNewPasswordView(View):
     def get(self, request):
         token = request.GET.get('token')
+
         try:
             user = CustomUser.objects.get(remember_token=token)
-            if user:
-                if user.is_remember_token_valid(token):
-                    return render(request, 'forget-password/new-password.html', {"token": token})
-                else:
-                    return render(request, 'exception/error-page.html',
-                                  {
-                                      "title": "Invalid or Expired Token",
-                                      "message":"The password reset link is either incorrect or has expired. "
-                                                "Please request a new password reset.",
-                                      "link": reverse('log_in')
-                                  })
+
+            if user and user.is_remember_token_valid(token):
+                return render(request, 'forget-password/new-password.html', {"token": token})
+            else:
+                return render(request, 'exception/error-page.html', {
+                    "title": "Invalid or Expired Token",
+                    "message": "The password reset link is incorrect or expired.",
+                    "link": reverse('log_in')
+                })
+
         except CustomUser.DoesNotExist:
-            return render(request, 'exception/error-page.html',
-                          {
-                "title": "Invalid or Expired Token",
-                "message":"The password reset link is either incorrect or has expired. "
-                    "Please request a new password reset.",
+            return render(request, 'exception/error-page.html', {
+                "title": "Invalid Token",
+                "message": "The token is invalid or expired.",
                 "link": reverse('log_in')
-                      })
+            })
+
     def post(self, request):
         token = request.POST.get('token')
         new_password = request.POST.get('new_password')
         confirm_password = request.POST.get('confirm_password')
+
+
         if new_password != confirm_password:
             messages.error(request, 'Passwords do not match.')
-            return redirect(request.path+f"?token={token}")
+            return redirect(request.path + f"?token={token}")
+
         try:
             user = CustomUser.objects.get(remember_token=token)
-            user.set_password(new_password)
-            user.clear_remember_token()
-            user.save()
-            messages.success(request, 'Password updated successfully.')
-            return redirect("log_in")
+
+            if user and user.is_remember_token_valid(token):
+                user.set_password(new_password)
+                user.clear_remember_token()
+                user.save()
+
+                messages.success(request, 'Password updated successfully.')
+                return redirect("log_in")
+
+            else:
+                return render(request, 'exception/error-page.html', {
+                    "title": "Invalid or Expired Token",
+                    "message": "The password reset link is incorrect or expired.",
+                    "link": reverse('log_in')
+                })
+
         except CustomUser.DoesNotExist:
-            return render(request, 'exception/error-page.html',
-                          {"title": "Invalid or Expired Token",
-                           "message":"The password reset link is either incorrect or has expired. "
-                                     "Please request a new password reset.",
-                           "link": reverse('log_in')
-                           })
+            return render(request, 'exception/error-page.html', {
+                "title": "Invalid Token",
+                "message": "The token is invalid or expired.",
+                "link": reverse('log_in')
+            })
