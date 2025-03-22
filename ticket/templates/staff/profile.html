@@ -7,9 +7,10 @@
         <div class="card-body">
             <div class="d-flex flex-column align-items-center">
                 <div class="position-relative mb-3">
-                    <img src="{% if request.user.staff.profile_picture %}{{ request.user.staff.profile_picture.url }}{% else %}/static/images/default-profile.png{% endif %}" 
+                    <img src="{% if request.user.role == 'staff' and request.user.staff.profile_picture %}{{ request.user.staff.profile_picture.url }}{% else %}/static/images/default-profile.png{% endif %}"
                         class="rounded-circle border border-3 shadow-sm" 
                         width="150" height="150" alt="Profile Picture">
+
                 </div>
 
                 <h3 class="card-title mt-2 mb-1">
@@ -17,9 +18,15 @@
                 </h3>
                 <p class="text-muted mb-3"><strong>Staff Member</strong></p>
 
+                {% if request.user.role == 'staff' %}
                 <a href="{% url 'staff_update_profile' %}" class="btn btn-primary">
                     <i class="fas fa-edit me-2"></i>Edit Profile
                 </a>
+                {% elif request.user.role == 'admin' %}
+                    <a href="{% url 'admin_update_profile' %}" class="btn btn-primary">
+                    <i class="fas fa-edit me-2"></i>Edit Profile
+                </a>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -50,9 +57,9 @@
             </div>
         </div>
 
-
+        {% if request.user.role == 'staff' %}
         <!-- Ticket Stats Section -->
-        <div class="col-md-6">
+            <div class="col-md-6">
             <div class="card shadow-sm mb-4">
                 <div class="card-header">
                     <h5 class="mb-0">Ticket Stats</h5>
@@ -154,6 +161,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
     </div>
 </div>
 

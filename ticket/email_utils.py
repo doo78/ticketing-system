@@ -9,6 +9,9 @@ from django.utils import timezone
 from django.db.models import Max, F
 from django.core.mail import send_mail
 from ticket.models import Ticket, Student, Message
+from django.utils.html import strip_tags
+from django.template.loader import render_to_string
+from django.core.mail import EmailMultiAlternatives
 
 # Helper function to decode MIME-encoded subjects
 def decode_mime_words(s):
@@ -149,3 +152,18 @@ def send_reminder_emails():
             print(f"Sent reminder email for ticket {ticket.id} to {student_email}")
         except Exception as e:
             print(f"Error sending reminder for ticket {ticket.id}: {e}")
+
+
+def sendHtmlMail(view,subject,to_email,from_email=None,context={}):
+    html_content = render_to_string(view,context)
+    # Generate a plain text version of the email (fallback for clients that do not support HTML)
+    text_content = strip_tags(html_content)
+    if from_email is None:
+        from_email = settings.EMAIL_HOST_USER
+
+    email = EmailMultiAlternatives(subject, text_content, from_email, to_email)
+    # Attach the HTML version
+    email.attach_alternative(html_content, "text/html")
+    # Send the email
+    email.send()
+    print("HTML email sent successfully!")

@@ -1,4 +1,6 @@
 {% load static %}
+<link rel="stylesheet" type="text/css" href="{% static 'css/staff-style.css' %}">
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,73 +10,63 @@
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/staff-style.css' %}">
 
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
-
-
+  
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            let video = document.getElementById("background-video");
+            video.playbackRate = 0.5;  
+        });
+    </script>
+    
     <style>
-        /* Reset body layout */
+        /* Navbar Styling */
         body {
-            display: flex;
+            background: url("{% static 'images/staff-dash.png' %}") no-repeat center center fixed;
+            background-size: cover;
+            min-height: 100vh;
+            width: 100vw;
             height: 100vh;
-            overflow: auto;
-            background-color: #f8f9fa;
-        }
-
-        /* Sidebar Styling */
-        .sidebar {
-            width: 250px;
-            height: 100vh;
-            background-color: #ffffff;
-            padding-top: 20px;
-            position: fixed;
-            left: 0;
-            top: 0;
-            transition: all 0.3s ease-in-out;
-            box-shadow: 2px 0px 5px rgba(0, 0, 0, 0.1);
-            z-index: 1000;
-        }
-
-        .sidebar.hide {
-            width: 0;
+            margin: 0;
             padding: 0;
-            overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
-        .sidebar h4 {
-            text-align: center;
-            margin-bottom: 20px;
-            color: #6a11cb;
+        .navbar {
+            background: #efefee;
+            padding: 10px 20px;
+            margin-bottom: 0;  /* Ensure no extra space below */
+            position: fixed;
+            width: 100%;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar-brand {
+            color: #2529a4;
+            font-size: 1.5rem;
             font-weight: bold;
         }
 
-        .sidebar .nav-link {
-            color: #333;
-            padding: 12px 20px;
+        .navbar-nav .nav-link {
+            color: #000;
+            font-size: 1rem;
+            padding: 10px;
+        }
+
+        .navbar-nav .nav-link:hover {
+            background: rgba(106, 17, 203, 0.2);
             border-radius: 5px;
-            display: flex;
-            align-items: center;
-            font-size: 16px;
         }
 
-        .sidebar .nav-link i {
-            margin-right: 10px;
-        }
-
-        .sidebar .nav-link:hover {
-            background-color: #f0f0f0;
-        }
-
-        .sidebar .nav-link.active {
-            background: linear-gradient(135deg, #6a11cb, #2575fc);
-            color: white;
-        }
-
-        .sidebar .logout {
-            margin-top: auto;
-            color: red;
+        .logout-link {
+            color: rgb(104, 19, 19) !important;
+            font-weight: bold;
         }
 
         /* Main Content */
@@ -109,8 +101,18 @@
             left: 10px;
         }
 
-        /* Responsive Fix */
+        /* Container Layout */
+        .container-fluid {
+            margin-top: 20px;
+            padding: 20px;
+        }
+
+        /* Responsive Adjustments */
         @media (max-width: 992px) {
+            .navbar-nav {
+                text-align: center;
+            }
+            
             .sidebar {
                 width: 0;
                 padding: 0;
@@ -127,7 +129,6 @@
     </style>
 </head>
 <body>
-
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
         <h4>Staff Portal</h4>
@@ -156,6 +157,33 @@
         <i class="bi bi-list"></i>
     </button>
 
+    <!-- Collapsible Navbar (from main branch) -->
+    <nav class="navbar navbar-expand-lg">
+        <a class="navbar-brand" href="{% url 'staff_dashboard' %}">Staff Portal</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <i class="bi bi-list text-white fs-3"></i>
+        </button>
+        <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'staff_ticket_list' %}active{% endif %}" href="{% url 'staff_ticket_list' %}">
+                        <i class="bi bi-ticket-detailed"></i> Tickets
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'staff_profile' %}active{% endif %}" href="{% url 'staff_profile' %}">
+                        <i class="bi bi-person-circle"></i> Profile
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link logout-link" href="{% url 'logout' %}">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
     <!-- Main Content -->
     <div class="main-content" id="main-content">
         <!-- Messages Section -->
@@ -172,9 +200,16 @@
         </div>
         {% endif %}
 
-        {% block content %}
-        {% endblock %}
+        <!-- Main Content Container -->
+        <div class="container-fluid mt-5 pt-5">
+            {% block content %}
+            {% endblock %}
+        </div>
     </div>
+
+    <footer class="bg-dark text-light text-center py-3">
+        <p class="mb-0">&copy; 2025 University Helpdesk | All rights reserved.</p>
+    </footer>
 
     <!-- JavaScript -->
     <script>

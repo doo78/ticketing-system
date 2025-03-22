@@ -1,0 +1,43 @@
+<!-- Close Ticket Confirmation Modal -->
+<div class="modal fade" id="closeTicketModal" tabindex="-1" aria-labelledby="closeTicketModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="closeTicketModalLabel">
+                    <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+                    Close Ticket Confirmation
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- This content will be dynamically set based on whether there are messages -->
+                <div id="noMessagesWarning" class="d-none">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-circle-fill me-2"></i>
+                        <strong>Warning:</strong> This ticket has no responses.
+                    </div>
+                    <p class="text-muted mb-0">
+                        Are you sure you want to close this ticket without responding to the student?
+                        This may affect the quality of service metrics.
+                    </p>
+                </div>
+                <div id="hasMessagesConfirm" class="d-none">
+                    <p class="mb-0">
+                        Are you sure you want to close this ticket? 
+                        This action cannot be undone.
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i>
+                    Cancel
+                </button>
+                <button type="button" class="btn btn-success" id="confirmCloseTicket">
+                    <i class="bi bi-check-circle me-1"></i>
+                    Close Ticket
+                </button>
+            </div>
+        </div>
+    </div>
+</div> 

@@ -1,25 +1,29 @@
 {% extends "base.html" %}
 
 {% block body %}
-  <div class="container d-flex flex-column align-items-center justify-content-center text-center" style="height: 100vh;">
-    
-    <!-- Heading and Subtitle Outside the Card -->
-  
-    <div class="mb-4">
-      <h1 class="text-dark display-4 fw-bold fst-italic">Welcome to University Helpdesk</h1>
-      <p class="text-dark fs-5">Your one-stop solution for university support services</p>
-    </div>
 
-    <!-- Card with Log In & Sign Up -->
-    <div class="card text-center p-4 shadow-lg" style="border-radius: 15px; max-width: 400px;">
-      <div class="d-grid gap-3">
-        <a href="{% url 'log_in' %}" class="outer-cont">
-          Log In
-        </a>
-        <a href="{% url 'sign_up' %}" class="outer-cont">
-          Sign Up
-        </a>
-      </div>
-    </div>
+<div class="container d-flex flex-column align-items-center justify-content-center text-center vh-100">
+   
+  <!-- Heading and Subtitle -->
+  <div>
+      <h1 class="gradient-text">Welcome to University Helpdesk</h1>
+      <p class="text-subtle">Your <span class="fw-bold">one-stop</span> solution for university support services.</p>
+      <br>
   </div>
+
+  <!-- Centered Card -->
+   <br>
+  <div class="home-card card text-center p-4 shadow-lg" style="border-radius: 15px; max-width: 400px;">
+      <div class="d-grid gap-3">
+          <a href="{% url 'log_in' %}" class="outer-cont">
+              Log In
+          </a>
+          <a href="{% url 'sign_up' %}" class="outer-cont">
+              Sign Up
+          </a>
+      </div>
+  </div>
+</div>
+
+
 {% endblock %}

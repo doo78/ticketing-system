@@ -1,0 +1,18 @@
+<nav class="nav flex-column">
+            <a class="nav-link {% if request.resolver_match.url_name == 'staff_dashboard' %}active{% endif %}"
+               href="{% url 'staff_dashboard' %}">
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
+            <a class="nav-link {% if request.resolver_match.url_name == 'staff_ticket_list' %}active{% endif %}"
+               href="{% url 'staff_ticket_list' %}">
+                <i class="bi bi-ticket-detailed"></i> Tickets
+            </a>
+            <a class="nav-link {% if request.resolver_match.url_name == 'staff_profile' %}active{% endif %}"
+               href="{% url 'staff_profile' %}">
+                <i class="bi bi-person-circle"></i> Profile
+            </a>
+            <hr>
+            <a class="nav-link text-danger logout" href="{% url 'logout' %}">
+                <i class="bi bi-box-arrow-right"></i> Logout
+            </a>
+        </nav>

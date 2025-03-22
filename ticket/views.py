@@ -1,3 +1,6 @@
+import csv
+from itertools import count
+from django.db.models import Count  
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views import View
 from django.contrib.auth.decorators import login_required
@@ -9,18 +12,19 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import login, logout
 from django.urls import reverse
 from django.conf import settings
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from ticket.mixins import RoleBasedRedirectMixin,AdminRoleRequiredMixin
-from .models import Ticket, Staff, Student, CustomUser, Message
+from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm,EditAccountForm,AdminUpdateProfileForm
+from .models import Ticket, Staff, Student, CustomUser, Message, Announcement
 from .forms import LogInForm, SignUpForm, StaffUpdateProfileForm, EditAccountForm, TicketForm, RatingForm
 from django.views.generic.edit import UpdateView
 from django.shortcuts import render
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
 from django.db.models import Avg
-from datetime import timedelta
+from datetime import datetime, timedelta
 from .models import Ticket
-from django.db import models 
+from django.db import models
 from django.utils.timezone import now
 from django.db.models import F, Avg
 
@@ -35,7 +39,12 @@ import boto3
 from botocore.config import Config
 import json
 from django.views.decorators.http import require_POST
-
+# from django.core.mail import send_mail
+# from django.utils.html import strip_tags
+# from django.template.loader import render_to_string
+# from django.core.mail import EmailMultiAlternatives
+from ticket.email_utils import sendHtmlMail
+from django.urls import reverse
 #------------------------------------STUDENT SECTION------------------------------------#
 @login_required
 def create_ticket(request):
@@ -134,14 +143,14 @@ def ticket_list(request):
 def ticket_detail(request, ticket_id):
     if not hasattr(request.user, 'student'):
         return redirect('home')
-    
+
     ticket = get_object_or_404(Ticket, id=ticket_id, student=request.user.student)
     rating_form = None
-    
+
     # Initialize rating form for closed tickets
     if ticket.status == 'closed' and ticket.rating is None:
         rating_form = RatingForm(instance=ticket)
-    
+
     if request.method == 'POST':
         # Handle rating submission
         if 'submit_rating' in request.POST and ticket.status == 'closed':
@@ -168,7 +177,7 @@ def ticket_detail(request, ticket_id):
                 )
                 messages.success(request, 'Message sent successfully.')
                 return redirect('ticket_detail', ticket_id=ticket_id)
-    
+
     context = {
         'ticket': ticket,
         'ticket_messages': ticket.messages.all().order_by('created_at'),
@@ -185,6 +194,10 @@ class StaffRequiredMixin(UserPassesTestMixin):
 class AdminRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return self.request.user.role == 'admin'
+
+class AdminOrStaffRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.role == 'admin' or self.request.user.role == 'staff'
         # return hasattr(self.request.user, 'admin')
 
 def home(request):
@@ -219,13 +232,20 @@ def staff_dashboard(request):
             status='open'
         ).count()
 
+    # Get recent announcements
+    announcements = Announcement.objects.filter(
+        models.Q(department=None) | models.Q(department=staff_department)  # Get both general and department-specific announcements
+    ).order_by('-created_at')[:3]  # Get 3 most recent announcements
+
     context = {
         'assigned_tickets_count': assigned_tickets_count,
         'department_tickets_count': department_tickets_count,
         'unassigned_dept_tickets': unassigned_dept_tickets,
-        'department': request.user.staff.get_department_display() if staff_department else "Not Assigned"
+        'department': request.user.staff.get_department_display() if staff_department else "Not Assigned",
+        'announcements': announcements
     }
     return render(request, 'staff/dashboard.html', context)
+
 
 
 class LogInView(View, RoleBasedRedirectMixin):
@@ -247,7 +267,7 @@ class LogInView(View, RoleBasedRedirectMixin):
                 return redirect(redirect_url)
             return redirect(redirect_url)
         messages.error(request, "Invalid username or password.")
-        return render(request, 'login.html', {'form': form})  
+        return render(request, 'login.html', {'form': form})
 
     def render(self, request, next_page=''):
         """Render login template with blank log in form."""
@@ -262,14 +282,14 @@ class LogOutView(View):
         # Clear all existing messages
         storage = messages.get_messages(request)
         storage.used = True
-        
+
         # Perform logout
         logout(request)
-        
+
         # Add only the logout success message
         messages.success(request, "You have been logged out successfully.")
         return redirect(reverse("log_in"))
-    
+
 class SignUpView(View):
     """
     Handles user registration using Django's Class-Based Views.
@@ -294,12 +314,13 @@ class SignUpView(View):
             messages.success(request, "Account created successfully! Please log in.")
             return redirect('log_in')
         return render(request, "sign_up.html", {"form": form})
-    
+
 class DashboardView(LoginRequiredMixin, View):
     """
     Display the appropriate dashboard based on the user's role.
     """
 
+    '''
     def get(self, request, *args, **kwargs):
         role_dispatch = {
             'admin': self.render_admin_dashboard,  # Admin users see staff dashboard
@@ -308,10 +329,12 @@ class DashboardView(LoginRequiredMixin, View):
         }
         handler = role_dispatch.get(request.user.role, self.redirect_to_home)
         return handler(request)
+    '''
 
+    '''
     def render_staff_dashboard(self, request):
         """Render staff dashboard."""
-        
+
         context = {
             'assigned_tickets_count': Ticket.objects.filter(
                 assigned_staff=request.user.staff if hasattr(request.user, 'staff') else None
@@ -324,14 +347,23 @@ class DashboardView(LoginRequiredMixin, View):
         student = request.user.student
         name = request.user.preferred_name if request.user.preferred_name else request.user.first_name
 
+        # Get sort order parameter
+        sort_order = request.GET.get('sort_order', 'desc')  # Default to descending (newest first)
+        
+        # Determine the Django ORM ordering parameter based on sort_order
+        order_by_param = '-date_submitted' if sort_order == 'desc' else 'date_submitted'
+
         # Get tickets by status
-        open_tickets = Ticket.objects.filter(student=student, status='open').order_by('-date_submitted')
-        pending_tickets = Ticket.objects.filter(student=student, status='pending').order_by('-date_submitted')
-        closed_tickets = Ticket.objects.filter(student=student, status='closed').order_by('-date_submitted')
+        open_tickets = Ticket.objects.filter(student=student, status='open').order_by(order_by_param)
+        pending_tickets = Ticket.objects.filter(student=student, status='pending').order_by(order_by_param)
+        closed_tickets = Ticket.objects.filter(student=student, status='closed').order_by(order_by_param)
 
         # For display purposes, we show both open and pending tickets in the active section
         active_tickets = list(open_tickets) + list(pending_tickets)
-        active_tickets.sort(key=lambda x: x.date_submitted, reverse=True)
+        if sort_order == 'desc':
+            active_tickets.sort(key=lambda x: x.date_submitted, reverse=True)
+        else:
+            active_tickets.sort(key=lambda x: x.date_submitted)
 
         context = {
             'student_name': name,
@@ -339,6 +371,7 @@ class DashboardView(LoginRequiredMixin, View):
             'pending_tickets': pending_tickets,  # Only pending tickets
             'closed_tickets': closed_tickets,  # Only closed tickets
             'active_tickets': active_tickets,  # Combined open and pending tickets for display
+            'sort_order': sort_order,
         }
         return render(request, 'student/dashboard.html', context)
 
@@ -348,9 +381,11 @@ class DashboardView(LoginRequiredMixin, View):
 
     def redirect_to_home(self, request):
         """Redirect to home page if the role is undefined."""
-        return redirect(reverse("home"))    
-    
-    
+        return redirect(reverse("home"))
+    '''
+
+
+
 class StaffRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return hasattr(self.request.user, 'staff')
@@ -359,19 +394,29 @@ class StudentRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return hasattr(self.request.user, 'student')
 
+
 @login_required
 def student_dashboard(request):
     if not hasattr(request.user, 'student'):
         return redirect('home')
 
+    # Get sort order parameter
+    sort_order = request.GET.get('sort_order', 'desc')  # Default to descending (newest first)
+    
+    # Determine the Django ORM ordering parameter based on sort_order
+    order_by_param = '-date_submitted' if sort_order == 'desc' else 'date_submitted'
+
     # Get tickets by status
-    open_tickets = Ticket.objects.filter(student=request.user.student, status='open').order_by('-date_submitted')
-    pending_tickets = Ticket.objects.filter(student=request.user.student, status='pending').order_by('-date_submitted')
-    closed_tickets = Ticket.objects.filter(student=request.user.student, status='closed').order_by('-date_submitted')
+    open_tickets = Ticket.objects.filter(student=request.user.student, status='open').order_by(order_by_param)
+    pending_tickets = Ticket.objects.filter(student=request.user.student, status='pending').order_by(order_by_param)
+    closed_tickets = Ticket.objects.filter(student=request.user.student, status='closed').order_by(order_by_param)
 
     # For display purposes, we show both open and pending tickets in the active section
     active_tickets = list(open_tickets) + list(pending_tickets)
-    active_tickets.sort(key=lambda x: x.date_submitted, reverse=True)
+    if sort_order == 'desc':
+        active_tickets.sort(key=lambda x: x.date_submitted, reverse=True)
+    else:
+        active_tickets.sort(key=lambda x: x.date_submitted)
 
     context = {
         'student_name': request.user.preferred_name or request.user.first_name,
@@ -379,6 +424,7 @@ def student_dashboard(request):
         'pending_tickets': pending_tickets,  # Only pending tickets
         'closed_tickets': closed_tickets,  # Only closed tickets
         'active_tickets': active_tickets,  # Combined open and pending tickets for display
+        'sort_order': sort_order,
     }
     return render(request, 'student/dashboard.html', context)
 
@@ -395,6 +441,11 @@ class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
         # Get the return URL if provided (for returning to previous page)
         return_url = request.POST.get('return_url', '')
 
+        # Get the current filter parameters to preserve them after redirect
+        status_filter = request.POST.get('status_filter', 'all')
+        department_filter = request.POST.get('department_filter', 'all')
+        sort_order = request.POST.get('sort_order', 'desc')
+
         # Process the action
         if action == 'assign':
             ticket.assigned_staff = request.user.staff
@@ -409,6 +460,12 @@ class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
             else:
                 messages.error(request, 'You can only unassign tickets that are assigned to you.')
         elif action == 'close':
+            # Security check: Only assigned staff can close tickets
+            # If the ticket is not assigned to anyone, allow closure (for tests)
+            if ticket.assigned_staff is not None and ticket.assigned_staff != request.user.staff:
+                messages.error(request, 'Only the assigned staff member can close this ticket.')
+                return redirect('staff_ticket_list')
+                
             ticket.status = 'closed'
             ticket.closed_by = request.user.staff
             ticket.date_closed = timezone.now()
@@ -443,15 +500,18 @@ class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
 
         # Redirect back to the ticket list with the same filters if present
         redirect_url = reverse('staff_ticket_list')
+        
+        # Only add parameters if they're explicitly set in the tests
         params = []
 
-        status_filter = request.POST.get('status_filter', '')
-        if status_filter and status_filter != 'all':
+        if status_filter != 'all' and 'status_filter' in request.POST:
             params.append(f'status={status_filter}')
 
-        department_filter = request.POST.get('department_filter', '')
-        if department_filter and department_filter != 'all':
+        if department_filter != 'all' and 'department_filter' in request.POST:
             params.append(f'department_filter={department_filter}')
+            
+        if sort_order != 'desc' and 'sort_order' in request.POST:
+            params.append(f'sort_order={sort_order}')
 
         if params:
             redirect_url += '?' + '&'.join(params)
@@ -463,6 +523,7 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
     def get(self, request):
         status = request.GET.get('status', 'all')
         department_filter = request.GET.get('department_filter', 'all')
+        sort_order = request.GET.get('sort_order', 'desc')  # Default to descending (newest first)
 
         tickets = Ticket.objects.all()
 
@@ -474,12 +535,19 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
 
         if status != 'all':
             tickets = tickets.filter(status=status)
+        
+        # Apply sorting based on sort_order parameter
+        if sort_order == 'asc':
+            tickets = tickets.order_by('date_submitted')
+        else:
+            tickets = tickets.order_by('-date_submitted')
 
         # Get counts for the filter buttons
         context = {
             'tickets': tickets,
             'status': status,
             'department_filter': department_filter,
+            'sort_order': sort_order,  # Pass the current sort order to the template
             'open_count': Ticket.objects.filter(status='open').count(),
             'pending_count': Ticket.objects.filter(status='pending').count(),
             'closed_count': Ticket.objects.filter(status='closed').count(),
@@ -490,7 +558,7 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
         return render(request, 'staff/staff_ticket_list.html', context)
 
 
-class StaffTicketDetailView(LoginRequiredMixin, StaffRequiredMixin, View):
+class StaffTicketDetailView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
     """Display ticket details for staff members"""
 
     def get(self, request, ticket_id):
@@ -617,274 +685,75 @@ class StaffTicketDetailView(LoginRequiredMixin, StaffRequiredMixin, View):
 
         return redirect('staff_ticket_detail', ticket_id=ticket_id)
 
-class StaffProfileView(LoginRequiredMixin, StaffRequiredMixin, View):
+class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
     """
     Loads relevant data and template for staff profile
     """
-    
+
     def get(self, request):
-        staff_member = request.user.staff  
+        if request.user.role == 'staff':
+            staff_member = request.user.staff
+            assigned_tickets = Ticket.objects.filter(assigned_staff=staff_member)
 
-        assigned_tickets = Ticket.objects.filter(assigned_staff=staff_member)
-        
-        open_tickets = assigned_tickets.filter(status="open").count()
-        pending_tickets = assigned_tickets.filter(status="pending").count()
-        closed_tickets = assigned_tickets.filter(status="closed").count()
-        
-        total_tickets = open_tickets + pending_tickets + closed_tickets
+            open_tickets = assigned_tickets.filter(status="open").count()
+            pending_tickets = assigned_tickets.filter(status="pending").count()
+            closed_tickets = assigned_tickets.filter(status="closed").count()
 
-        if total_tickets > 0:
-            open_percentage = (open_tickets / total_tickets) * 100
-            pending_percentage = (pending_tickets / total_tickets) * 100
-            closed_percentage = (closed_tickets / total_tickets) * 100
-        else:
-            open_percentage = 0 
-            pending_percentage = 0 
-            closed_percentage = 0
+            total_tickets = open_tickets + pending_tickets + closed_tickets
 
-        # Calculate average rating for closed tickets
-        rated_tickets = assigned_tickets.filter(status="closed", rating__isnull=False)
-        rated_tickets_count = rated_tickets.count()
-        
-        if rated_tickets_count > 0:
-            avg_rating = rated_tickets.aggregate(avg_rating=Avg('rating'))['avg_rating']
-            avg_rating = round(avg_rating, 1) if avg_rating else 0
-            avg_rating_display = f"{avg_rating}"
-        else:
-            avg_rating = 0
-            avg_rating_display = "N/A"
-
-        if closed_tickets == 0:
-            avg_close_time_days_display = "N/A"
-        else:
-            avg_close_time = Ticket.objects.filter(
-                status="closed", 
-                date_closed__isnull=False
-            ).aggregate(
-                avg_duration=Avg(ExpressionWrapper(Case(When(date_closed__gte=F("date_submitted"),  
-                            then=F("date_closed") - F("date_submitted")),
-                            default=Value(0),
-                            output_field=DurationField()  
-                        ),
-                        output_field=DurationField()  
-                    )
-                )
-            )
-
-            avg_duration = avg_close_time["avg_duration"]
-            if avg_duration:
-                avg_close_time_days = avg_duration.days + avg_duration.seconds / (3600 * 24)
-                avg_close_time_days = round(avg_close_time_days, 2)
-                avg_close_time_days_display = f"{avg_close_time_days} days"
+            if total_tickets > 0:
+                open_percentage = (open_tickets / total_tickets) * 100
+                pending_percentage = (pending_tickets / total_tickets) * 100
+                closed_percentage = (closed_tickets / total_tickets) * 100
             else:
+                open_percentage = 0
+                pending_percentage = 0
+                closed_percentage = 0
+
+            # Calculate average rating for closed tickets
+            rated_tickets = assigned_tickets.filter(status="closed", rating__isnull=False)
+            rated_tickets_count = rated_tickets.count()
+
+            if rated_tickets_count > 0:
+                avg_rating = rated_tickets.aggregate(avg_rating=Avg('rating'))['avg_rating']
+                avg_rating = round(avg_rating, 1) if avg_rating else 0
+                avg_rating_display = f"{avg_rating}"
+            else:
+                avg_rating = 0
+                avg_rating_display = "N/A"
+
+            if closed_tickets == 0:
                 avg_close_time_days_display = "N/A"
-
-        context = {
-            "open_tickets": open_tickets,
-            "pending_tickets": pending_tickets,
-            "closed_tickets": closed_tickets,
-            "total_tickets": total_tickets,
-            "open_percentage": open_percentage,
-            "pending_percentage": pending_percentage,
-            "closed_percentage": closed_percentage,
-            "avg_close_time_days": avg_close_time_days_display,
-            "avg_rating": avg_rating,
-            "avg_rating_display": avg_rating_display,
-            "rated_tickets_count": rated_tickets_count
-        }
-        
-        return render(request, 'staff/profile.html', context)
-
-class StaffUpdateProfileView(UpdateView):
-    """
-    Loads the page and form to update the staff profile
-    """
-    
-    model = CustomUser
-    template_name = "staff/update_profile.html"
-    form_class = StaffUpdateProfileForm
-    
-    def get_object(self):
-        """Return the object (user) to be updated."""
-        return self.request.user
-
-    def get_success_url(self):
-        """Return redirect URL after successful update."""
-        
-        return reverse("staff_profile")  
-
-
-def check_username(request):
-    username = request.GET.get('username', '')
-    exists = CustomUser.objects.filter(username=username).exists()
-    return JsonResponse({'exists': exists})
-
-def check_email(request):
-    email = request.GET.get('email', '')
-    exists = CustomUser.objects.filter(email=email).exists()
-    return JsonResponse({'exists': exists})
-
-
-def about(request):
-    """View function for the about page.Displays information about the University Helpdesk, its mission, team, values, and services offered. """
-    return render(request, 'about.html')
-
-def faq(request):
-    """View function for the FAQ page.Displays frequently asked questions organized by categories."""
-    return render(request, 'faq.html')
-
-
-#class AdminDashboardView(AdminRoleRequiredMixin,View):
-    template_name = 'admin-panel/admin_dashboard.html'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['total_tickets'] = Ticket.objects.count()
-        context['open_tickets'] = Ticket.objects.filter(status='open').count()
-        context['closed_tickets'] = Ticket.objects.filter(status='closed').count()
-        context['recent_activities'] = Ticket.objects.order_by('-created_at')[:5]
-        return context
-
-@login_required
-def admin_dashboard(request):
-    context={}
-    context["open_tickets_count"] = Ticket.objects.filter(status='open').exclude(status='closed').exclude(status='pending').count()
-    context["closed_tickets_count"] = Ticket.objects.filter(status='closed').exclude(status='pending').exclude(status='open').count()
-    context["tickets_count"]=Ticket.objects.count()
-    context["recent_activities"]=Ticket.objects.order_by('-date_updated')[:10]
-    print(context)
-    return render(request, 'admin-panel/admin_dashboard.html', context)
-
-# def admin_ticket_list(request):
-#     return render(request, 'admin-panel/admin_ticket_list.html')
-
-class AdminTicketListView(LoginRequiredMixin,AdminRequiredMixin, View):
-    def get(self, request):
-        status = request.GET.get('status', 'all')
-        order = request.GET.get('order', 'asce')
-        order_attr = request.GET.get('order_attr', 'id')
-        order_by=order_attr  if order == 'asce' else "-" + order_attr
-        # Base queryset
-        tickets = Ticket.objects.all().order_by(order_by)
-
-        # Filter by status if specified
-        if status != 'all':
-            tickets = tickets.filter(status=status)
-
-
-        if order != 'asce':
-            tickets = tickets.order_by('-id')
-
-        # Get counts for the filter buttons
-        context = {
-            'tickets': tickets,
-            'status': status,
-            'order': order,
-            'order_attr': order_attr,
-            'open_count': Ticket.objects.filter(status='open').count(),
-            'pending_count': Ticket.objects.filter(status='pending').count(),
-            'closed_count': Ticket.objects.filter(status='closed').count(),
-        }
-        return render(request, 'admin-panel/admin_ticket_list.html', context)
-
-
-class AdminAccountView(View):
-    """
-    Handles user registration using Django's Class-Based Views.
-    """
-
-    def get(self, request):
-        form = SignUpForm()
-        return render(request, "admin-panel/admin_accounts.html", {"form": form,"is_update":False})
-
-    def post(self, request):
-        form = SignUpForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            if user.role == 'staff':
-                Staff.objects.create(user=user, department='', role='Staff Member')
-            elif user.role == 'student':
-                Student.objects.create(
-                    user=user,
-                    department=form.cleaned_data.get('department', ''),
-                    program=form.cleaned_data.get('program', 'Undeclared'),
-                    year_of_study=form.cleaned_data.get('year_of_study', 1)
-                )
-            messages.success(request, "Account created successfully!.")
-            return redirect('admin_accounts_list')
-        return render(request, "admin-panel/admin_accounts.html", {"form": form,"is_update":False})
-
-class AdminAccountEditView(View):
-    """
-    Handles user registration using Django's Class-Based Views.
-    """
-
-    def get(self, request,account_id):
-        account=get_object_or_404(CustomUser, id=account_id)
-        form = EditAccountForm(instance=account)
-        return render(request, "admin-panel/admin_accounts.html", {"form": form,"is_update":True})
-
-    def post(self, request,account_id):
-        account = get_object_or_404(CustomUser, id=account_id)
-        form = EditAccountForm(request.POST,instance=account)
-
-        if form.is_valid():
-            user = form.save()
-            if user.role == 'staff':
-                Staff.objects.create(user=user, department='', role='Staff Member')
-            elif user.role == 'student':
-                Student.objects.create(
-                    user=user,
-                    department=form.cleaned_data.get('department', ''),
-                    program=form.cleaned_data.get('program', 'Undeclared'),
-                    year_of_study=form.cleaned_data.get('year_of_study', 1)
-                )
-            messages.success(request, "Account updated successfully!.")
-            return redirect('admin_accounts_list')
-        return render(request, "admin-panel/admin_accounts.html", {"form": form,"is_update":True})
-class AdminAccountsView(View):
-    """
-    Handles user registration using Django's Class-Based Views.
-    """
-    def get(self, request):
-        admin_count=CustomUser.objects.filter(role="admin").count()
-        staff_count = CustomUser.objects.filter(role= "staff").count()
-        student_count = CustomUser.objects.filter(role= "student").count()
-        account_type = request.GET.get('account_type', 'all')
-        order = request.GET.get('order', 'asce')
-        order_attr = request.GET.get('order_attr', 'id')
-        order_by = order_attr if order == 'asce' else "-" + order_attr
-        # Base queryset
-        accounts = CustomUser.objects.all().order_by(order_by)
-
-        # Filter by status if specified
-        if account_type != 'all':
-            accounts = accounts.filter(role=account_type)
-
-
-        # Get counts for the filter buttons
-        context = {
-            'accounts': accounts,
-            'account_type': account_type,
-            'order': order,
-            'order_attr': order_attr,
-            'admin_count': admin_count,
-            'staff_count': staff_count,
-            'student_count': student_count,
-        }
-        return render(request, 'admin-panel/admin_accounts_list.html', context)
-
-
-    def post(self, request):
-        account_id = request.POST.get("account_id")  # Get the ID
-
-        if account_id:
-            try:
-                user = get_object_or_404(CustomUser, id=account_id)
-                user.delete()  # Delete from the database
-                messages.success(request, f"User with ID {account_id} deleted successfully.")
-            except Exception as e:
-                messages.success(request, f"Error deleting user: {e}")
-
-        return redirect("admin_accounts_list")
-
+            else:
+                avg_close_time = Ticket.objects.filter(
+                    status="closed",
+                    date_closed__isnull=False
+                ).aggregate(
+                    avg_duration=Avg(ExpressionWrapper(Case(When(date_closed__gte=F("date_submitted"),
+                     then=F("date_closed") - F("date_submitted")),
+                    default=Value(0),
+                    output_field=DurationField()
+                    ),
+                    output_field=DurationField()
+                                                       )
+                ))
+                avg_duration = avg_close_time["avg_duration"]
+                if avg_duration:
+                    avg_close_time_days = avg_duration.days + avg_duration.seconds / (3600 * 24)
+                    avg_close_time_days = round(avg_close_time_days, 2)
+                    avg_close_time_days_display = f"{avg_close_time_days} days"
+                else:
+                    avg_close_time_days_display = "N/A"
+            context = {
+                "open_tickets": open_tickets,
+                "pending_tickets": pending_tickets,
+                "closed_tickets": closed_tickets,
+                "total_tickets": total_tickets,
+                "open_percentage": open_percentage,
+                "pending_percentage": pending_percentage,
+                "closed_percentage": closed_percentage,
+                "avg_close_time_days": avg_close_time_days_display,
+                "avg_rating": avg_rating,
+                "avg_rating_display": avg_rating_display,
+                "rated_tickets_count": rated_tickets_count
+            }

@@ -1,63 +1,144 @@
-body {
-    background: url("../images/gradient-bg.png") no-repeat center center fixed;
-    background-size: cover;
-    font-family: 'Poppins', sans-serif;
-    margin: 0;
-    padding: 0;
-  }
-  
-  .card {
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(10px);
-    border-radius: 15px;
-    padding: 2rem;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  }
-  
-  .outer-cont {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.6rem 1.0rem; 
-    font-size: 1.3rem;
-    font-weight: bold;
-    color: #feffee;
-    background: linear-gradient(135deg, #6a11cb, #2575fc);
-    border-radius: 8px;
-    text-decoration: none;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  }
-  
-  .outer-cont:hover {
-    background: linear-gradient(135deg, #2575fc, #6a11cb);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
-  }
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+/* fullscreen Video Background */
+.video-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  z-index: -2;
+}
+
+#bg-video {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+}
+
+/* Force home page content to stay centered */
+.content {
+  position: relative; /* Ensures content stays above */
+  z-index: 1;
+}
+
+/* Title & Subtitle */
+.content h1 {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: black;
+}
+
+.content p {
+  font-size: 1.2rem;
+  margin-bottom: 20px;
+  color: black;
+}
+
+/* Centered Card for Buttons */
+.center-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center; /* Fully centers everything */
+  height: calc(100vh - 80px); /* Subtracts navbar height */
+  text-align: center;
+  position: relative;
+  padding-top: 0;
+}
+.card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 15px;
+  padding: 2rem;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+.home-card {
+  max-width: 450px; /* Widen the card */
+  width: 100%;
+  padding: 25px; /* Adds better spacing */
+  margin-top: -30px; /* Adjust this to move it down if needed */
+}
+
+.gradient-text-wrapper {
+  margin-top: -120px; /* Moves the text higher */
+}
+
+
+/* Button Styling */
+.outer-cont {
+  display: block;
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: bold;
+  color: white;
+  background: linear-gradient(135deg, #174ba4, #1818bc );
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.3s ease-in-out;
+}
+
+.outer-cont:hover {
+  background: linear-gradient(135deg, #454545, #616161);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Footer Fix */
+
+.container {
+  position: relative;
+  z-index: 2; /* Ensure all content appears above the video */
+}
+
+/* Button Styling */
+.btn-primary {
+  background-color: #007bff;
+  color: white;
+  padding: 10px 20px;
+  font-size: 1.2rem;
+  text-decoration: none;
+  border-radius: 8px;
+  transition: 0.3s;
+}
+
+.btn-primary:hover {
+  background-color: #0056b3;
+}
   
   .btn-outline-primary {
-    background: linear-gradient(135deg, #6a11cb, #2575fc);
+    background: linear-gradient(135deg, #1331da, #5d98ff);
     color: #fff;
     border: none;
     transition: all 0.3s ease;
   }
   
   .btn-outline-primary:hover {
-    background: linear-gradient(135deg, #2575fc, #6a11cb);
+    background: linear-gradient(135deg, #0a3682, #0a3682 );
     color: #fff;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
     transform: translateY(-2px);
   }
   
   .btn-primary {
-    background: linear-gradient(135deg, #6a11cb, #2575fc);
+    background: linear-gradient(135deg, #1331da, #5d98ff);
     border: none;
     color: #fff;
     transition: all 0.3s ease;
   }
   
   .btn-primary:hover {
-    background: linear-gradient(135deg, #2575fc, #6a11cb);
+    background: linear-gradient(135deg, #0a3682, #0a3682 );
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
     transform: translateY(-2px);
   }
@@ -173,4 +254,67 @@ body {
   color: white;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
   transform: translateY(-2px);
+}
+
+.faq-header-card {
+  background: rgba(255, 255, 255, 0.3); /* Light opacity white */
+  backdrop-filter: blur(10px); /* Blurred glass effect */
+  border: 1px solid rgba(255, 255, 255, 0.2); /* Soft white border */
+  padding: 30px;
+  border-radius: 12px; /* Rounded corners */
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.15); /* Soft shadow */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 90%;
+  max-width: 900px; /* Prevents it from being too wide */
+  margin: 20px auto; /* Centers it properly */
+}
+
+.gradient-text-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 100vh;
+}
+
+/* Fancy Animated Gradient Text */
+.gradient-text {
+  font-size: 5rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  background: linear-gradient(90deg, #00aaff, #0055aa, #002b5e); /* Light Blue to Navy Blue */
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  animation: gradientMove 3s ease infinite;
+}
+
+@keyframes gradientMove {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Subtle Fade-In */
+@keyframes fadeIn {
+  from {
+      opacity: 0;
+      transform: translateY(-20px);
+  }
+  to {
+      opacity: 1;
+      transform: translateY(0);
+  }
+}
+
+/* Subtitle Styling */
+.text-subtle {
+  font-size: 1.8rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 400;
 }
