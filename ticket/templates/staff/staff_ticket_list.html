@@ -118,6 +118,18 @@
                                     </button>
                                 </form>
                                 {% endif %}
+                            
+                                {% if ticket.status == 'pending' and ticket.assigned_staff == request.user.staff %}
+                                <form method="post" action="{% url 'manage_ticket' ticket.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <!-- Add hidden inputs to preserve filter state -->
+                                    <input type="hidden" name="status_filter" value="{{ status }}">
+                                    <input type="hidden" name="department_filter" value="{{ department_filter }}">
+                                    <button type="submit" name="action" value="unassign" class="btn btn-sm btn-outline-danger">
+                                        Unassign
+                                    </button>
+                                </form>
+                                {% endif %}
 
                                 {% if ticket.status != 'closed' and ticket.assigned_staff == request.user.staff %}
                                 <form method="post" action="{% url 'manage_ticket' ticket.id %}" class="d-inline close-ticket-form">

@@ -15,19 +15,6 @@
         </div>
     </div>
 
-    {% if messages %}
-    <div class="row mb-4">
-        <div class="col">
-            {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-
     <div class="row">
         <div class="col-md-8">
             <!-- Ticket Details -->
@@ -204,46 +191,50 @@
                     <h5 class="mb-0">Actions</h5>
                 </div>
                 <div class="card-body">
-                    <form method="post" action="{% url 'manage_ticket' ticket.id %}">
-                        {% csrf_token %}
-                        {% if not ticket.assigned_staff %}
-                        <button type="submit" name="action" value="assign" class="btn btn-primary w-100 mb-2">
-                            <i class="fas fa-user-check me-2"></i>Assign to Me
+                    {% if not ticket.assigned_staff %}
+                    <a href="#" onclick="submitAction('assign')" class="btn btn-primary w-100 mb-2">
+                        <i class="fas fa-user-check me-2"></i>Assign to Me
+                    </a>
+                    {% elif ticket.assigned_staff == request.user.staff and ticket.status != 'closed' %}
+                    <a href="#" onclick="submitAction('unassign')" class="btn btn-outline-danger w-100 mb-2">
+                        <i class="fas fa-user-minus me-2"></i>Unassign Ticket
+                    </a>
+                    {% endif %}
+                    
+                    {% if ticket.status == 'open' or ticket.status == 'pending' and ticket.assigned_staff == request.user.staff %}
+                    <div class="mb-2">
+                        <button class="btn btn-warning w-100" type="button" data-bs-toggle="collapse" data-bs-target="#redirectSection" aria-expanded="false" aria-controls="redirectSection">
+                            <i class="fas fa-arrow-right me-2"></i>Redirect Ticket
                         </button>
-                        {% endif %}
-                        {% if ticket.status == 'open' or ticket.status == 'pending' and ticket.assigned_staff == request.user.staff %}
-                        <div class="mb-2">
-                            <button class="btn btn-warning w-100" type="button" data-bs-toggle="collapse" data-bs-target="#redirectSection" aria-expanded="false" aria-controls="redirectSection">
-                                <i class="fas fa-arrow-right me-2"></i>Redirect Ticket
-                            </button>
-                            <div class="collapse" id="redirectSection">
-                                <div class="card card-body mt-3">
-                                    <label for="department" class="form-label">Select Department</label>
-                                    <select name="department" class="form-control" required>
-                                        <option value="">Select Department</option>
-                                        <option value="arts_humanities">Arts & Humanities</option>
-                                        <option value="business">Business</option>
-                                        <option value="dentistry">Dentistry</option>
-                                        <option value="law">Law</option>
-                                        <option value="life_sciences_medicine">Life Sciences & Medicine</option>
-                                        <option value="natural_mathematical_engineering">Natural, Mathematical & Engineering Sciences</option>
-                                        <option value="nursing">Nursing</option>
-                                        <option value="psychiatry">Psychiatry</option>
-                                        <option value="social_science">Social Science</option>
-                                    </select>
-                                    <button type="submit" name="action" value="redirect" class="btn btn-warning w-100 mt-2">
-                                        <i class="fas fa-arrow-right me-2"></i>Confirm
-                                    </button>
-                                </div>
+                        <div class="collapse" id="redirectSection">
+                            <div class="card card-body mt-3">
+                                <label for="department" class="form-label">Select Department</label>
+                                <select id="department" class="form-control" required>
+                                    <option value="">Select Department</option>
+                                    {% for code, name in ticket.DEPT_CHOICES %}
+                                    <option value="{{ code }}">{{ name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <a href="#" onclick="submitRedirect()" class="btn btn-warning w-100 mt-2">
+                                    <i class="fas fa-arrow-right me-2"></i>Confirm
+                                </a>
                             </div>
                         </div>
-                        {% endif %}
-                        
-                        {% if ticket.status != 'closed' %}
-                        <button type="submit" name="action" value="close" class="btn btn-success w-100">
-                            <i class="fas fa-check-circle me-2"></i>Close Ticket
-                        </button>
-                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    {% if ticket.status != 'closed' and ticket.assigned_staff == request.user.staff %}
+                    <a href="#" onclick="submitAction('close')" class="btn btn-success w-100">
+                        <i class="fas fa-check-circle me-2"></i>Close Ticket
+                    </a>
+                    {% endif %}
+                    
+                    <!-- Hidden form for action submission -->
+                    <form id="actionForm" method="post" action="{% url 'manage_ticket' ticket.id %}" style="display: none;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" id="actionInput">
+                        <input type="hidden" name="department" id="departmentInput">
+                        <input type="hidden" name="return_url" value="{% url 'staff_ticket_detail' ticket.id %}">
                     </form>
                 </div>
             </div>
@@ -252,6 +243,30 @@
 </div>
 
 <script>
+// Action buttons helper functions
+function submitAction(action) {
+    const form = document.getElementById('actionForm');
+    const actionInput = document.getElementById('actionInput');
+    actionInput.value = action;
+    form.submit();
+}
+
+function submitRedirect() {
+    const form = document.getElementById('actionForm');
+    const actionInput = document.getElementById('actionInput');
+    const departmentInput = document.getElementById('departmentInput');
+    const departmentSelect = document.getElementById('department');
+    
+    if (departmentSelect.value === '') {
+        alert('Please select a department');
+        return;
+    }
+    
+    actionInput.value = 'redirect';
+    departmentInput.value = departmentSelect.value;
+    form.submit();
+}
+
 document.getElementById('generateAIResponse').addEventListener('click', function() {
     // Get ticket ID from the current URL or data attribute
     const ticketId = "{{ ticket.id }}";
