@@ -61,6 +61,31 @@ class StaffUpdateProfileForm(forms.ModelForm):
         
         return user
 
+
+class AdminUpdateProfileForm(forms.ModelForm):
+    """Form for staff to update their profile information."""
+
+    class Meta:
+        model = CustomUser
+        fields = ['first_name', 'last_name', 'email', 'preferred_name']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Bootstrap styling
+        for field in self.fields.values():
+            field.widget.attrs['class'] = 'form-control'
+
+    def save(self, commit=True):
+        """Save user and update the related Staff model."""
+        user = super().save(commit=False)
+
+        if commit:
+            user.save()
+
+        return user
+
+
 class LogInForm(forms.Form):
     """Form enabling registered users to log in."""
 

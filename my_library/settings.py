@@ -184,6 +184,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
 EMAIL_HOST_USER = MAIN_EMAIL_HOST_USER
 EMAIL_HOST_PASSWORD = MAIN_EMAIL_HOST_PASSWORD 
 
@@ -210,3 +211,5 @@ AWS_SECRET_ACCESS_KEY = '***REMOVED***'  # Replace with actual secret
 # Lambda Configuration
 LAMBDA_FUNCTION_NAME = 'ticket-context-handler'  # The name we gave our Lambda function
 
+MAIN_URL="http://127.0.0.1:8000"
+WEBSITE_NAME="University Helpdesk"

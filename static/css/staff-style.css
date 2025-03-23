@@ -1,3 +1,4 @@
+
 /* Centering Quick Actions Card */
 .quick-actions-card {
     width: 280px; /* Slightly wider */
@@ -46,9 +47,35 @@
     font-weight: bold;
 }
 
-/* Adjusting Staff Dashboard Subtitle */
-.welcome-container p {
-    font-size: 1.0rem;
-    font-weight: 500;
-    color: #47256a; /* Slightly lighter purple */
+/* Make sure the entire page is a flex container */
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* This wraps everything inside and ensures full height */
+.main-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh; /* Ensure it fills the full viewport height */
+}
+
+/* This pushes the footer down when content is short */
+.main-content {
+    flex-grow: 1;
+    padding: 20px; /* Adds spacing from footer */
+}
+
+/* Fix footer at the bottom */
+footer {
+    width: 100%;
+    background-color: #343a40; /* Dark footer background */
+    color: white;
+    text-align: center;
+    padding: 10px 0;
+    position: relative;
+    bottom: 0;
 }

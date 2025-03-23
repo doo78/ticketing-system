@@ -13,29 +13,38 @@
         <div class="col">
             <!-- Ticket Status Filter -->
             <div class="btn-group mb-3 me-3" role="group" aria-label="Ticket status filter">
-                <a href="?status=all{% if department_filter != 'all' %}&department_filter={{ department_filter }}{% endif %}" class="btn btn-outline-primary {% if status == 'all' %}active{% endif %}">
+                <a href="?status=all{% if department_filter != 'all' %}&department_filter={{ department_filter }}{% endif %}{% if sort_order != 'desc' %}&sort_order={{ sort_order }}{% endif %}" class="btn btn-outline-primary {% if status == 'all' %}active{% endif %}">
                     All
                 </a>
-                <a href="?status=open{% if department_filter != 'all' %}&department_filter={{ department_filter }}{% endif %}" class="btn btn-outline-primary {% if status == 'open' %}active{% endif %}">
+                <a href="?status=open{% if department_filter != 'all' %}&department_filter={{ department_filter }}{% endif %}{% if sort_order != 'desc' %}&sort_order={{ sort_order }}{% endif %}" class="btn btn-outline-primary {% if status == 'open' %}active{% endif %}">
                     Open ({{ open_count }})
                 </a>
-                <a href="?status=pending{% if department_filter != 'all' %}&department_filter={{ department_filter }}{% endif %}" class="btn btn-outline-primary {% if status == 'pending' %}active{% endif %}">
+                <a href="?status=pending{% if department_filter != 'all' %}&department_filter={{ department_filter }}{% endif %}{% if sort_order != 'desc' %}&sort_order={{ sort_order }}{% endif %}" class="btn btn-outline-primary {% if status == 'pending' %}active{% endif %}">
                     Pending ({{ pending_count }})
                 </a>
-                <a href="?status=closed{% if department_filter != 'all' %}&department_filter={{ department_filter }}{% endif %}" class="btn btn-outline-primary {% if status == 'closed' %}active{% endif %}">
+                <a href="?status=closed{% if department_filter != 'all' %}&department_filter={{ department_filter }}{% endif %}{% if sort_order != 'desc' %}&sort_order={{ sort_order }}{% endif %}" class="btn btn-outline-primary {% if status == 'closed' %}active{% endif %}">
                     Closed ({{ closed_count }})
                 </a>
             </div>
 
             <!-- Department Filter -->
-            <div class="btn-group mb-3" role="group" aria-label="Department filter">
-                <a href="?department_filter=all{% if status != 'all' %}&status={{ status }}{% endif %}" 
+            <div class="btn-group mb-3 me-3" role="group" aria-label="Department filter">
+                <a href="?department_filter=all{% if status != 'all' %}&status={{ status }}{% endif %}{% if sort_order != 'desc' %}&sort_order={{ sort_order }}{% endif %}" 
                    class="btn btn-outline-secondary {% if department_filter == 'all' %}active{% endif %}">
                     All Departments
                 </a>
-                <a href="?department_filter=mine{% if status != 'all' %}&status={{ status }}{% endif %}" 
+                <a href="?department_filter=mine{% if status != 'all' %}&status={{ status }}{% endif %}{% if sort_order != 'desc' %}&sort_order={{ sort_order }}{% endif %}" 
                    class="btn btn-outline-secondary {% if department_filter == 'mine' %}active{% endif %}">
                     My Department ({{ my_department_count }})
+                </a>
+            </div>
+            
+            <!-- Sort Order Filter -->
+            <div class="btn-group mb-3" role="group" aria-label="Sort order">
+                <a href="?{% if status != 'all' %}status={{ status }}&{% endif %}{% if department_filter != 'all' %}department_filter={{ department_filter }}&{% endif %}sort_order={% if sort_order == 'asc' %}desc{% else %}asc{% endif %}" 
+                   class="btn btn-outline-secondary">
+                    <i class="bi {% if sort_order == 'asc' %}bi-sort-down{% else %}bi-sort-up{% endif %}"></i>
+                    Sort by Date {% if sort_order == 'asc' %}(Oldest First){% else %}(Newest First){% endif %}
                 </a>
             </div>
         </div>
@@ -51,7 +60,10 @@
                         <th>Subject</th>
                         <th>Department</th>
                         <th>Status</th>
-                        <th>Submitted</th>
+                        <th>
+                            Submitted
+                            <i class="bi {% if sort_order == 'asc' %}bi-arrow-up{% else %}bi-arrow-down{% endif %} small"></i>
+                        </th>
                         <th>Email</th>
                         {% if status == 'closed' %}
                         <th>Rating</th>
@@ -100,6 +112,7 @@
                                     <!-- Add hidden inputs to preserve filter state -->
                                     <input type="hidden" name="status_filter" value="{{ status }}">
                                     <input type="hidden" name="department_filter" value="{{ department_filter }}">
+                                    <input type="hidden" name="sort_order" value="{{ sort_order }}">
                                     <button type="submit" name="action" value="assign" class="btn btn-sm btn-primary">
                                         Assign to Me
                                     </button>
@@ -107,12 +120,14 @@
                                 {% endif %}
 
                                 {% if ticket.status != 'closed' and ticket.assigned_staff == request.user.staff %}
-                                <form method="post" action="{% url 'manage_ticket' ticket.id %}" class="d-inline">
+                                <form method="post" action="{% url 'manage_ticket' ticket.id %}" class="d-inline close-ticket-form">
                                     {% csrf_token %}
                                     <!-- Add hidden inputs to preserve filter state -->
                                     <input type="hidden" name="status_filter" value="{{ status }}">
                                     <input type="hidden" name="department_filter" value="{{ department_filter }}">
-                                    <button type="submit" name="action" value="close" class="btn btn-sm btn-success">
+                                    <input type="hidden" name="sort_order" value="{{ sort_order }}">
+                                    <input type="hidden" name="has_messages" value="{% if ticket.messages.all %}True{% else %}False{% endif %}">
+                                    <button type="submit" name="action" value="close" class="btn btn-sm btn-success close-ticket-btn">
                                         Close
                                     </button>
                                 </form>
@@ -130,4 +145,48 @@
         </div>
     </div>
 </div>
+
+{% include 'staff/_close_ticket_modal.html' %}
+
+<!-- Add JavaScript directly here -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const closeForms = document.querySelectorAll('.close-ticket-form');
+    const modal = new bootstrap.Modal(document.getElementById('closeTicketModal'));
+    let currentForm = null;
+    
+    closeForms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            currentForm = form;
+            
+            const hasMessages = form.querySelector('input[name="has_messages"]').value === 'True';
+            const noMessagesWarning = document.getElementById('noMessagesWarning');
+            const hasMessagesConfirm = document.getElementById('hasMessagesConfirm');
+            
+            // Show/hide appropriate message
+            noMessagesWarning.classList.toggle('d-none', hasMessages);
+            hasMessagesConfirm.classList.toggle('d-none', !hasMessages);
+            
+            // Show the modal
+            modal.show();
+        });
+    });
+    
+    // Handle confirm button click
+    document.getElementById('confirmCloseTicket').addEventListener('click', function() {
+        if (currentForm) {
+            // Create a hidden input for the action
+            const actionInput = document.createElement('input');
+            actionInput.type = 'hidden';
+            actionInput.name = 'action';
+            actionInput.value = 'close';
+            currentForm.appendChild(actionInput);
+            
+            modal.hide();
+            currentForm.submit();
+        }
+    });
+});
+</script>
 {% endblock %}

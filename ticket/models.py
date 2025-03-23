@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings  
@@ -19,6 +20,23 @@ class CustomUser(AbstractUser):
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
     is_email_verified = models.BooleanField(default=False)
     
+    remember_token = models.CharField(max_length=64, blank=True, null=True, unique=True)
+    remember_token_expiry = models.DateTimeField(blank=True, null=True)
+
+    def generate_remember_token(self):
+        self.remember_token = uuid.uuid4().hex  # Generates a unique token
+        self.remember_token_expiry = now() + timedelta(hours=1)  # Token valid for 1 hour
+        self.save()
+        return self.remember_token
+
+    def is_remember_token_valid(self, token):
+        return self.remember_token == token and self.remember_token_expiry and now() < self.remember_token_expiry
+
+    def clear_remember_token(self):
+        self.remember_token = None
+        self.remember_token_expiry = None
+        self.save()
+
     def save(self, *args, **kwargs):
         if not self.preferred_name:
             self.preferred_name = self.first_name
@@ -123,3 +141,12 @@ class Message(models.Model):
 
     class Meta:
         ordering = ['created_at']
+
+class Announcement(models.Model):
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='announcements')
+    department = models.CharField(max_length=50, choices=DEPT_CHOICES, null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
