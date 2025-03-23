@@ -30,6 +30,19 @@ from django.db.models import F, ExpressionWrapper, DurationField, Case, When, Va
 from django.db.models.functions import Cast
 from django.db.models import FloatField
 
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.utils import six
+from django.core.mail import send_mail
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+from django.urls import reverse
+from django.utils.http import urlsafe_base64_decode
+
+import django
+from django.utils.encoding import force_str
+
+from django.contrib.auth import get_user_model
+
 # #Gen AI imports
 import boto3
 from botocore.config import Config
@@ -197,20 +210,14 @@ def staff_dashboard(request):
         return redirect('home')
 
     staff_department = request.user.staff.department
-
-    # Count tickets assigned to this staff member
     assigned_tickets_count = Ticket.objects.filter(
         assigned_staff=request.user.staff
     ).exclude(status='closed').count()
-
-    # Count tickets for their department (not necessarily assigned to them)
     department_tickets_count = 0
     if staff_department:
         department_tickets_count = Ticket.objects.filter(
             department=staff_department
         ).exclude(status='closed').count()
-
-    # Count unassigned tickets in their department
     unassigned_dept_tickets = 0
     if staff_department:
         unassigned_dept_tickets = Ticket.objects.filter(
@@ -223,7 +230,8 @@ def staff_dashboard(request):
         'assigned_tickets_count': assigned_tickets_count,
         'department_tickets_count': department_tickets_count,
         'unassigned_dept_tickets': unassigned_dept_tickets,
-        'department': request.user.staff.get_department_display() if staff_department else "Not Assigned"
+        'department': request.user.staff.get_department_display() if staff_department else "Not Assigned",
+        'email_verified': request.user.is_email_verified  # Added
     }
     return render(request, 'staff/dashboard.html', context)
 
@@ -232,6 +240,7 @@ class LogInView(View, RoleBasedRedirectMixin):
     """
     Handles user login and redirection based on role.
     """
+        
     def get(self, request):
         form = AuthenticationForm()
         return render(request, 'login.html', {'form': form})
@@ -241,19 +250,14 @@ class LogInView(View, RoleBasedRedirectMixin):
         if form.is_valid():
             user = form.get_user()
             login(request, user)
+            if not user.is_email_verified:
+                messages.warning(request, "Please verify your email address to access all features.")
             redirect_url = self.get_redirect_url(user)
-            # Check if it's a direct URL or a URL name
             if redirect_url.startswith('/'):
                 return redirect(redirect_url)
             return redirect(redirect_url)
         messages.error(request, "Invalid username or password.")
-        return render(request, 'login.html', {'form': form})  
-
-    def render(self, request, next_page=''):
-        """Render login template with blank log in form."""
-        form = LogInForm()
-        return render(request, 'login.html', {'form': form, 'next': next_page})
-
+        return render(request, 'login.html', {'form': form})
 
 class LogOutView(View):
     """Log out the current user and redirect to login page."""
@@ -274,6 +278,7 @@ class SignUpView(View):
     """
     Handles user registration using Django's Class-Based Views.
     """
+        
     def get(self, request):
         form = SignUpForm()
         return render(request, "sign_up.html", {"form": form})
@@ -291,10 +296,47 @@ class SignUpView(View):
                     program=form.cleaned_data.get('program', 'Undeclared'),
                     year_of_study=form.cleaned_data.get('year_of_study', 1)
                 )
-            messages.success(request, "Account created successfully! Please log in.")
+
+            # Generate email verification token
+            token_generator = EmailVerificationTokenGenerator()
+            token = token_generator.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            verification_url = reverse('verify_email', kwargs={'uidb64': uid, 'token': token})
+            verification_url = request.build_absolute_uri(verification_url)
+
+            # Send verification email
+            subject = 'Verify Your Email Address'
+            message = f'Hello {user.first_name},\n\nPlease click the link below to verify your email address:\n{verification_url}\n\nThank you!'
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=False,
+            )
+
+            messages.success(request, "Account created successfully! Please check your email to verify your address.")
             return redirect('log_in')
         return render(request, "sign_up.html", {"form": form})
-    
+
+class VerifyEmailView(View):
+    def get(self, request, uidb64, token):
+        User = get_user_model()
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+
+        token_generator = EmailVerificationTokenGenerator()
+        if user is not None and token_generator.check_token(user, token):
+            user.is_email_verified = True
+            user.save()
+            messages.success(request, "Your email has been verified successfully! Please log in.")
+        else:
+            messages.error(request, "The verification link is invalid or has expired.")
+        return redirect('log_in')
+
 class DashboardView(LoginRequiredMixin, View):
     """
     Display the appropriate dashboard based on the user's role.
@@ -364,21 +406,19 @@ def student_dashboard(request):
     if not hasattr(request.user, 'student'):
         return redirect('home')
 
-    # Get tickets by status
     open_tickets = Ticket.objects.filter(student=request.user.student, status='open').order_by('-date_submitted')
     pending_tickets = Ticket.objects.filter(student=request.user.student, status='pending').order_by('-date_submitted')
     closed_tickets = Ticket.objects.filter(student=request.user.student, status='closed').order_by('-date_submitted')
-
-    # For display purposes, we show both open and pending tickets in the active section
     active_tickets = list(open_tickets) + list(pending_tickets)
     active_tickets.sort(key=lambda x: x.date_submitted, reverse=True)
 
     context = {
         'student_name': request.user.preferred_name or request.user.first_name,
-        'open_tickets': open_tickets,  # Only open tickets
-        'pending_tickets': pending_tickets,  # Only pending tickets
-        'closed_tickets': closed_tickets,  # Only closed tickets
-        'active_tickets': active_tickets,  # Combined open and pending tickets for display
+        'open_tickets': open_tickets,
+        'pending_tickets': pending_tickets,
+        'closed_tickets': closed_tickets,
+        'active_tickets': active_tickets,
+        'email_verified': request.user.is_email_verified  # Added
     }
     return render(request, 'student/dashboard.html', context)
 
@@ -851,3 +891,9 @@ class AdminAccountsView(View):
 
         return redirect("admin_accounts_list")
 
+class EmailVerificationTokenGenerator(PasswordResetTokenGenerator):
+    def _make_hash_value(self, user, timestamp):
+        return (
+            six.text_type(user.pk) + six.text_type(timestamp) +
+            six.text_type(user.is_email_verified)
+        )

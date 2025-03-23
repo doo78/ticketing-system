@@ -17,7 +17,8 @@ class CustomUser(AbstractUser):
     preferred_name = models.CharField(max_length=150, blank=True, null=True)
     REQUIRED_FIELDS = ['email', 'first_name', 'last_name']
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
-
+    is_email_verified = models.BooleanField(default=False)
+    
     def save(self, *args, **kwargs):
         if not self.preferred_name:
             self.preferred_name = self.first_name

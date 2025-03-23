@@ -79,12 +79,16 @@ def process_emails_for_department(dept_code, email_address, password):
         mail.login(email_address, password)
         mail.select("INBOX")
         status, message_numbers = mail.search(None, 'UNSEEN')
+        print(f"Processing {len(message_numbers[0].split())} new emails for {dept_code}")
         if status == "OK":
             for num in message_numbers[0].split():
                 status, data = mail.fetch(num, '(RFC822)')
+                print(f"Processing email {num}")
                 if status == "OK":
                     raw_email = data[0][1]
                     msg = email.message_from_bytes(raw_email)
+
+                    print(f"From: {msg.get('From')}")
                 
                     create_ticket_from_email(msg, dept_code)
                     mail.store(num, '+FLAGS', '\\Seen')

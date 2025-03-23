@@ -68,5 +68,7 @@ urlpatterns = [
     ])),
     # General dashboard redirect
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
+    path('verify-email/<uidb64>/<token>/', views.VerifyEmailView.as_view(), name='verify_email'),
+    
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
