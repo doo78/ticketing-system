@@ -108,7 +108,7 @@ class Ticket(models.Model):
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, null=True, blank=True)
    
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='submitted_tickets', null=True)
-    
+
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
     assigned_staff = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True)
     date_submitted = models.DateTimeField(auto_now_add=True)
@@ -126,25 +126,51 @@ class Ticket(models.Model):
 
     def __str__(self):
         return f"Ticket #{self.id} - {self.subject}"
+
     
     def save(self, *args, **kwargs):
+
         """Auto-close tickets if expiration time has passed."""
         if self.status in ['open', 'pending'] and now() >= self.expiration_date:
             self.status = 'closed'
             self.date_closed = now()
             self.closed_by = self.assigned_staff if self.assigned_staff else None
         super().save(*args, **kwargs)
+
+    admin_message = models.TextField(null=True, blank=True)
+
+    @property
+    def has_message(self):
+        return bool(self.admin_message)
+        
     class Meta:
         ordering = ['-date_submitted'] 
-class Message(models.Model):
-    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='messages')
+
+class StudentMessage(models.Model):
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='student_messages')
     author = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     content = models.TextField()
-    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies')
     created_at = models.DateTimeField(auto_now_add=True)
+
+class AdminMessage(models.Model):
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='admin_messages')
+    author = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class StaffMessage(models.Model):
+    ticket = models.ForeignKey('Ticket', on_delete=models.CASCADE, related_name='staff_messages')
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='staff_messages')
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Staff message from {self.author} on {self.created_at}"
+
 
     class Meta:
         ordering = ['created_at']
+
 
 class Announcement(models.Model):
     content = models.TextField()

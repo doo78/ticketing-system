@@ -5,27 +5,39 @@
 <div class="container-fluid">
     <div class="row mb-4">
         <div class="col">
-            <div class="d-flex justify-content-between align-items-center">
+            <div class="p-4 rounded shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-center gap-3"
+                 style="border-radius: 1.25rem; background: linear-gradient(135deg, rgba(240, 242, 245, 0.8), rgba(225, 230, 235, 0.7)); border: 1px solid #dee2e6;">
+                
+                <!-- Left Content -->
                 <div>
-                    <h2 class="mb-1">Submit New Query</h2>
-                    <p class="text-muted mb-0">Create a new support ticket</p>
+                    <h2 class="mb-1 fw-bold" style="color: #0055aa;">Submit New Query</h2>
+                    <p class="text-muted mb-0" style="font-size: 1.05rem;">Create a new support ticket</p>
                 </div>
-                <a href="{% url 'student_dashboard' %}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
-                </a>
+                <!-- Back Button -->
+                <div>
+                    <a href="{% url 'student_dashboard' %}" class="btn btn-outline-dark shadow-sm">
+                        <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
+                    </a>
+                </div>
+
             </div>
         </div>
     </div>
+</div>
 
+<div class="container-fluid">
     <div class="row">
+        <!-- Left Column: Form -->
         <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-body p-4">
+            <div class="card shadow-sm border-0 mb-4"
+                style="border-radius: 1.25rem; background: linear-gradient(135deg, rgba(218, 220, 222, 0.618), rgba(232, 235, 238, 0.618));">
+                 <div class="card-body p-4">
                     <form method="post" novalidate class="ticket-form">
                         {% csrf_token %}
-                        
+
+                        <!-- Subject -->
                         <div class="mb-4">
-                            <label for="id_subject" class="form-label h6">Subject</label>
+                            <label for="id_subject" class="form-label h6 text-secondary text-uppercase fw-semibold">Subject</label>
                             <input type="text" name="subject" class="form-control" id="id_subject" required placeholder="Brief summary of your query">
                             <small class="form-text text-muted">
                                 <i class="fas fa-info-circle me-1"></i>
@@ -33,8 +45,9 @@
                             </small>
                         </div>
 
+                        <!-- Description -->
                         <div class="mb-4">
-                            <label for="id_description" class="form-label h6">Description</label>
+                            <label for="id_description" class="form-label h6 text-secondary text-uppercase fw-semibold">Description</label>
                             <textarea name="description" class="form-control" id="id_description" rows="5" required placeholder="Please provide detailed information about your query"></textarea>
                             <small class="form-text text-muted">
                                 <i class="fas fa-info-circle me-1"></i>
@@ -42,8 +55,9 @@
                             </small>
                         </div>
 
+                        <!-- Department -->
                         <div class="mb-4">
-                            <label for="id_department" class="form-label h6">Department</label>
+                            <label for="id_department" class="form-label h6 text-secondary text-uppercase fw-semibold">Department</label>
                             {{ form.department }}
                             <small class="form-text text-muted">
                                 <i class="fas fa-info-circle me-1"></i>
@@ -51,13 +65,14 @@
                             </small>
                         </div>
 
-                        <div class="alert alert-info bg-light border-info">
+                        <!-- Info Alert -->
+                        <div class="alert alert-info bg-light border-info rounded shadow-sm">
                             <div class="d-flex">
                                 <div class="me-3">
                                     <i class="fas fa-lightbulb fa-2x text-info"></i>
                                 </div>
                                 <div>
-                                    <h6 class="alert-heading mb-2">Before submitting:</h6>
+                                    <h6 class="alert-heading mb-2 fw-bold">Before submitting:</h6>
                                     <ul class="mb-0 ps-3">
                                         <li>Please check if your question is already answered in our FAQ section</li>
                                         <li>Include all relevant information to help us assist you better</li>
@@ -66,10 +81,11 @@
                                 </div>
                             </div>
                         </div>
-                        
-                        <div class="d-flex justify-content-end gap-2">
-                            <a href="{% url 'student_dashboard' %}" class="btn btn-light">Cancel</a>
-                            <button type="submit" class="btn btn-primary">
+
+                        <!-- Buttons -->
+                        <div class="d-flex justify-content-end gap-2 mt-4">
+                            <a href="{% url 'student_dashboard' %}" class="btn btn-light shadow-sm">Cancel</a>
+                            <button type="submit" class="btn btn-primary shadow-sm px-4">
                                 <i class="fas fa-paper-plane me-2"></i>Submit Query
                             </button>
                         </div>
@@ -78,10 +94,13 @@
             </div>
         </div>
 
+        <!-- Right Column: Tips -->
         <div class="col-md-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0">
+            <div class="card shadow-sm border-0 mb-4"
+                style="border-radius: 1.25rem; background: linear-gradient(135deg, rgba(218, 220, 222, 0.618), rgba(232, 235, 238, 0.618));">
+                 <div class="card-header bg-transparent border-bottom"
+                     style="border-top-left-radius: 1.25rem; border-top-right-radius: 1.25rem;">
+                    <h5 class="mb-0 text-primary fw-semibold">
                         <i class="fas fa-lightbulb me-2 text-warning"></i>
                         Tips for a Good Query
                     </h5>

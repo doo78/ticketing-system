@@ -8,9 +8,9 @@ from django.urls import reverse
 from django.conf import settings
 from ticket import views
 from ticket.views import (
-     DashboardView, StaffUpdateProfileView, home, LogInView, LogOutView, StaffTicketListView, StaffTicketDetailView,
+     DashboardView, StaffUpdateProfileView, admin_ticket_detail, home, LogInView, LogOutView, StaffTicketListView, StaffTicketDetailView,
     ManageTicketView, StaffProfileView, password_reset_sent, staff_dashboard, SignUpView,AdminTicketListView, AdminAccountsView,AdminAccountView,AdminAccountEditView,
-     AdminAPITicketDetailsView,AdminAPIStaffByDepartmentView,AdminAPITicketAssignView,ForgetPasswordMailView,ForgetPasswordNewPasswordView,PasswordResetSentView
+     AdminAPITicketDetailsView,AdminAPIStaffByDepartmentView,AdminAPITicketAssignView,ForgetPasswordMailView,ForgetPasswordNewPasswordView,PasswordResetSentView, admin_ticket_detail
 )
 
 from django.conf.urls.static import static
@@ -89,6 +89,12 @@ urlpatterns = [
         path('control-panel/announcements/', views.admin_announcements, name='admin_announcements'),
         path('control-panel/announcements/create/', views.create_announcement, name='create_announcement'),
         path('control-panel/announcements/delete/<int:announcement_id>/', views.delete_announcement, name='delete_announcement'),
+        path('admin/profile/', views.admin_profile, name='admin_profile'),
+        path('dashboard/', views.admin_dashboard, name='admin_dashboard'),
+        path('admin/profile/edit/', views.admin_update_profile, name='admin_update_profile'),
+        path('control-panel/tickets/<int:ticket_id>/', admin_ticket_detail, name='admin_ticket_detail'),
+        path('control-panel/account/<int:account_id>/', views.AdminAccountEditView.as_view(), name='admin_account_edit'),
+
     ])),
     # General dashboard redirect
     path('dashboard/', DashboardView.as_view(), name='dashboard'),

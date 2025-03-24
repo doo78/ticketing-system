@@ -1,55 +1,116 @@
 {% extends 'student/base.html' %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Welcome Section -->
-    <div class="row mb-4">
-        <div class="col">
-            <h2>Welcome, {{ student_name }}</h2>
-            <p class="text-muted">View and manage your support tickets</p>
-        </div>
-    </div>
+<!-- Wider Cinematic Welcome Card with Date + Dropdown -->
+<div class="row mb-4 justify-content-center">
+    <div class="col-12">
+        <div class="card welcome-card" style="max-width: 95%;">
+            <div class="card-body p-5 d-flex justify-content-between align-items-center flex-wrap">
+                
+                <!-- Greeting Text -->
+                <div>
+                    <h3 id="greeting" class="gradient-text mb-2"></h3>
+                    <p class="text-muted mb-0" style="font-size: 1.1rem;">
+                        Welcome to your student portal where you can view and manage your support tickets.
+                    </p>
+                </div>
 
-    <!-- Stats Cards -->
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="card" style="background-color: #e0e8ff;">
-                <div class="card-body">
-                    <h5 class="card-title" style="color: #2541b2;">Open Tickets</h5>
-                    <h2 class="card-text" style="color: #2541b2;">{{ open_tickets|length }}</h2>
-                </div>
+                <!-- Date and Dropdown Navigation -->
+                <div class="text-end mt-4 mt-md-0 d-flex flex-column align-items-end">
+                    <!-- Date -->
+                    <span class="text-muted mb-2" id="current-date" style="font-size: 1rem;"></span>
+                    <br>
+           <!-- Dropdown -->
+            <div class="dropdown">
+                <button class="btn btn-outline-dark dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    Go to Page
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <a class="dropdown-item" href="{% url 'create_ticket' %}">
+                            <i class="fas fa-plus-circle me-2 text-dark"></i> New Ticket
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="{% url 'student_settings' %}">
+                            <i class="fas fa-cog me-2 text-dark"></i> Settings
+                        </a>
+                    </li>
+                </ul>
             </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card" style="background-color: #fff3cd;">
-                <div class="card-body">
-                    <h5 class="card-title" style="color: #856404;">Pending Tickets</h5>
-                    <h2 class="card-text" style="color: #856404;">{{ pending_tickets|length }}</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card" style="background-color: #f0e6ff;">
-                <div class="card-body">
-                    <h5 class="card-title" style="color: #6b42c1;">Closed Tickets</h5>
-                    <h2 class="card-text" style="color: #6b42c1;">{{ closed_tickets|length }}</h2>
-                </div>
             </div>
         </div>
     </div>
+    <br>
+</div>
+
+
+<!-- Stats Section Wrapped in a Single Card with Header -->
+<div class="row mb-4 justify-content-center">
+    <div class="col-12">
+        <div class="card shadow-sm border-0" style="border-radius: 1rem; background-color: #f8f9fa;">
+            <!-- Header -->
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Ticket Summary</h5>
+            </div>
+
+            <!-- Body -->
+            <div class="card-body py-4">
+                <div class="row justify-content-center">
+                    <!-- Open Tickets -->
+                    <div class="col-md-4 mb-3 d-flex justify-content-center">
+                        <div class="card shadow-sm border-0 text-center px-3 py-4"
+                             style="width: 100%; max-width: 300px; background: linear-gradient(135deg, rgba(218, 220, 222, 0.618), rgba(232, 235, 238, 0.618));">
+                            <div class="card-body">
+                                <h5 class="fw-bold text-primary mb-4" style="font-size: 1.3rem;">Open Tickets</h5>
+                                <h2 class="fw-semibold text-primary mb-0">{{ open_tickets|length }}</h2>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pending Tickets -->
+                    <div class="col-md-4 mb-3 d-flex justify-content-center">
+                        <div class="card shadow-sm border-0 text-center px-3 py-4"
+                        style="width: 100%; max-width: 300px; background: linear-gradient(135deg, rgba(218, 220, 222, 0.618), rgba(232, 235, 238, 0.618));">
+                        <div class="card-body">
+                            <h5 class="fw-bold text-primary mb-4" style="font-size: 1.3rem;">Pending Tickets</h5>
+                            <h2 class="fw-semibold text-primary mb-0">{{ pending_tickets|length }}</h2>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Closed Tickets -->
+                    <div class="col-md-4 mb-3 d-flex justify-content-center">
+                        <div class="card shadow-sm border-0 text-center px-3 py-4"
+                        style="width: 100%; max-width: 300px; background: linear-gradient(135deg, rgba(218, 220, 222, 0.618), rgba(232, 235, 238, 0.618));">
+                        <div class="card-body">
+                            <h5 class="fw-bold text-primary mb-4" style="font-size: 1.3rem;">Closed Tickets</h5>
+                            <h2 class="fw-semibold text-primary mb-0">{{ closed_tickets|length }}</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
 
     <!-- Active Tickets Section -->
-    <div class="row mb-4">
-        <div class="col">
-            <div class="card">
+
+    <div class="row mb-4 justify-content-center">
+        <div class="col-12">
+            <div class="card shadow-sm border-0" style="border-radius: 1rem; background-color: #f8f9fa;">
+                <!-- Header -->
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Active Tickets</h5>
                     <a href="?sort_order={% if sort_order == 'asc' %}desc{% else %}asc{% endif %}" 
-                       class="btn btn-sm" style="background-color: #f8f9fa; color: #6c757d;">
+                        class="btn btn-sm" style="background-color: #f0f0f0; color: #6c757d;">
                         <i class="bi {% if sort_order == 'asc' %}bi-sort-down{% else %}bi-sort-up{% endif %}"></i>
                         Sort by Date {% if sort_order == 'asc' %}(Oldest First){% else %}(Newest First){% endif %}
                     </a>
                 </div>
+                
                 <div class="card-body">
                     {% if active_tickets %}
                     <div class="table-responsive">
@@ -94,17 +155,19 @@
     </div>
 
     <!-- Past Tickets Section -->
-    <div class="row">
-        <div class="col">
-            <div class="card">
+    <div class="row mb-4 justify-content-center">
+        <div class="col-12">
+            <div class="card shadow-sm border-0" style="border-radius: 1rem; background-color: #f8f9fa;">
+                <!-- Header -->
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Past Tickets</h5>
                     <a href="?sort_order={% if sort_order == 'asc' %}desc{% else %}asc{% endif %}" 
-                       class="btn btn-sm" style="background-color: #f8f9fa; color: #6c757d;">
+                        class="btn btn-sm" style="background-color: #f0f0f0; color: #6c757d;">
                         <i class="bi {% if sort_order == 'asc' %}bi-sort-down{% else %}bi-sort-up{% endif %}"></i>
                         Sort by Date {% if sort_order == 'asc' %}(Oldest First){% else %}(Newest First){% endif %}
                     </a>
                 </div>
+                
                 <div class="card-body">
                     {% if closed_tickets %}
                     <div class="table-responsive">
@@ -162,21 +225,87 @@
                 </div>
             </div>
         </div>
+        <br>
     </div>
+    <br>
 </div>
 
 <style>
-.badge-open {
-    background-color: #ffe0e3;
-    color: #cc0000;
-}
-.badge-pending {
-    background-color: #fff3cd;
-    color: #856404;
-}
-.badge-default {
-    background-color: #f8f9fa;
-    color: #6c757d;
-}
+    .badge-open {
+        background-color: #ffe0e3;
+        color: #cc0000;
+    }
+    .badge-pending {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    .badge-default {
+        background-color: #f8f9fa;
+        color: #6c757d;
+    }
+
+    .welcome-card {
+        background-color: #f8f9fa;
+        border: 1px solid #d3d6d8;
+        border-radius: 1rem;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06);
+        margin-left: auto;
+        margin-right: auto;
+        
+    }
+
+    .gradient-text {
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(270deg, #00aaff, #0055aa, #002b5e);
+    background-size: 300% 300%;
+    animation: gradientMove 6s ease infinite;
+    color: transparent;
+    background-clip: text;
+    -webkit-background-clip: text; 
+    }
+
+    @keyframes gradientMove {
+        0% {
+            background-position: 0% 50%;
+        }
+        50% {
+            background-position: 100% 50%;
+        }
+        100% {
+            background-position: 0% 50%;
+        }
+    }
+
 </style>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const greetingEl = document.getElementById("greeting");
+        const dateEl = document.getElementById("current-date");
+
+        const studentName = "{{ student_name }}";
+        const now = new Date();
+        const hour = now.getHours();
+        let timeOfDay;
+
+        if (hour < 12) {
+            timeOfDay = "Good Morning";
+        } else if (hour < 18) {
+            timeOfDay = "Good Afternoon";
+        } else {
+            timeOfDay = "Good Evening";
+        }
+
+        greetingEl.textContent = `${timeOfDay}, ${studentName}`;
+        dateEl.textContent = now.toLocaleDateString(undefined, {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'numeric',
+            day: 'numeric'
+        });
+    });
+</script>
+
+
 {% endblock %} 

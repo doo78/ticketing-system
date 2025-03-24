@@ -8,7 +8,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.db.models import Max, F
 from django.core.mail import send_mail
-from ticket.models import Ticket, Student, Message
+from ticket.models import Ticket, Student, StudentMessage, AdminMessage
 from django.utils.html import strip_tags
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
@@ -115,18 +115,19 @@ def send_reminder_emails():
     """
 
     # get the tickets where the latest message is from a staff member and is over a week old
-    latest_messages = Message.objects.annotate(
-        max_created_at=Max('ticket__messages__created_at')
+    latest_messages = AdminMessage.objects.annotate(
+        max_created_at=Max('ticket__admin_messages__created_at')
     ).filter(
-        created_at=F('max_created_at'),  # Ensures this is the latest message
-        created_at__lt=timezone.now() - datetime.timedelta(days=7),  # Older than a week
-        author__role='staff',  # Message is from staff
-        ticket__status__in=['open', 'pending']  # Ticket is still unresolved
+        created_at=F('max_created_at'),
+        created_at__lt=timezone.now() - datetime.timedelta(days=7),
+        author__role='staff',
+        ticket__status__in=['open', 'pending']
     )
 
     tickets_needing_reminder = Ticket.objects.filter(
-        messages__in=latest_messages
+        admin_messages__in=latest_messages
     ).distinct()
+
 
     for ticket in tickets_needing_reminder:
         student = ticket.student

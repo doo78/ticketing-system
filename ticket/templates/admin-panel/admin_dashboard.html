@@ -1,84 +1,223 @@
-{% extends 'user-layout/base.html' %}
+{% extends 'admin-panel/base.html' %}
 
 {% block title %}Admin Dashboard - University Helpdesk{% endblock %}
 
 {% block content %}
-<div class="container" style="margin-left: 10px;">
-   <div class="row mb-4">
-        <div class="col">
-            <h2>Welcome, {{ request.user.get_full_name|default:request.user.username }}</h2>
-            <p class="text-muted">Admin Dashboard</p>
-        </div>
-    </div>
-    <div class="row">
-        <!-- Card: Total Tickets -->
-        <div class="col-md-4">
-            <div class="card text-white bg-primary mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">Total Tickets</h5>
-                    <p class="card-text display-4">{{ tickets_count }}</p>
+<!-- Admin Welcome Card -->
+<!-- Admin Welcome Card -->
+<div class="row mb-4 justify-content-center">
+    <div class="col-12">
+        <div class="card welcome-card" style="max-width: 95%;">
+            <div class="card-body p-5 d-flex justify-content-between align-items-center flex-wrap">
+                
+                <!-- Greeting Text -->
+                <div>
+                    <h3 id="greeting" class="gradient-text mb-2"></h3>
+                    <p class="text-muted mb-0" style="font-size: 1.1rem;">
+                        Welcome to the admin dashboard. Manage tickets, users, and system settings.
+                    </p>
                 </div>
-            </div>
-        </div>
-        <!-- Card: Open Tickets -->
-        <div class="col-md-4">
-            <div class="card text-white bg-warning mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">Open Tickets</h5>
-                    <p class="card-text display-4">{{ open_tickets_count }}</p>
+
+                <!-- Date -->
+                <div class="text-end mt-4 mt-md-0">
+                    <span class="text-muted" id="current-date" style="font-size: 1rem;"></span>
                 </div>
+
             </div>
-        </div>
-        <!-- Card: Closed Tickets -->
-        <div class="col-md-4">
-            <div class="card text-white bg-success mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">Closed Tickets</h5>
-                    <p class="card-text display-4">{{ closed_tickets_count }}</p>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Recent Activity Section -->
-    <div class="row">
-        <div class="col-md-12">
-        <h3>Recent Activity</h3>
-        <div class="card">
-        <div class="card-body">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Subject</th>
-                        <th>Status</th>
-                        <th>Submitted</th>
-                        <th>Email</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for ticket in recent_activities %}
-                    <tr>
-                        <td>#{{ ticket.id }}</td>
-                        <td>{{ ticket.subject }}</td>
-                        <td>
-                            <span class="badge {% if ticket.status == 'open' %}bg-primary{% elif ticket.status == 'pending' %}bg-warning{% else %}bg-success{% endif %}">
-                                {{ ticket.status|title }}
-                            </span>
-                        </td>
-                        <td>{{ ticket.date_submitted|date:"M d, Y" }}</td>
-                        <td>{{ ticket.email }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="text-center">No tickets found.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
         </div>
     </div>
 </div>
+
+<!-- Admin Ticket Summary -->
+<div class="row mb-4 justify-content-center">
+    <div class="col-12">
+        <div class="card shadow-sm border-0" style="border-radius: 1rem; background-color: #f8f9fa;">
+            <!-- Header -->
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Ticket Overview</h5>
+            </div>
+
+            <!-- Body -->
+            <div class="card-body py-4">
+                <div class="row justify-content-center">
+                    <!-- Total Tickets -->
+                    <div class="col-md-3 mb-3 d-flex justify-content-center">
+                        <div class="card shadow-sm border-0 text-center px-3 py-4"
+                            style="width: 100%; max-width: 260px; background: linear-gradient(135deg, #dee2e6a3, #f1f3f5a3);">
+                            <div class="card-body">
+                                <h5 class="fw-bold text-dark mb-4" style="font-size: 1.3rem;">Total Tickets</h5>
+                                <h2 class="fw-semibold text-primary mb-0">{{ tickets_count }}</h2>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Open Tickets -->
+                    <div class="col-md-3 mb-3 d-flex justify-content-center">
+                        <div class="card shadow-sm border-0 text-center px-3 py-4"
+                        style="width: 100%; max-width: 260px; background: linear-gradient(135deg, #dee2e6a3, #f1f3f5a3);">
+                        <div class="card-body">
+                                <h5 class="fw-bold text-dark mb-4" style="font-size: 1.3rem;">Open Tickets</h5>
+                                <h2 class="fw-semibold text-primary mb-0">{{ open_tickets_count }}</h2>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pending Tickets -->
+                    <div class="col-md-3 mb-3 d-flex justify-content-center">
+                        <div class="card shadow-sm border-0 text-center px-3 py-4"
+                        style="width: 100%; max-width: 260px; background: linear-gradient(135deg, #dee2e6a3, #f1f3f5a3);">
+                        <div class="card-body">
+                                <h5 class="fw-bold text-dark mb-4" style="font-size: 1.3rem;">Pending Tickets</h5>
+                                <h2 class="fw-semibold text-primary mb-0">{{ pending_tickets_count }}</h2>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Closed Tickets -->
+                    <div class="col-md-3 mb-3 d-flex justify-content-center">
+                        <div class="card shadow-sm border-0 text-center px-3 py-4"
+                        style="width: 100%; max-width: 260px; background: linear-gradient(135deg, #dee2e6a3, #f1f3f5a3);">
+                        <div class="card-body">
+                                <h5 class="fw-bold text-dark mb-4" style="font-size: 1.3rem;">Closed Tickets</h5>
+                                <h2 class="fw-semibold text-primary mb-0">{{ closed_tickets_count }}</h2>
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity Section -->
+<div class="row mb-4 justify-content-center">
+    <div class="col-12">
+        <div class="card shadow-sm border-0" style="border-radius: 1rem; background-color: #f8f9fa;">
+            <!-- Header -->
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Recent Activity</h5>
+            </div>
+
+            <!-- Body -->
+            <div class="card-body">
+                {% if recent_activities %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>Subject</th>
+                                <th>Status</th>
+                                <th>Submitted</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ticket in recent_activities %}
+                            <tr>
+                                <td>#{{ ticket.id }}</td>
+                                <td>{{ ticket.subject }}</td>
+                                <td>
+                                    <span class="badge 
+                                        {% if ticket.status == 'open' %}badge-open
+                                        {% elif ticket.status == 'pending' %}badge-pending
+                                        {% elif ticket.status == 'closed' %}badge-closed
+                                        {% else %}badge-default{% endif %}">
+                                        {{ ticket.status|title }}
+                                    </span>
+                                </td>
+                                <td>{{ ticket.date_submitted|date:"M d, Y" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No tickets found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Styles (same as student dashboard) -->
+<style>
+    .welcome-card {
+        background-color: #f8f9fa;
+        border: 1px solid #d3d6d8;
+        border-radius: 1rem;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06);
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .gradient-text {
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(270deg, #00aaff, #0055aa, #002b5e);
+    background-size: 300% 300%;
+    animation: gradientMove 6s ease infinite;
+    color: transparent;
+    background-clip: text;
+    -webkit-background-clip: text; 
+    }
+
+    @keyframes gradientMove {
+        0% {
+            background-position: 0% 50%;
+        }
+        50% {
+            background-position: 100% 50%;
+        }
+        100% {
+            background-position: 0% 50%;
+        }
+    }
+
+/* Ticket status badge colors */
+.badge-open {
+        background-color: #007bff; /* Blue for Open */
+        color: white;
+    }
+    .badge-pending {
+        background-color: #ffc107; /* Yellow for Pending */
+        color: white(255, 255, 255);
+    }
+    .badge-closed {
+        background-color: #28a745; /* Green for Closed */
+        color: white;
+    }
+
+</style>
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const greetingEl = document.getElementById("greeting");
+        const dateEl = document.getElementById("current-date");
+
+        const adminName = "{{ request.user.get_full_name|default:request.user.username }}";
+        const now = new Date();
+        const hour = now.getHours();
+        let timeOfDay;
+
+        if (hour < 12) {
+            timeOfDay = "Good Morning";
+        } else if (hour < 18) {
+            timeOfDay = "Good Afternoon";
+        } else {
+            timeOfDay = "Good Evening";
+        }
+
+        greetingEl.textContent = `${timeOfDay}, ${adminName}`;
+        dateEl.textContent = now.toLocaleDateString(undefined, {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'numeric',
+            day: 'numeric'
+        });
+    });
+</script>
+
 {% endblock %}

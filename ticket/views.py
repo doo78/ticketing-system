@@ -16,8 +16,8 @@ from django.http import HttpResponse, JsonResponse
 import urllib
 from ticket.mixins import RoleBasedRedirectMixin,AdminRoleRequiredMixin
 from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm,EditAccountForm,AdminUpdateProfileForm
-from .models import Ticket, Staff, Student, CustomUser, Message, Announcement
-from .forms import LogInForm, SignUpForm, StaffUpdateProfileForm, EditAccountForm, TicketForm, RatingForm
+from .models import Ticket, Staff, Student, CustomUser, AdminMessage, Announcement, StudentMessage, StaffMessage
+from .forms import DEPT_CHOICES, LogInForm, SignUpForm, StaffUpdateProfileForm, EditAccountForm, TicketForm, RatingForm
 from django.views.generic.edit import UpdateView
 from django.shortcuts import render
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -28,6 +28,8 @@ from .models import Ticket
 from django.db import models
 from django.utils.timezone import now
 from django.db.models import F, Avg
+from django.views.decorators.csrf import csrf_protect
+
 
 from django.db.models import ExpressionWrapper, DurationField
 
@@ -140,6 +142,8 @@ def ticket_list(request):
     tickets = Ticket.objects.filter(student=request.user.student)
     return render(request, 'student/ticket_list.html', {'tickets': tickets})
 
+from ticket.models import StudentMessage, AdminMessage  # Make sure these are imported!
+
 @login_required
 def ticket_detail(request, ticket_id):
     if not hasattr(request.user, 'student'):
@@ -148,43 +152,43 @@ def ticket_detail(request, ticket_id):
     ticket = get_object_or_404(Ticket, id=ticket_id, student=request.user.student)
     rating_form = None
 
-    # Initialize rating form for closed tickets
+    # Only show rating form if ticket is closed and not yet rated
     if ticket.status == 'closed' and ticket.rating is None:
         rating_form = RatingForm(instance=ticket)
 
     if request.method == 'POST':
-        # Handle rating submission
+        # Rating submission
         if 'submit_rating' in request.POST and ticket.status == 'closed':
             rating_form = RatingForm(request.POST, instance=ticket)
             if rating_form.is_valid():
                 rating_form.save()
                 messages.success(request, 'Thank you for your feedback!')
                 return redirect('ticket_detail', ticket_id=ticket_id)
-        # Handle message submission
-        else:
-            message_content = request.POST.get('message')
+
+        # Message submission
+        elif 'message' in request.POST:
+            message_content = request.POST.get('message', '').strip()
             if message_content:
                 if ticket.status == 'closed':
                     messages.error(request, 'Cannot add messages to a closed ticket.')
-                    return render(request, 'student/ticket_detail.html', {
-                        'ticket': ticket,
-                        'ticket_messages': ticket.messages.all().order_by('created_at'),
-                        'rating_form': rating_form
-                    })
-                Message.objects.create(
-                    ticket=ticket,
-                    author=request.user,
-                    content=message_content
-                )
-                messages.success(request, 'Message sent successfully.')
+                else:
+                    StudentMessage.objects.create(
+                        ticket=ticket,
+                        author=request.user,
+                        content=message_content
+                    )
+                    messages.success(request, 'Message sent successfully.')
                 return redirect('ticket_detail', ticket_id=ticket_id)
 
     context = {
         'ticket': ticket,
-        'ticket_messages': ticket.messages.all().order_by('created_at'),
+        'student_messages': ticket.student_messages.order_by('created_at'),  # messages sent by student
+        'admin_messages': ticket.admin_messages.order_by('created_at'),      # messages received from admin
         'rating_form': rating_form
     }
+
     return render(request, 'student/ticket_detail.html', context)
+
 
 #------------------------------------STAFF SECTION------------------------------------#
 
@@ -636,7 +640,7 @@ class StaffTicketDetailView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View)
             if ticket.status == 'closed':
                 messages.error(request, 'Cannot add messages to a closed ticket.')
             else:
-                Message.objects.create(
+                StaffMessage.objects.create(
                     ticket=ticket,
                     author=request.user,
                     content=message_content
@@ -781,6 +785,7 @@ def admin_dashboard(request):
     context["open_tickets_count"] = Ticket.objects.filter(status='open').exclude(status='closed').exclude(status='pending').count()
     context["closed_tickets_count"] = Ticket.objects.filter(status='closed').exclude(status='pending').exclude(status='open').count()
     context["tickets_count"]=Ticket.objects.count()
+    context["pending_tickets_count"] = Ticket.objects.filter(status='pending').exclude(status='closed').exclude(status='open').count()
     context["recent_activities"]=Ticket.objects.order_by('-date_updated')[:10]
     print(context)
     return render(request, 'admin-panel/admin_dashboard.html', context)
@@ -1060,7 +1065,7 @@ def analytics_dashboard(request):
     tickets_with_responses = 0
     
     for ticket in tickets:
-        first_response = Message.objects.filter(
+        first_response = StaffMessage.objects.filter(
             ticket=ticket, 
             author__role__in=['staff']  
         ).order_by('created_at').first()
@@ -1380,7 +1385,106 @@ def export_performance_csv(request):
         ])
     
     return response
-    
+
+from django.core.exceptions import PermissionDenied
+from django.contrib.auth.decorators import login_required
+from ticket.models import Ticket, CustomUser
+
+@login_required
+def admin_profile(request):
+    if request.user.role != 'admin':
+        raise PermissionDenied()
+
+    context = {
+        "tickets_count": Ticket.objects.count(),
+        "open_tickets_count": Ticket.objects.filter(status='open').count(),
+        "closed_tickets_count": Ticket.objects.filter(status='closed').count(),
+        "user_count": CustomUser.objects.count(),
+    }
+    return render(request, 'admin-panel/admin_profile.html', context)
+
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.auth import get_user_model
+from django import forms
+
+User = get_user_model()
+
+class AdminUpdateForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email']
+
+@login_required
+def admin_update_profile(request):
+    user = request.user
+
+    if user.role != 'admin':
+        return redirect('admin_dashboard')  # Just to be safe
+
+    if request.method == 'POST':
+        form = AdminUpdateForm(request.POST, instance=user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Profile updated successfully.")
+            return redirect('admin_profile')
+    else:
+        form = AdminUpdateForm(instance=user)
+
+    return render(request, 'admin-panel/admin_update_profile.html', {'form': form})
+
+from django.views.decorators.csrf import csrf_protect
+
+from ticket.models import AdminMessage, StudentMessage
+
+from django.views.decorators.csrf import csrf_protect
+from ticket.models import Ticket, Staff, StudentMessage, AdminMessage, CustomUser
+
+@login_required
+@csrf_protect
+def admin_ticket_detail(request, ticket_id):
+    ticket = get_object_or_404(Ticket, id=ticket_id)
+
+    if request.method == 'POST':
+        # Sending an admin message
+        if 'message' in request.POST:
+            content = request.POST.get('message', '').strip()
+            if content:
+                AdminMessage.objects.create(
+                    ticket=ticket,
+                    author=request.user,
+                    content=content
+                )
+                return redirect('admin_ticket_detail', ticket_id=ticket.id)
+
+        # Updating ticket
+        elif 'update_ticket' in request.POST:
+            ticket.department = request.POST.get('department')
+            ticket.status = request.POST.get('status')
+            staff_id = request.POST.get('assigned_staff')
+
+            if staff_id:
+                try:
+                    staff_instance = Staff.objects.get(user__id=staff_id)
+                    ticket.assigned_staff = staff_instance
+                except Staff.DoesNotExist:
+                    messages.error(request, "Invalid staff member selected.")
+                    return redirect('admin_ticket_detail', ticket_id=ticket.id)
+            else:
+                ticket.assigned_staff = None
+
+            ticket.save()
+            return redirect('admin_ticket_detail', ticket_id=ticket.id)
+
+    context = {
+        'ticket': ticket,
+        'student_messages': StudentMessage.objects.filter(ticket=ticket).order_by('created_at'),
+        'admin_messages': AdminMessage.objects.filter(ticket=ticket).order_by('created_at'),
+        'staff_members': Staff.objects.select_related('user'),
+        'dept_choices': Ticket._meta.get_field('department').choices,
+    }
+    return render(request, 'admin-panel/admin_ticket_detail.html', context)
 
 @login_required
 def admin_announcements(request):
@@ -1445,6 +1549,8 @@ def delete_announcement(request, announcement_id):
             
     return redirect('admin_announcements')
 
+def get_full_name(self):
+    return f"{self.first_name} {self.last_name}"
 
 class ForgetPasswordMailView(View):
     """
@@ -1498,6 +1604,29 @@ class ForgetPasswordMailView(View):
                 "link": reverse('log_in')
             })
         
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from django.views import View
+from .forms import EditAccountForm
+from .models import CustomUser
+
+class AdminAccountEditView(LoginRequiredMixin, AdminRequiredMixin, View):
+    def get(self, request, account_id):
+        # Logic to handle GET request, like displaying the account form
+        account = get_object_or_404(CustomUser, id=account_id)
+        form = EditAccountForm(instance=account)
+        return render(request, "admin-panel/admin_accounts.html", {"form": form, "is_update": True})
+
+    def post(self, request, account_id):
+        # Logic to handle POST request, like saving updates
+        account = get_object_or_404(CustomUser, id=account_id)
+        form = EditAccountForm(request.POST, instance=account)
+        if form.is_valid():
+            user = form.save()
+            messages.success(request, "Account updated successfully!")
+            return redirect('admin_accounts_list')
+        return render(request, "admin-panel/admin_accounts.html", {"form": form, "is_update": True})
+
 class PasswordResetSentView(View):
     def get(self, request):
         return render(request, 'forget-password/email-sent.html')
@@ -1582,3 +1711,4 @@ class ForgetPasswordNewPasswordView(View):
                 "message": "The token is invalid or expired.",
                 "link": reverse('log_in')
             })
+
