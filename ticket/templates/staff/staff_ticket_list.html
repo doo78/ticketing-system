@@ -64,7 +64,7 @@
                             Submitted
                             <i class="bi {% if sort_order == 'asc' %}bi-arrow-up{% else %}bi-arrow-down{% endif %} small"></i>
                         </th>
-                        <th>Email</th>
+                        
                         {% if status == 'closed' %}
                         <th>Rating</th>
                         {% endif %}
@@ -83,7 +83,7 @@
                             </span>
                         </td>
                         <td>{{ ticket.date_submitted|date:"M d, Y" }}</td>
-                        <td>{{ ticket.email }}</td>
+                        
                         {% if status == 'closed' %}
                         <td>
                             {% if ticket.rating %}
@@ -114,7 +114,7 @@
                                     <input type="hidden" name="department_filter" value="{{ department_filter }}">
                                     <input type="hidden" name="sort_order" value="{{ sort_order }}">
                                     <button type="submit" name="action" value="assign" class="btn btn-sm btn-primary">
-                                        Assign to Me
+                                        Accept
                                     </button>
                                 </form>
                                 {% endif %}

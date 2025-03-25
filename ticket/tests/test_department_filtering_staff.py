@@ -292,7 +292,7 @@ class StaffTicketFilteringTests(TestCase):
         response = self.client.get(reverse('staff_dashboard'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'My Department Tickets')
+        self.assertContains(response, 'Department Tickets')
 
         # There should be 1 unassigned open business ticket
         self.assertContains(response, '1 unassigned')

@@ -26,11 +26,6 @@
                             <label for="email" class="form-label">Email Address</label>
                             <input type="email" class="form-control" id="email" value="{{ email }}">
                         </div>
-                        <div class="mb-3">
-                            <label for="student_id" class="form-label">Student ID</label>
-                            <input type="text" class="form-control" id="student_id" value="{{ student_id }}" readonly>
-                            <small class="text-muted">Student ID cannot be changed</small>
-                        </div>
                         <button type="submit" class="btn btn-primary">Update Information</button>
                     </form>
                 </div>
@@ -76,15 +71,6 @@
                             </div>
                             <small class="text-muted d-block">Receive email notifications when there are updates to your tickets</small>
                         </div>
-                        <div class="mb-3">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="smsNotifications">
-                                <label class="form-check-label" for="smsNotifications">
-                                    SMS Notifications
-                                </label>
-                            </div>
-                            <small class="text-muted d-block">Receive SMS notifications for urgent updates</small>
-                        </div>
                         <button type="submit" class="btn btn-primary">Save Preferences</button>
                     </form>
                 </div>
@@ -101,10 +87,6 @@
                     <div class="mb-3">
                         <h6>Account Type</h6>
                         <p class="text-muted">{{ account_type }}</p>
-                    </div>
-                    <div class="mb-3">
-                        <h6>Status</h6>
-                        <span class="badge bg-success">{{ status }}</span>
                     </div>
                     <div class="mb-3">
                         <h6>Member Since</h6>

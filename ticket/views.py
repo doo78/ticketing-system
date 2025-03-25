@@ -135,9 +135,7 @@ def student_settings(request):
         'department': request.user.student.department,
         'program': request.user.student.program,
         'year_of_study': request.user.student.year_of_study,
-        # Account status information
         'account_type': request.user.get_role_display(),
-        'status': 'Active',  # You can add logic for different statuses if needed
         'member_since': localtime(request.user.date_joined).strftime('%B %d, %Y'),
         'last_login': last_login_display,
     }
