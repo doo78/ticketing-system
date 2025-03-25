@@ -84,7 +84,7 @@
                 <div class="card-body">
                     <h1>{{ assigned_tickets_count|default:"0" }}</h1>
                     <p>Tickets assigned directly to you</p>
-                    <a href="{% url 'staff_ticket_list' %}?status=open&assigned_to=me" class="btn btn-outline-secondary btn-sm">View all</a>
+                    <a href="{% url 'staff_ticket_list' %}?status=all&department_filter=assigned" class="btn btn-outline-secondary btn-sm">View all</a>
                 </div>
             </div>
         </div>

@@ -361,77 +361,6 @@ class VerifyEmailView(View):
             messages.error(request, "The verification link is invalid or has expired.")
         return redirect('log_in')
 
-class DashboardView(LoginRequiredMixin, View):
-    """
-    Display the appropriate dashboard based on the user's role.
-    """
-
-    '''
-    def get(self, request, *args, **kwargs):
-        role_dispatch = {
-            'admin': self.render_admin_dashboard,  # Admin users see staff dashboard
-            'staff': self.render_staff_dashboard,
-            'student': self.render_student_dashboard,
-        }
-        handler = role_dispatch.get(request.user.role, self.redirect_to_home)
-        return handler(request)
-    '''
-
-    '''
-    def render_staff_dashboard(self, request):
-        """Render staff dashboard."""
-
-        context = {
-            'assigned_tickets_count': Ticket.objects.filter(
-                assigned_staff=request.user.staff if hasattr(request.user, 'staff') else None
-            ).exclude(status='closed').count(),
-            'department': request.user.staff.department if hasattr(request.user, 'staff') else "Admin"
-        }
-        return render(request, 'staff/dashboard.html', context)
-
-    def render_student_dashboard(self, request):
-        student = request.user.student
-        name = request.user.preferred_name if request.user.preferred_name else request.user.first_name
-
-        # Get sort order parameter
-        sort_order = request.GET.get('sort_order', 'desc')  # Default to descending (newest first)
-        
-        # Determine the Django ORM ordering parameter based on sort_order
-        order_by_param = '-date_submitted' if sort_order == 'desc' else 'date_submitted'
-
-        # Get tickets by status
-        open_tickets = Ticket.objects.filter(student=student, status='open').order_by(order_by_param)
-        pending_tickets = Ticket.objects.filter(student=student, status='pending').order_by(order_by_param)
-        closed_tickets = Ticket.objects.filter(student=student, status='closed').order_by(order_by_param)
-
-        # For display purposes, we show both open and pending tickets in the active section
-        active_tickets = list(open_tickets) + list(pending_tickets)
-        if sort_order == 'desc':
-            active_tickets.sort(key=lambda x: x.date_submitted, reverse=True)
-        else:
-            active_tickets.sort(key=lambda x: x.date_submitted)
-
-        context = {
-            'student_name': name,
-            'open_tickets': open_tickets,  # Only open tickets
-            'pending_tickets': pending_tickets,  # Only pending tickets
-            'closed_tickets': closed_tickets,  # Only closed tickets
-            'active_tickets': active_tickets,  # Combined open and pending tickets for display
-            'sort_order': sort_order,
-        }
-        return render(request, 'student/dashboard.html', context)
-
-    def render_admin_dashboard(self,request):
-        """Render admin-panel dashbaord."""
-        return render(request, "admin-panel/admin_dashboard.html")
-
-    def redirect_to_home(self, request):
-        """Redirect to home page if the role is undefined."""
-        return redirect(reverse("home"))
-    '''
-
-
-
 class StaffRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return hasattr(self.request.user, 'staff')
@@ -548,6 +477,7 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
     def get(self, request):
         status = request.GET.get('status', 'all')
         department_filter = request.GET.get('department_filter', 'all')
+        assigned_filter = request.GET.get('assigned_filter', 'all') 
         sort_order = request.GET.get('sort_order', 'desc')  # Default to descending (newest first)
 
         tickets = Ticket.objects.all()
@@ -557,6 +487,9 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
             staff_department = request.user.staff.department
             if staff_department:
                 tickets = tickets.filter(department=staff_department)
+                
+        if department_filter == 'assigned':
+            tickets = tickets.filter(assigned_staff=request.user.staff)
 
         if status != 'all':
             tickets = tickets.filter(status=status)
@@ -579,6 +512,7 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
             'my_department_count': Ticket.objects.filter(
                 department= request.user.staff.department
             ).count() if request.user.staff.department else 0,
+            'assigned_count': Ticket.objects.filter(assigned_staff=request.user.staff).count(),
         }
         return render(request, 'staff/staff_ticket_list.html', context)
 

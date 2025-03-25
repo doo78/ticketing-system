@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.conf import settings
 from ticket import views
 from ticket.views import (
-     DashboardView, StaffUpdateProfileView, home, LogInView, LogOutView, StaffTicketListView, StaffTicketDetailView,
+     StaffUpdateProfileView, home, LogInView, LogOutView, StaffTicketListView, StaffTicketDetailView,
     ManageTicketView, StaffProfileView, staff_dashboard, SignUpView,AdminTicketListView, AdminAccountsView,AdminAccountView,AdminAccountEditView,
      AdminAPITicketDetailsView,AdminAPIStaffByDepartmentView,AdminAPITicketAssignView,ForgetPasswordMailView,ForgetPasswordNewPasswordView
 )
@@ -27,7 +27,6 @@ urlpatterns = [
     path('logout/', LogOutView.as_view(), name='logout'),
     path('forget-password/mail', ForgetPasswordMailView.as_view(), name='forget_password_mail'),
     path('forget-password/reset', ForgetPasswordNewPasswordView.as_view(), name='forget_password_reset_password'),
-    path('dashboard/', DashboardView.as_view(), name='dashboard'),
     path('sign_up/' , SignUpView.as_view() , name= 'sign_up'),
 
     #------------------------------------STAFF URLS------------------------------------#
@@ -85,7 +84,6 @@ urlpatterns = [
         path('control-panel/announcements/delete/<int:announcement_id>/', views.delete_announcement, name='delete_announcement'),
     ])),
     # General dashboard redirect
-    path('dashboard/', DashboardView.as_view(), name='dashboard'),
     path('verify-email/<uidb64>/<token>/', views.VerifyEmailView.as_view(), name='verify_email'),
     
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
