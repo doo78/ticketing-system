@@ -13,10 +13,11 @@ from django.contrib.auth import login, logout
 from django.urls import reverse
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
+import urllib
 from ticket.mixins import RoleBasedRedirectMixin,AdminRoleRequiredMixin
 from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm,EditAccountForm,AdminUpdateProfileForm
-from .models import Ticket, Staff, Student, CustomUser, Message, Announcement
-from .forms import LogInForm, SignUpForm, StaffUpdateProfileForm, EditAccountForm, TicketForm, RatingForm
+from .models import Ticket, Staff, Student, CustomUser, AdminMessage, Announcement, StudentMessage, StaffMessage
+from .forms import DEPT_CHOICES, LogInForm, SignUpForm, StaffUpdateProfileForm, EditAccountForm, TicketForm, RatingForm
 from django.views.generic.edit import UpdateView
 from django.shortcuts import render
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -27,6 +28,8 @@ from .models import Ticket
 from django.db import models
 from django.utils.timezone import now
 from django.db.models import F, Avg
+from django.views.decorators.csrf import csrf_protect
+
 
 from django.db.models import ExpressionWrapper, DurationField
 
@@ -150,6 +153,8 @@ def ticket_list(request):
     tickets = Ticket.objects.filter(student=request.user.student)
     return render(request, 'student/ticket_list.html', {'tickets': tickets})
 
+from ticket.models import StudentMessage, AdminMessage  # Make sure these are imported!
+
 @login_required
 def ticket_detail(request, ticket_id):
     if not hasattr(request.user, 'student'):
@@ -158,43 +163,43 @@ def ticket_detail(request, ticket_id):
     ticket = get_object_or_404(Ticket, id=ticket_id, student=request.user.student)
     rating_form = None
 
-    # Initialize rating form for closed tickets
+    # Only show rating form if ticket is closed and not yet rated
     if ticket.status == 'closed' and ticket.rating is None:
         rating_form = RatingForm(instance=ticket)
 
     if request.method == 'POST':
-        # Handle rating submission
+        # Rating submission
         if 'submit_rating' in request.POST and ticket.status == 'closed':
             rating_form = RatingForm(request.POST, instance=ticket)
             if rating_form.is_valid():
                 rating_form.save()
                 messages.success(request, 'Thank you for your feedback!')
                 return redirect('ticket_detail', ticket_id=ticket_id)
-        # Handle message submission
-        else:
-            message_content = request.POST.get('message')
+
+        # Message submission
+        elif 'message' in request.POST:
+            message_content = request.POST.get('message', '').strip()
             if message_content:
                 if ticket.status == 'closed':
                     messages.error(request, 'Cannot add messages to a closed ticket.')
-                    return render(request, 'student/ticket_detail.html', {
-                        'ticket': ticket,
-                        'ticket_messages': ticket.messages.all().order_by('created_at'),
-                        'rating_form': rating_form
-                    })
-                Message.objects.create(
-                    ticket=ticket,
-                    author=request.user,
-                    content=message_content
-                )
-                messages.success(request, 'Message sent successfully.')
+                else:
+                    StudentMessage.objects.create(
+                        ticket=ticket,
+                        author=request.user,
+                        content=message_content
+                    )
+                    messages.success(request, 'Message sent successfully.')
                 return redirect('ticket_detail', ticket_id=ticket_id)
 
     context = {
         'ticket': ticket,
-        'ticket_messages': ticket.messages.all().order_by('created_at'),
+        'student_messages': ticket.student_messages.order_by('created_at'),  # messages sent by student
+        'admin_messages': ticket.admin_messages.order_by('created_at'),      # messages received from admin
         'rating_form': rating_form
     }
+
     return render(request, 'student/ticket_detail.html', context)
+
 
 #------------------------------------STAFF SECTION------------------------------------#
 
@@ -623,7 +628,7 @@ class StaffTicketDetailView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View)
             if ticket.status == 'closed':
                 messages.error(request, 'Cannot add messages to a closed ticket.')
             else:
-                Message.objects.create(
+                StaffMessage.objects.create(
                     ticket=ticket,
                     author=request.user,
                     content=message_content
@@ -768,6 +773,7 @@ def admin_dashboard(request):
     context["open_tickets_count"] = Ticket.objects.filter(status='open').exclude(status='closed').exclude(status='pending').count()
     context["closed_tickets_count"] = Ticket.objects.filter(status='closed').exclude(status='pending').exclude(status='open').count()
     context["tickets_count"]=Ticket.objects.count()
+    context["pending_tickets_count"] = Ticket.objects.filter(status='pending').exclude(status='closed').exclude(status='open').count()
     context["recent_activities"]=Ticket.objects.order_by('-date_updated')[:10]
     print(context)
     return render(request, 'admin-panel/admin_dashboard.html', context)
@@ -979,6 +985,7 @@ class AdminAPIStaffByDepartmentView(LoginRequiredMixin,AdminRequiredMixin,View):
 
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        
 class AdminAPITicketAssignView(LoginRequiredMixin,AdminRequiredMixin,View):
     def post(self, request):
         try:
@@ -1052,7 +1059,7 @@ def analytics_dashboard(request):
     tickets_with_responses = 0
     
     for ticket in tickets:
-        first_response = Message.objects.filter(
+        first_response = StaffMessage.objects.filter(
             ticket=ticket, 
             author__role__in=['staff']  
         ).order_by('created_at').first()
@@ -1219,9 +1226,6 @@ def analytics_dashboard(request):
     })
 
 
-
-
-
 def export_tickets_csv(request):
     # Get date range from request or use default (last 30 days)
     today = timezone.now().date()
@@ -1293,8 +1297,6 @@ def export_tickets_csv(request):
         ])
     
     return response
-
-
 
 def export_performance_csv(request):
     """Export staff performance metrics as CSV"""
@@ -1378,7 +1380,105 @@ def export_performance_csv(request):
     
     return response
 
-    
+from django.core.exceptions import PermissionDenied
+from django.contrib.auth.decorators import login_required
+from ticket.models import Ticket, CustomUser
+
+@login_required
+def admin_profile(request):
+    if request.user.role != 'admin':
+        raise PermissionDenied()
+
+    context = {
+        "tickets_count": Ticket.objects.count(),
+        "open_tickets_count": Ticket.objects.filter(status='open').count(),
+        "closed_tickets_count": Ticket.objects.filter(status='closed').count(),
+        "user_count": CustomUser.objects.count(),
+    }
+    return render(request, 'admin-panel/admin_profile.html', context)
+
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.auth import get_user_model
+from django import forms
+
+User = get_user_model()
+
+class AdminUpdateForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email']
+
+@login_required
+def admin_update_profile(request):
+    user = request.user
+
+    if user.role != 'admin':
+        return redirect('admin_dashboard')  # Just to be safe
+
+    if request.method == 'POST':
+        form = AdminUpdateForm(request.POST, instance=user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Profile updated successfully.")
+            return redirect('admin_profile')
+    else:
+        form = AdminUpdateForm(instance=user)
+
+    return render(request, 'admin-panel/admin_update_profile.html', {'form': form})
+
+from django.views.decorators.csrf import csrf_protect
+
+from ticket.models import AdminMessage, StudentMessage
+
+from django.views.decorators.csrf import csrf_protect
+from ticket.models import Ticket, Staff, StudentMessage, AdminMessage, CustomUser
+
+@login_required
+@csrf_protect
+def admin_ticket_detail(request, ticket_id):
+    ticket = get_object_or_404(Ticket, id=ticket_id)
+
+    if request.method == 'POST':
+        # Sending an admin message
+        if 'message' in request.POST:
+            content = request.POST.get('message', '').strip()
+            if content:
+                AdminMessage.objects.create(
+                    ticket=ticket,
+                    author=request.user,
+                    content=content
+                )
+                return redirect('admin_ticket_detail', ticket_id=ticket.id)
+
+        # Updating ticket
+        elif 'update_ticket' in request.POST:
+            ticket.department = request.POST.get('department')
+            ticket.status = request.POST.get('status')
+            staff_id = request.POST.get('assigned_staff')
+
+            if staff_id:
+                try:
+                    staff_instance = Staff.objects.get(user__id=staff_id)
+                    ticket.assigned_staff = staff_instance
+                except Staff.DoesNotExist:
+                    messages.error(request, "Invalid staff member selected.")
+                    return redirect('admin_ticket_detail', ticket_id=ticket.id)
+            else:
+                ticket.assigned_staff = None
+
+            ticket.save()
+            return redirect('admin_ticket_detail', ticket_id=ticket.id)
+
+    context = {
+        'ticket': ticket,
+        'student_messages': StudentMessage.objects.filter(ticket=ticket).order_by('created_at'),
+        'admin_messages': AdminMessage.objects.filter(ticket=ticket).order_by('created_at'),
+        'staff_members': Staff.objects.select_related('user'),
+        'dept_choices': Ticket._meta.get_field('department').choices,
+    }
+    return render(request, 'admin-panel/admin_ticket_detail.html', context)
 
 @login_required
 def admin_announcements(request):
@@ -1443,29 +1543,34 @@ def delete_announcement(request, announcement_id):
             
     return redirect('admin_announcements')
 
+def get_full_name(self):
+    return f"{self.first_name} {self.last_name}"
 
 class ForgetPasswordMailView(View):
     """
     Handles user registration using Django's Class-Based Views.
     """
+    
     def get(self, request):
         context={}
         return render(request, 'forget-password/mail-page.html', context)
 
     def post(self, request):
-        mail = request.POST.get("email")  # Get the ID
+        mail = request.POST.get("email")
         try:
             user = CustomUser.objects.get(email=mail)
             if user:
-                # Generate the reset link
-                token=user.generate_remember_token()
-                reset_link = f"{settings.MAIN_URL}/forget-password/reset?token={token}"
-                context={
+                token = user.generate_remember_token()
+                encoded_token = quote(token)
+                reset_link = f"{settings.MAIN_URL}/forget-password/reset?token={encoded_token}"
+
+                context = {
                     "user": user,
                     "reset_link": reset_link,
                     'website_name': settings.WEBSITE_NAME,
                     'main_mail': settings.EMAIL_HOST_USER
                 }
+
                 sendHtmlMail(
                     view="mail-template/reset-password-mail.html",
                     subject=f"Reset Your Password - {settings.WEBSITE_NAME}",
@@ -1473,57 +1578,131 @@ class ForgetPasswordMailView(View):
                     to_email=[mail],
                     context=context,
                 )
-                return redirect('log_in')
+
+            # Clear previous messages first
+            storage = messages.get_messages(request)
+            storage.used = True  # This ensures old messages don’t get displayed again
+
+            # Add the new success message
+            messages.success(request, "Reset email has been sent. Please check your inbox.")
+
+            return render(request, 'forget-password/email-sent.html', {
+                "email": mail
+            })
+
+
         except CustomUser.DoesNotExist:
-            return render(request, 'exception/error-page.html',
-                          {
-                              "title": "User Not Found",
-                              "message": "We couldn't find an account associated with this email. "
-                                         "Please check your email address and try again, or sign up for a new account.",
-                              "link": reverse('log_in')
-                          })
+            return render(request, 'exception/error-page.html', {
+                "title": "User Not Found",
+                "message": "We couldn't find an account associated with this email.",
+                "link": reverse('log_in')
+            })
+        
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from django.views import View
+from .forms import EditAccountForm
+from .models import CustomUser
+
+class AdminAccountEditView(LoginRequiredMixin, AdminRequiredMixin, View):
+    def get(self, request, account_id):
+        # Logic to handle GET request, like displaying the account form
+        account = get_object_or_404(CustomUser, id=account_id)
+        form = EditAccountForm(instance=account)
+        return render(request, "admin-panel/admin_accounts.html", {"form": form, "is_update": True})
+
+    def post(self, request, account_id):
+        # Logic to handle POST request, like saving updates
+        account = get_object_or_404(CustomUser, id=account_id)
+        form = EditAccountForm(request.POST, instance=account)
+        if form.is_valid():
+            user = form.save()
+            messages.success(request, "Account updated successfully!")
+            return redirect('admin_accounts_list')
+        return render(request, "admin-panel/admin_accounts.html", {"form": form, "is_update": True})
+
+class PasswordResetSentView(View):
+    def get(self, request):
+        return render(request, 'forget-password/email-sent.html')
+    
+def password_reset_sent(request):
+    return render(request, 'forget-password/email-sent.html')
+
+def ForgetPasswordView(request):
+    return render(request, 'forget-password/mail-page.html')
+
+class PasswordResetView(View):
+    def get(self, request):
+        token = request.GET.get('token')
+        if not token:
+            return render(request, 'exception/error-page.html', {
+                "title": "Invalid Token",
+                "message": "No valid token provided. Please request a new password reset.",
+                "link": reverse('log_in')
+            })
+        return render(request, 'forget-password/new-password.html', {"token": token})
+
+from django.contrib import messages
+from django.shortcuts import render, redirect
+from django.urls import reverse
+from ticket.models import CustomUser
+from urllib.parse import quote 
+
 class ForgetPasswordNewPasswordView(View):
     def get(self, request):
         token = request.GET.get('token')
+
         try:
             user = CustomUser.objects.get(remember_token=token)
-            if user:
-                if user.is_remember_token_valid(token):
-                    return render(request, 'forget-password/new-password.html', {"token": token})
-                else:
-                    return render(request, 'exception/error-page.html',
-                                  {
-                                      "title": "Invalid or Expired Token",
-                                      "message":"The password reset link is either incorrect or has expired. "
-                                                "Please request a new password reset.",
-                                      "link": reverse('log_in')
-                                  })
+
+            if user and user.is_remember_token_valid(token):
+                return render(request, 'forget-password/new-password.html', {"token": token})
+            else:
+                return render(request, 'exception/error-page.html', {
+                    "title": "Invalid or Expired Token",
+                    "message": "The password reset link is incorrect or expired.",
+                    "link": reverse('log_in')
+                })
+
         except CustomUser.DoesNotExist:
-            return render(request, 'exception/error-page.html',
-                          {
-                "title": "Invalid or Expired Token",
-                "message":"The password reset link is either incorrect or has expired. "
-                    "Please request a new password reset.",
+            return render(request, 'exception/error-page.html', {
+                "title": "Invalid Token",
+                "message": "The token is invalid or expired.",
                 "link": reverse('log_in')
-                      })
+            })
+
     def post(self, request):
         token = request.POST.get('token')
         new_password = request.POST.get('new_password')
         confirm_password = request.POST.get('confirm_password')
+
+
         if new_password != confirm_password:
             messages.error(request, 'Passwords do not match.')
-            return redirect(request.path+f"?token={token}")
+            return redirect(request.path + f"?token={token}")
+
         try:
             user = CustomUser.objects.get(remember_token=token)
-            user.set_password(new_password)
-            user.clear_remember_token()
-            user.save()
-            messages.success(request, 'Password updated successfully.')
-            return redirect("log_in")
+
+            if user and user.is_remember_token_valid(token):
+                user.set_password(new_password)
+                user.clear_remember_token()
+                user.save()
+
+                messages.success(request, 'Password updated successfully.')
+                return redirect("log_in")
+
+            else:
+                return render(request, 'exception/error-page.html', {
+                    "title": "Invalid or Expired Token",
+                    "message": "The password reset link is incorrect or expired.",
+                    "link": reverse('log_in')
+                })
+
         except CustomUser.DoesNotExist:
-            return render(request, 'exception/error-page.html',
-                          {"title": "Invalid or Expired Token",
-                           "message":"The password reset link is either incorrect or has expired. "
-                                     "Please request a new password reset.",
-                           "link": reverse('log_in')
-                           })
+            return render(request, 'exception/error-page.html', {
+                "title": "Invalid Token",
+                "message": "The token is invalid or expired.",
+                "link": reverse('log_in')
+            })
+

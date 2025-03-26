@@ -1,70 +1,134 @@
 {% extends 'student/base.html' %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row mb-4">
-        <div class="col">
-            <div class="d-flex justify-content-between align-items-center">
-                <h2>Ticket #{{ ticket.id }}</h2>
-                <a href="{% url 'student_dashboard' %}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
-                </a>
-            </div>
-        </div>
-    </div>
+<div class="ticket-header p-4 rounded shadow-sm mb-4 text-left"
+style="border-radius: 1.25rem; background: linear-gradient(135deg, rgba(245, 247, 250, 0.667), rgba(232, 235, 238, 0.651));">
+    
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
 
-    {% if messages %}
-    <div class="row mb-4">
-        <div class="col">
-            {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-            {% endfor %}
+        <!-- Left Content -->
+        <div class="d-flex flex-column">
+            <h3 class="gradient-text fw-bold mb-2">Ticket #{{ ticket.id }}</h3>
+            <p class="text-muted mb-2" style="font-size: 1rem;">You're viewing the details of this ticket</p>
+            <button class="btn btn-outline-secondary btn-sm shadow-sm mt-1 align-self-start"
+                    type="button" data-bs-toggle="collapse" data-bs-target="#ticketInfoCollapse"
+                    aria-expanded="false" aria-controls="ticketInfoCollapse">
+                <i class="bi bi-info-circle me-1"></i> Ticket Info
+            </button>
         </div>
-    </div>
-    {% endif %}
 
-    <div class="row">
-        <div class="col-md-8">
-            <!-- Ticket Details -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">{{ ticket.subject }}</h5>
-                </div>
+        <!-- Right Side Button -->
+        <div>
+            <a href="{% url 'student_dashboard' %}" class="btn btn-outline-dark shadow-sm">
+                <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
+            </a>
+        </div>
+
+    </div>
+</div>
+
+<!-- Collapsible Ticket Info Card -->
+<div class="collapse mt-3" id="ticketInfoCollapse">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-5">
+            <div class="card shadow-sm border-0" style="border-radius: 1rem; background-color: #f8f9fac7;">
                 <div class="card-body">
-                    <div class="mb-4">
-                        <h6 class="text-muted mb-3">Description</h6>
-                        <p>{{ ticket.description }}</p>
-                    </div>
-                    
                     <div class="row">
-                        <div class="col-md-6">
-                            <h6 class="text-muted mb-2">Department</h6>
-                            <p>{{ ticket.get_department_display }}</p>
+                        <!-- Created -->
+                        <div class="col-md-6 mb-3">
+                            <h6 class="text-uppercase text-secondary fw-semibold mb-2">Created</h6>
+                            <p class="text-dark mb-0">{{ ticket.date_submitted|date:"M d, Y · H:i" }}</p>
                         </div>
-                        <div class="col-md-6">
-                            <h6 class="text-muted mb-2">Status</h6>
-                            <span class="badge {% if ticket.status == 'open' %}bg-danger{% elif ticket.status == 'pending' %}bg-warning{% else %}bg-secondary{% endif %}">
-                                {{ ticket.get_status_display }}
-                            </span>
+
+                        <!-- Last Updated -->
+                        <div class="col-md-6 mb-3 text-md-end">
+                            <h6 class="text-uppercase text-secondary fw-semibold mb-2">Last Updated</h6>
+                            <p class="text-dark mb-0">{{ ticket.date_updated|date:"M d, Y · H:i" }}</p>
                         </div>
+                        <!-- Assigned Staff -->
+                        {% if ticket.assigned_staff %}
+                        <div class="col-md-6 mb-3">
+                            <h6 class="text-uppercase text-secondary fw-semibold mb-2">Assigned To</h6>
+                            <p class="text-dark mb-0">{{ ticket.assigned_staff.user.get_full_name }}</p>
+                        </div>
+                        {% endif %}
+
+                        <!-- Closed On -->
+                        {% if ticket.status == 'closed' %}
+                        <div class="col-md-6 mb-3 text-md-end">
+                            <h6 class="text-uppercase text-secondary fw-semibold mb-2">Closed On</h6>
+                            <p class="text-dark mb-0">{{ ticket.date_closed|date:"M d, Y · H:i" }}
+                            </p>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+
+<br>
+<div class="row mb-4 justify-content-center">
+    <br>
+    <div class="col-12">
+        <div class="card shadow-sm border-0 text-center py-4 px-4"
+             style="border-radius: 1.25rem; background: linear-gradient(135deg, rgba(245, 247, 250, 0.667), rgba(232, 235, 238, 0.651));">
+            
+            <!-- Ticket Subject -->
+            <div class="mb-4">
+                <h3 class="fw-bold text-primary mb-2" style="font-size: 2rem;">{{ ticket.subject }}</h3>
+                <p class="text-muted mb-0">You’re viewing the details of this ticket</p>
+            </div>
+
+            <hr class="my-4" style="opacity: 0.2;">
+
+            <!-- Description -->
+            <div class="mb-4">
+                <h6 class="text-uppercase text-secondary fw-semibold mb-2">Description</h6>
+                <p class="text-dark mb-0">{{ ticket.description }}</p>
+            </div>
+
+            <div class="row justify-content-center">
+                <!-- Department -->
+                <div class="col-md-4 mb-4">
+                    <h6 class="text-uppercase text-secondary fw-semibold mb-2">Department</h6>
+                    <p class="text-dark mb-0">{{ ticket.get_department_display }}</p>
+                </div>
+
+                <!-- Status -->
+                <div class="col-md-4 mb-4">
+                    <h6 class="text-uppercase text-secondary fw-semibold mb-2">Status</h6>
+                    <span class="badge rounded-pill px-3 py-2 text-uppercase fw-semibold"
+                          style="font-size: 0.8rem;
+                          {% if ticket.status == 'open' %}background-color: #f8d7da; color: #721c24;
+                          {% elif ticket.status == 'pending' %}background-color: #fff3cd; color: #856404;
+                          {% else %}background-color: #dee2e6; color: #495057;{% endif %}">
+                        {{ ticket.get_status_display }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 
             <!-- Rating Section for Closed Tickets -->
             {% if ticket.status == 'closed' %}
                 {% if ticket.rating %}
-                <div class="card mb-4 shadow-sm">
-                    <div class="card-header bg-light">
-                        <h5 class="mb-0"><i class="fas fa-star text-warning me-2"></i>Your Feedback</h5>
+                <div class="card shadow-sm border-0 mb-5" style="border-radius: 1.25rem; background: linear-gradient(135deg, rgba(245, 247, 250, 0.7), rgba(232, 235, 238, 0.5));">
+                    <div class="card-header bg-transparent border-bottom py-3 px-4" style="border-top-left-radius: 1.25rem; border-top-right-radius: 1.25rem;">
+                        <h5 class="mb-0 fw-bold text-primary d-flex align-items-center">
+                            <i class="text-warning me-2"></i> Your Feedback
+                        </h5>
                     </div>
-                    <div class="card-body">
-                        <div class="row">
+                
+                    <div class="card-body px-4 py-4">
+                        <div class="row g-4">
+                            <!-- Rating -->
                             <div class="col-md-6">
-                                <h6 class="text-muted mb-3">Your Rating</h6>
+                                <h6 class="text-uppercase text-secondary fw-semibold mb-2">Your Rating</h6>
                                 <div class="rating-display mb-2">
                                     {% for i in "12345" %}
                                         {% if forloop.counter <= ticket.rating %}
@@ -74,13 +138,15 @@
                                         {% endif %}
                                     {% endfor %}
                                 </div>
-                                <p class="text-muted"><small>{{ ticket.rating }} out of 5 stars</small></p>
+                                <p class="text-muted mb-0"><small>{{ ticket.rating }} out of 5 stars</small></p>
                             </div>
+                
+                            <!-- Comment -->
                             <div class="col-md-6">
-                                <h6 class="text-muted mb-3">Your Comments</h6>
-                                <div class="p-3 bg-light rounded">
+                                <h6 class="text-uppercase text-secondary fw-semibold mb-2">Your Comments</h6>
+                                <div class="p-3 bg-white rounded shadow-sm" style="min-height: 80px;">
                                     {% if ticket.rating_comment %}
-                                        <p class="mb-0">{{ ticket.rating_comment }}</p>
+                                        <p class="mb-0 text-dark">{{ ticket.rating_comment }}</p>
                                     {% else %}
                                         <p class="text-muted mb-0 fst-italic">No comments provided.</p>
                                     {% endif %}
@@ -89,6 +155,7 @@
                         </div>
                     </div>
                 </div>
+                
                 {% elif rating_form %}
                 <div class="card mb-4 border-0 shadow-sm">
                     <div class="card-header text-white py-2" style="background-color: #4a7bff;">
@@ -128,76 +195,78 @@
                 {% endif %}
             {% endif %}
 
-            <!-- Messages/Updates Section -->
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Messages</h5>
-                    <span class="badge bg-secondary">{{ ticket.messages.count }} messages</span>
-                </div>
-                <div class="card-body">
-                    <div class="messages-container mb-4" style="max-height: 400px; overflow-y: auto;">
-                        {% if ticket_messages %}
-                            {% for message in ticket_messages %}
-                            <div class="mb-3 p-3 {% if message.author == request.user %}bg-light{% endif %} rounded border">
-                                <div class="d-flex justify-content-between mb-2">
-                                    <strong>{{ message.author.get_full_name }}</strong>
-                                    <small class="text-muted">{{ message.created_at|date:"M d, Y H:i" }}</small>
-                                </div>
-                                <p class="mb-0">{{ message.content }}</p>
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                            <p class="text-muted">No messages yet.</p>
-                        {% endif %}
-                    </div>
-
-                    <!-- Add Message Form -->
-                    {% if ticket.status != 'closed' %}
-                    <form method="post" class="mt-4">
-                        {% csrf_token %}
-                        <div class="mb-3">
-                            <label for="message" class="form-label">Add a Message</label>
-                            <textarea class="form-control" id="message" name="message" rows="3" required></textarea>
+            <div class="row justify-content-center mb-5">
+                <!-- Messages Sent (By Student) -->
+                <div class="col-md-6 mb-4">
+                    <div class="card shadow-sm border-0"
+                         style="border-radius: 1.25rem; background: linear-gradient(135deg, rgba(245, 247, 250, 0.7), rgba(232, 235, 238, 0.5));">
+                        <div class="card-header bg-transparent border-bottom"
+                             style="border-top-left-radius: 1.25rem; border-top-right-radius: 1.25rem;">
+                            <h5 class="mb-0 text-primary fw-semibold">Messages Sent</h5>
                         </div>
-                        <button type="submit" class="btn btn-primary">Send Message</button>
-                    </form>
-                    {% endif %}
+                        <div class="card-body">
+                            <div class="messages-container mb-4" style="max-height: 300px; overflow-y: auto;">
+                                {% if student_messages %}
+                                    {% for message in student_messages %}
+                                        <div class="mb-3 p-3 bg-light rounded border">
+                                            <div class="d-flex justify-content-between mb-2">
+                                                <strong>You</strong>
+                                                <small class="text-muted">{{ message.created_at|date:"M d, Y H:i" }}</small>
+                                            </div>
+                                            <p class="mb-0">{{ message.content }}</p>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="text-muted">No messages sent yet.</p>
+                                {% endif %}
+                            </div>
+            
+                            {% if ticket.status != 'closed' %}
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="submit_message" value="1">
+                                <div class="mb-3">
+                                    <label for="message" class="form-label text-dark">Add a Message</label>
+                                    <textarea class="form-control" id="message" name="message" rows="3" required></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Send Message</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            
+                <!-- Messages Received (From Admins) -->
+                <div class="col-md-6 mb-4">
+                    <div class="card shadow-sm border-0"
+                         style="border-radius: 1.25rem; background: linear-gradient(135deg, rgba(245, 247, 250, 0.7), rgba(232, 235, 238, 0.5));">
+                        <div class="card-header bg-transparent border-bottom"
+                             style="border-top-left-radius: 1.25rem; border-top-right-radius: 1.25rem;">
+                            <h5 class="mb-0 text-primary fw-semibold">Messages Received</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="messages-container" style="max-height: 400px; overflow-y: auto;">
+                                {% if admin_messages %}
+                                    {% for message in admin_messages %}
+                                        <div class="mb-3 p-3 bg-light rounded border">
+                                            <div class="d-flex justify-content-between mb-2">
+                                                <strong>{{ message.author.get_full_name }}</strong>
+                                                <small class="text-muted">{{ message.created_at|date:"M d, Y H:i" }}</small>
+                                            </div>
+                                            <p class="mb-0">{{ message.content }}</p>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="text-muted">No messages received yet.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
+            
 
-        <div class="col-md-4">
-            <!-- Ticket Information -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Ticket Information</h5>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <h6 class="text-muted">Created</h6>
-                        <p>{{ ticket.date_submitted|date:"M d, Y H:i" }}</p>
-                    </div>
-                    <div class="mb-3">
-                        <h6 class="text-muted">Last Updated</h6>
-                        <p>{{ ticket.date_updated|date:"M d, Y H:i" }}</p>
-                    </div>
-                    {% if ticket.assigned_staff %}
-                    <div class="mb-3">
-                        <h6 class="text-muted">Assigned To</h6>
-                        <p>{{ ticket.assigned_staff.user.get_full_name }}</p>
-                    </div>
-                    {% endif %}
-                    {% if ticket.status == 'closed' %}
-                    <div>
-                        <h6 class="text-muted">Closed On</h6>
-                        <p>{{ ticket.date_closed|date:"M d, Y" }}</p>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+            
 
 {% block extra_js %}
 <style>
@@ -269,7 +338,44 @@ textarea.form-control {
 textarea.form-control:focus {
     border-color: #4a7bff;
     box-shadow: 0 0 0 0.25rem rgba(74, 123, 255, 0.25);
+    
 }
+
+.ticket-header {
+    background: #ffffff;
+    border-left: 4px solid #2541b2;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+.gradient-text {
+    background: linear-gradient(270deg, #00aaff, #0055aa, #002b5e);
+    background-size: 300% 300%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: gradientMove 6s ease infinite;
+    font-weight: 700;
+}
+
+@keyframes gradientMove {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+.collapse:not(.show) {
+    display: block;
+    height: 0;
+    overflow: hidden;
+    transition: height 0.4s ease;
+}
+
+
 </style>
 
 <script>

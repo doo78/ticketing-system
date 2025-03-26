@@ -3,84 +3,121 @@
 {% block title %}Announcements - University Helpdesk{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <div class="row mb-4">
-        <div class="col">
-            <h2>Announcements</h2>
-            <p class="text-muted">Create and manage announcements for staff members</p>
-        </div>
-    </div>
+<div class="row mb-4 justify-content-center">
+    <div class="col-12">
+        <div class="card shadow-sm border-0 px-4 py-3"style="border-radius: 1.25rem; background: linear-gradient(135deg, rgba(245, 247, 250, 0.667), rgba(232, 235, 238, 0.651));">
+            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                
+                <!-- Heading and subtext -->
+                <div>
+                    <br>
+                    <h2 class="mb-1 fw-bold" style="color: #0055aa;">Tickets</h2>
+                    <p class="text-muted mb-0">View and manage all submitted tickets</p>
+                    <br>
 
-    <!-- Create New Announcement -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="card-title mb-0">Create New Announcement</h5>
+                    <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#ticketFilter" aria-expanded="false" aria-controls="ticketFilter">
+                        <i class="fas fa-filter me-2"></i> Filter Tickets
+                    </button>
                 </div>
-                <div class="card-body">
-                    <form method="post" action="{% url 'create_announcement' %}">
-                        {% csrf_token %}
-                        <div class="mb-3">
-                            <label for="content" class="form-label"> Content</label>
-                            <textarea class="form-control" id="content" name="content" rows="3" required></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="department" class="form-label">Target Department</label>
-                            <select class="form-select" id="department" name="department">
-                                <option value="">All Departments</option>
-                                {% for code, name in dept_choices %}
-                                    <option value="{{ code }}">{{ name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Post Announcement</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Past Announcements -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">Past Announcements</h5>
+                <!-- Back to Dashboard Button -->
+                <div class="mt-3 mt-md-0">
+                    <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-dark">
+                        <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
+                    </a>
                 </div>
-                <div class="card-body">
-                    {% if announcements %}
-                        {% for announcement in announcements %}
-                            <div class="announcement-item border-bottom pb-3 mb-3">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <p class="mb-1">{{ announcement.content }}</p>
-                                        <small class="text-muted">
-                                            Posted by {{ announcement.created_by.get_full_name }} 
-                                            {% if announcement.department %}
-                                                to {{ announcement.get_department_display }}
-                                            {% else %}
-                                                to All Departments
-                                            {% endif %}
-                                        </small>
-                                    </div>
-                                    <div class="d-flex align-items-center">
-                                        <small class="text-muted me-3">{{ announcement.created_at|date:"M d, Y H:i" }}</small>
-                                        <a href="{% url 'delete_announcement' announcement.id %}" 
-                                           class="btn btn-sm btn-outline-danger" 
-                                           onclick="return confirm('Are you sure you want to delete this announcement?');">
-                                            <i class="bi bi-trash"></i>
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    {% else %}
-                        <p class="text-muted text-center mb-0">No announcements yet</p>
-                    {% endif %}
-                </div>
+
             </div>
         </div>
     </div>
 </div>
+
+<!-- Create New Announcement -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0"
+             style="border-radius: 1.25rem; background: linear-gradient(135deg, rgba(245, 247, 250, 0.7), rgba(232, 235, 238, 0.5));">
+            <div class="card-header bg-transparent border-bottom px-4 py-3"
+                 style="border-top-left-radius: 1.25rem; border-top-right-radius: 1.25rem;">
+                <h5 class="mb-0 text-primary fw-semibold">Create New Announcement</h5>
+            </div>
+            <div class="card-body px-4 py-4">
+                <form method="post" action="{% url 'create_announcement' %}">
+                    {% csrf_token %}
+                    
+                    <!-- Content Field -->
+                    <div class="mb-3">
+                        <label for="content" class="form-label">Content</label>
+                        <textarea class="form-control" id="content" name="content" rows="5" required placeholder="Write your announcement content here..."></textarea>
+                        <div class="form-text text-muted">Provide the details of your announcement.</div>
+                    </div>
+                    
+                    <!-- Department Field -->
+                    <div class="mb-3">
+                        <label for="department" class="form-label">Target Department</label>
+                        <select class="form-select" id="department" name="department">
+                            <option value="">All Departments</option>
+                            {% for code, name in dept_choices %}
+                                <option value="{{ code }}">{{ name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text text-muted">Select the department(s) for this announcement (optional).</div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="d-flex justify-content-end">
+                        <button type="submit" class="btn btn-primary px-4">
+                            Post Announcement
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Past Announcements -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm border-0"
+             style="border-radius: 1.25rem; background: linear-gradient(135deg, rgba(245, 247, 250, 0.7), rgba(232, 235, 238, 0.5));">
+            <div class="card-header bg-transparent border-bottom px-4 py-3"
+                 style="border-top-left-radius: 1.25rem; border-top-right-radius: 1.25rem;">
+                <h5 class="mb-0 text-primary fw-semibold">Past Announcements</h5>
+            </div>
+            <div class="card-body px-4 py-4">
+                {% if announcements %}
+                    {% for announcement in announcements %}
+                        <div class="announcement-item border-bottom pb-3 mb-3">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <p class="mb-1">{{ announcement.content }}</p>
+                                    <small class="text-muted">
+                                        Posted by {{ announcement.created_by.get_full_name }} 
+                                        {% if announcement.department %}
+                                            to {{ announcement.get_department_display }}
+                                        {% else %}
+                                            to All Departments
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                <div class="d-flex align-items-center">
+                                    <small class="text-muted me-3">{{ announcement.created_at|date:"M d, Y H:i" }}</small>
+                                    <a href="{% url 'delete_announcement' announcement.id %}" 
+                                       class="btn btn-sm btn-outline-danger" 
+                                       onclick="return confirm('Are you sure you want to delete this announcement?');">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center mb-0">No announcements yet</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %} 
