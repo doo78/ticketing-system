@@ -11,6 +11,7 @@ from ticket.views import (
      DashboardView, StaffUpdateProfileView, admin_ticket_detail, home, LogInView, LogOutView, StaffTicketListView, StaffTicketDetailView,
     ManageTicketView, StaffProfileView, password_reset_sent, staff_dashboard, SignUpView,AdminTicketListView, AdminAccountsView,AdminAccountView,AdminAccountEditView,
      AdminAPITicketDetailsView,AdminAPIStaffByDepartmentView,AdminAPITicketAssignView,ForgetPasswordMailView,ForgetPasswordNewPasswordView,PasswordResetSentView, admin_ticket_detail
+
 )
 
 from django.conf.urls.static import static
@@ -28,6 +29,7 @@ urlpatterns = [
     path('forget-password/mail', ForgetPasswordMailView.as_view(), name='forget_password_mail'),
     path('forget-password/reset/', ForgetPasswordNewPasswordView.as_view(), name='forget_password_reset_password'),
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
+    path('forget-password/reset', ForgetPasswordNewPasswordView.as_view(), name='forget_password_reset_password'),
     path('sign_up/' , SignUpView.as_view() , name= 'sign_up'),
     path('forget-password/', views.ForgetPasswordMailView.as_view(), name='forget-password'),
     path('forget-password/sent/', views.PasswordResetSentView.as_view(), name='email-sent'), 
@@ -96,10 +98,12 @@ urlpatterns = [
         path('control-panel/account/<int:account_id>/', views.AdminAccountEditView.as_view(), name='admin_account_edit'),
 
     ])),
-    # General dashboard redirect
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
 
 
+
+    path('verify-email/<uidb64>/<token>/', views.VerifyEmailView.as_view(), name='verify_email'),
+    
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

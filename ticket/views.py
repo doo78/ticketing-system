@@ -37,6 +37,19 @@ from django.db.models import F, ExpressionWrapper, DurationField, Case, When, Va
 from django.db.models.functions import Cast
 from django.db.models import FloatField
 
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.utils import six
+from django.core.mail import send_mail
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+from django.urls import reverse
+from django.utils.http import urlsafe_base64_decode
+
+import django
+from django.utils.encoding import force_str
+
+from django.contrib.auth import get_user_model
+
 # #Gen AI imports
 import boto3
 from botocore.config import Config
@@ -125,9 +138,7 @@ def student_settings(request):
         'department': request.user.student.department,
         'program': request.user.student.program,
         'year_of_study': request.user.student.year_of_study,
-        # Account status information
         'account_type': request.user.get_role_display(),
-        'status': 'Active',  # You can add logic for different statuses if needed
         'member_since': localtime(request.user.date_joined).strftime('%B %d, %Y'),
         'last_login': last_login_display,
     }
@@ -215,20 +226,14 @@ def staff_dashboard(request):
         return redirect('home')
 
     staff_department = request.user.staff.department
-
-    # Count tickets assigned to this staff member
     assigned_tickets_count = Ticket.objects.filter(
         assigned_staff=request.user.staff
     ).exclude(status='closed').count()
-
-    # Count tickets for their department (not necessarily assigned to them)
     department_tickets_count = 0
     if staff_department:
         department_tickets_count = Ticket.objects.filter(
             department=staff_department
         ).exclude(status='closed').count()
-
-    # Count unassigned tickets in their department
     unassigned_dept_tickets = 0
     if staff_department:
         unassigned_dept_tickets = Ticket.objects.filter(
@@ -247,6 +252,7 @@ def staff_dashboard(request):
         'department_tickets_count': department_tickets_count,
         'unassigned_dept_tickets': unassigned_dept_tickets,
         'department': request.user.staff.get_department_display() if staff_department else "Not Assigned",
+        'email_verified': request.user.is_email_verified,
         'announcements': announcements
     }
     return render(request, 'staff/dashboard.html', context)
@@ -257,6 +263,7 @@ class LogInView(View, RoleBasedRedirectMixin):
     """
     Handles user login and redirection based on role.
     """
+        
     def get(self, request):
         form = AuthenticationForm()
         return render(request, 'login.html', {'form': form})
@@ -266,8 +273,9 @@ class LogInView(View, RoleBasedRedirectMixin):
         if form.is_valid():
             user = form.get_user()
             login(request, user)
+            if not user.is_email_verified:
+                messages.warning(request, "Please verify your email address to access all features.")
             redirect_url = self.get_redirect_url(user)
-            # Check if it's a direct URL or a URL name
             if redirect_url.startswith('/'):
                 return redirect(redirect_url)
             return redirect(redirect_url)
@@ -299,6 +307,7 @@ class SignUpView(View):
     """
     Handles user registration using Django's Class-Based Views.
     """
+        
     def get(self, request):
         form = SignUpForm()
         return render(request, "sign_up.html", {"form": form})
@@ -316,80 +325,46 @@ class SignUpView(View):
                     program=form.cleaned_data.get('program', 'Undeclared'),
                     year_of_study=form.cleaned_data.get('year_of_study', 1)
                 )
-            messages.success(request, "Account created successfully! Please log in.")
+
+            # Generate email verification token
+            token_generator = EmailVerificationTokenGenerator()
+            token = token_generator.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            verification_url = reverse('verify_email', kwargs={'uidb64': uid, 'token': token})
+            verification_url = request.build_absolute_uri(verification_url)
+
+            # Send verification email
+            subject = 'Verify Your Email Address'
+            message = f'Hello {user.first_name},\n\nPlease click the link below to verify your email address:\n{verification_url}\n\nThank you!'
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=False,
+            )
+
+            messages.success(request, "Account created successfully! Please check your email to verify your address.")
             return redirect('log_in')
         return render(request, "sign_up.html", {"form": form})
 
-class DashboardView(LoginRequiredMixin, View):
-    """
-    Display the appropriate dashboard based on the user's role.
-    """
+class VerifyEmailView(View):
+    def get(self, request, uidb64, token):
+        User = get_user_model()
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
 
-    '''
-    def get(self, request, *args, **kwargs):
-        role_dispatch = {
-            'admin': self.render_admin_dashboard,  # Admin users see staff dashboard
-            'staff': self.render_staff_dashboard,
-            'student': self.render_student_dashboard,
-        }
-        handler = role_dispatch.get(request.user.role, self.redirect_to_home)
-        return handler(request)
-    '''
-
-    '''
-    def render_staff_dashboard(self, request):
-        """Render staff dashboard."""
-
-        context = {
-            'assigned_tickets_count': Ticket.objects.filter(
-                assigned_staff=request.user.staff if hasattr(request.user, 'staff') else None
-            ).exclude(status='closed').count(),
-            'department': request.user.staff.department if hasattr(request.user, 'staff') else "Admin"
-        }
-        return render(request, 'staff/dashboard.html', context)
-
-    def render_student_dashboard(self, request):
-        student = request.user.student
-        name = request.user.preferred_name if request.user.preferred_name else request.user.first_name
-
-        # Get sort order parameter
-        sort_order = request.GET.get('sort_order', 'desc')  # Default to descending (newest first)
-        
-        # Determine the Django ORM ordering parameter based on sort_order
-        order_by_param = '-date_submitted' if sort_order == 'desc' else 'date_submitted'
-
-        # Get tickets by status
-        open_tickets = Ticket.objects.filter(student=student, status='open').order_by(order_by_param)
-        pending_tickets = Ticket.objects.filter(student=student, status='pending').order_by(order_by_param)
-        closed_tickets = Ticket.objects.filter(student=student, status='closed').order_by(order_by_param)
-
-        # For display purposes, we show both open and pending tickets in the active section
-        active_tickets = list(open_tickets) + list(pending_tickets)
-        if sort_order == 'desc':
-            active_tickets.sort(key=lambda x: x.date_submitted, reverse=True)
+        token_generator = EmailVerificationTokenGenerator()
+        if user is not None and token_generator.check_token(user, token):
+            user.is_email_verified = True
+            user.save()
+            messages.success(request, "Your email has been verified successfully! Please log in.")
         else:
-            active_tickets.sort(key=lambda x: x.date_submitted)
-
-        context = {
-            'student_name': name,
-            'open_tickets': open_tickets,  # Only open tickets
-            'pending_tickets': pending_tickets,  # Only pending tickets
-            'closed_tickets': closed_tickets,  # Only closed tickets
-            'active_tickets': active_tickets,  # Combined open and pending tickets for display
-            'sort_order': sort_order,
-        }
-        return render(request, 'student/dashboard.html', context)
-
-    def render_admin_dashboard(self,request):
-        """Render admin-panel dashbaord."""
-        return render(request, "admin-panel/admin_dashboard.html")
-
-    def redirect_to_home(self, request):
-        """Redirect to home page if the role is undefined."""
-        return redirect(reverse("home"))
-    '''
-
-
+            messages.error(request, "The verification link is invalid or has expired.")
+        return redirect('log_in')
 
 class StaffRequiredMixin(UserPassesTestMixin):
     def test_func(self):
@@ -405,6 +380,9 @@ def student_dashboard(request):
     if not hasattr(request.user, 'student'):
         return redirect('home')
 
+    open_tickets = Ticket.objects.filter(student=request.user.student, status='open').order_by('-date_submitted')
+    pending_tickets = Ticket.objects.filter(student=request.user.student, status='pending').order_by('-date_submitted')
+    closed_tickets = Ticket.objects.filter(student=request.user.student, status='closed').order_by('-date_submitted')
     # Get sort order parameter
     sort_order = request.GET.get('sort_order', 'desc')  # Default to descending (newest first)
     
@@ -425,6 +403,11 @@ def student_dashboard(request):
 
     context = {
         'student_name': request.user.preferred_name or request.user.first_name,
+        'open_tickets': open_tickets,
+        'pending_tickets': pending_tickets,
+        'closed_tickets': closed_tickets,
+        'active_tickets': active_tickets,
+        'email_verified': request.user.is_email_verified,  # Added
         'open_tickets': open_tickets,  # Only open tickets
         'pending_tickets': pending_tickets,  # Only pending tickets
         'closed_tickets': closed_tickets,  # Only closed tickets
@@ -499,6 +482,7 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
     def get(self, request):
         status = request.GET.get('status', 'all')
         department_filter = request.GET.get('department_filter', 'all')
+        assigned_filter = request.GET.get('assigned_filter', 'all') 
         sort_order = request.GET.get('sort_order', 'desc')  # Default to descending (newest first)
 
         tickets = Ticket.objects.all()
@@ -508,6 +492,9 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
             staff_department = request.user.staff.department
             if staff_department:
                 tickets = tickets.filter(department=staff_department)
+                
+        if department_filter == 'assigned':
+            tickets = tickets.filter(assigned_staff=request.user.staff)
 
         if status != 'all':
             tickets = tickets.filter(status=status)
@@ -530,6 +517,7 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
             'my_department_count': Ticket.objects.filter(
                 department= request.user.staff.department
             ).count() if request.user.staff.department else 0,
+            'assigned_count': Ticket.objects.filter(assigned_staff=request.user.staff).count(),
         }
         return render(request, 'staff/staff_ticket_list.html', context)
 
@@ -924,6 +912,12 @@ class AdminAccountsView(LoginRequiredMixin,AdminRequiredMixin,View):
 
         return redirect("admin_accounts_list")
 
+class EmailVerificationTokenGenerator(PasswordResetTokenGenerator):
+    def _make_hash_value(self, user, timestamp):
+        return (
+            six.text_type(user.pk) + six.text_type(timestamp) +
+            six.text_type(user.is_email_verified)
+        )
 class AdminAPITicketDetailsView(LoginRequiredMixin,AdminRequiredMixin,View):
     def post(self, request):
         try:
