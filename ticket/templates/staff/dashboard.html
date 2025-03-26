@@ -1,6 +1,19 @@
 {% extends 'staff/base.html' %}
 
 {% block content %}
+{% if not email_verified %}
+    <div class="alert alert-warning" role="alert">
+        Please verify your email address to access all features.
+    </div>
+{% endif %}
+<div class="container-fluid">
+    <!-- Welcome Section -->
+    <div class="welcome-container text-center py-5">
+        <h1 class="fw-bold">Welcome, {{ request.user.get_full_name|default:request.user.username }}</h1>
+        <p class="lead text-muted">Your Staff Dashboard</p>
+    </div>
+
+    <!-- Stats Row -->
 <div class="container mt-5">
     <br>
     <br>
@@ -71,7 +84,7 @@
                 <div class="card-body">
                     <h1>{{ assigned_tickets_count|default:"0" }}</h1>
                     <p>Tickets assigned directly to you</p>
-                    <a href="{% url 'staff_ticket_list' %}?status=open&assigned_to=me" class="btn btn-outline-secondary btn-sm">View all</a>
+                    <a href="{% url 'staff_ticket_list' %}?status=all&department_filter=assigned" class="btn btn-outline-secondary btn-sm">View all</a>
                 </div>
             </div>
         </div>

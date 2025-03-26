@@ -292,7 +292,7 @@ class StaffTicketFilteringTests(TestCase):
         response = self.client.get(reverse('staff_dashboard'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'My Department Tickets')
+        self.assertContains(response, 'Department Tickets')
 
         # There should be 1 unassigned open business ticket
         self.assertContains(response, '1 unassigned')
@@ -313,3 +313,19 @@ class StaffTicketFilteringTests(TestCase):
         # Check for department filter buttons
         self.assertContains(response, 'All Departments')
         self.assertContains(response, 'My Department')
+        self.assertContains(response, 'Assigned To Me')
+        
+    def test_assigned_to_me_filter(self):
+        """Test filtering tickets by the 'Assigned to Me' filter."""  
+        self._login_staff(self.business_staff)  
+
+        response = self.client.get(reverse('staff_ticket_list') + '?department_filter=assigned')
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertContains(response, 'Business Query 2') 
+        self.assertNotContains(response, 'Business Query 1')  
+        self.assertNotContains(response, 'Business Query 3') 
+        self.assertNotContains(response, 'Law Query 1') 
+        self.assertNotContains(response, 'Law Query 2')  
+        self.assertNotContains(response, 'Law Query 3')
