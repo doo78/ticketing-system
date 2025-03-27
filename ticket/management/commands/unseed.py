@@ -16,7 +16,7 @@ class Command(BaseCommand):
         Student.objects.all().delete()
         self.stdout.write(self.style.SUCCESS("All staff and students deleted."))
 
-        CustomUser.objects.exclude(is_superuser=True).delete()
+        CustomUser.objects.filter(is_superuser=True).delete()
         self.stdout.write(self.style.SUCCESS("All non-superuser users deleted."))
 
         self.stdout.write(self.style.SUCCESS("Database cleanup complete!"))

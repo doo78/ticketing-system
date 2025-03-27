@@ -14,6 +14,7 @@ from django.urls import reverse
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
 import urllib
+import six
 from ticket.mixins import RoleBasedRedirectMixin,AdminRoleRequiredMixin
 from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm,EditAccountForm,AdminUpdateProfileForm
 from .models import Ticket, Staff, Student, CustomUser, AdminMessage, Announcement, StudentMessage, StaffMessage
@@ -29,16 +30,11 @@ from django.db import models
 from django.utils.timezone import now
 from django.db.models import F, Avg
 from django.views.decorators.csrf import csrf_protect
-
-
 from django.db.models import ExpressionWrapper, DurationField
-
 from django.db.models import F, ExpressionWrapper, DurationField, Case, When, Value
 from django.db.models.functions import Cast
 from django.db.models import FloatField
-
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
-from django.utils import six
 from django.core.mail import send_mail
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
@@ -62,6 +58,30 @@ from django.views.decorators.http import require_POST
 from ticket.email_utils import sendHtmlMail
 from django.urls import reverse
 #------------------------------------STUDENT SECTION------------------------------------#
+class DashboardView(LoginRequiredMixin, View):
+    """
+    Display the appropriate dashboard based on the user's role.
+    """
+
+    def get(self, request, *args, **kwargs):
+        role_dispatch = {
+            'admin': self.render_admin_dashboard,  # Admin users see staff dashboard
+            'staff': self.render_staff_dashboard,
+            'student': self.render_student_dashboard,
+        }
+        handler = role_dispatch.get(request.user.role, self.redirect_to_home)
+        return handler(request)
+
+    def render_staff_dashboard(self, request):
+        """Render staff dashboard."""
+        
+        context = {
+            'assigned_tickets_count': Ticket.objects.filter(
+                assigned_staff=request.user.staff if hasattr(request.user, 'staff') else None
+            ).exclude(status='closed').count(),
+            'department': request.user.staff.department if hasattr(request.user, 'staff') else "Admin"
+        }
+        return render(request, 'staff/dashboard.html', context)
 @login_required
 def create_ticket(request):
     if not hasattr(request.user, 'student'):

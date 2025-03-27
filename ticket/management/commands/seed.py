@@ -89,16 +89,20 @@ class Command(BaseCommand):
 
     def create_user(self, data):
         """Helper function to create users"""
-        user, created = CustomUser.objects.get_or_create(
-            username=data["username"],
-            defaults={
-                "email": data["email"],
-                "first_name": data["first_name"],
-                "last_name": data["last_name"],
-                "password": "password123",
-                "role": data["role"],
-            },
-        )
+        try:
+            user = CustomUser.objects.get(username=data["username"])
+            created = False
+        except CustomUser.DoesNotExist:
+            user = CustomUser(
+                username=data["username"],
+                email=data["email"],
+                first_name=data["first_name"],
+                last_name=data["last_name"],
+                password="password123",
+                role=data["role"],
+            )
+            user.save()
+            created = True
 
         if created:
             if data["role"] == ROLE_STAFF:
