@@ -25,3 +25,4 @@ urllib3==2.3.0
 django-utils-six
 gunicorn
 psycopg2-binary
+whitenoise
