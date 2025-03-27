@@ -1,1 +1,1 @@
-web : gunicorn my_libray.wsgi --log-file-
+web : gunicorn my_libray.wsgi --log-file=-
