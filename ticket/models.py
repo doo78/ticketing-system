@@ -20,7 +20,7 @@ class CustomUser(AbstractUser):
     preferred_name = models.CharField(max_length=150, blank=True, null=True)
     REQUIRED_FIELDS = ['email', 'first_name', 'last_name']
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
-    wis_email_verified = models.BooleanField(default=False)
+    is_email_verified = models.BooleanField(default=False)
     
     remember_token = models.CharField(max_length=64, blank=True, null=True, unique=True)
     remember_token_expiry = models.DateTimeField(blank=True, null=True)
