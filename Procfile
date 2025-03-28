@@ -1,1 +1,1 @@
-web : gunicorn my_library.wsgi --log-file=-
+web: python3 manage.py collectstatic --noinput && gunicorn my_library.wsgi
