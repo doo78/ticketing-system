@@ -25,13 +25,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-522s1gd5yk5^td_+@y4u)=$z2zgbna-bj_p&89r_#idojf5)n#'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ["localhost" , "team-sk-production.up.railway.app","127.0.0.1" , '.railway.app' ]
 CSRF_TRUSTED_ORIGINS = [
     'https://team-sk-production.up.railway.app',
-    'https://*.railway.app']
-
+    'https://*.railway.app'
+]
 # Application definition
 
 INSTALLED_APPS = [
@@ -215,3 +215,23 @@ LAMBDA_FUNCTION_NAME = 'ticket-context-handler'  # The name we gave our Lambda f
 
 MAIN_URL="http://127.0.0.1:8000"
 WEBSITE_NAME="University Helpdesk"
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'ERROR',
+    },
+    'django': {
+        'handlers': ['console'],
+        'level': 'ERROR',
+        'propagate': True,
+    },
+}
+
