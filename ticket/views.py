@@ -15,7 +15,7 @@ from django.conf import settings
 from django.http import HttpResponse, JsonResponse
 import urllib
 import six
-from ticket.mixins import RoleBasedRedirectMixin,AdminRoleRequiredMixin
+from ticket.mixins import RoleBasedRedirectMixin
 from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm,EditAccountForm,AdminUpdateProfileForm
 from .models import Ticket, Staff, Student, CustomUser, AdminMessage, Announcement, StudentMessage, StaffMessage
 from .forms import DEPT_CHOICES, LogInForm, SignUpForm, StaffUpdateProfileForm, EditAccountForm, TicketForm, RatingForm
@@ -784,18 +784,6 @@ def faq(request):
     """View function for the FAQ page.Displays frequently asked questions organized by categories."""
     return render(request, 'faq.html')
 
-
-#class AdminDashboardView(AdminRoleRequiredMixin,View):
-    template_name = 'admin-panel/admin_dashboard.html'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['total_tickets'] = Ticket.objects.count()
-        context['open_tickets'] = Ticket.objects.filter(status='open').count()
-        context['closed_tickets'] = Ticket.objects.filter(status='closed').count()
-        context['recent_activities'] = Ticket.objects.order_by('-created_at')[:5]
-        return context
-
 @login_required
 def admin_dashboard(request):
     context={}
@@ -804,11 +792,8 @@ def admin_dashboard(request):
     context["tickets_count"]=Ticket.objects.count()
     context["pending_tickets_count"] = Ticket.objects.filter(status='pending').exclude(status='closed').exclude(status='open').count()
     context["recent_activities"]=Ticket.objects.order_by('-date_updated')[:10]
-    print(context)
     return render(request, 'admin-panel/admin_dashboard.html', context)
 
-# def admin_ticket_list(request):
-#     return render(request, 'admin-panel/admin_ticket_list.html')
 
 class AdminTicketListView(LoginRequiredMixin,AdminRequiredMixin, View):
     def get(self, request):
