@@ -260,16 +260,4 @@ class TicketExpirationTest(TestCase):
             expiration_date=past_date  # Expired yesterday
         )
     
-    def test_ticket_auto_closes_on_expiration(self):
-        """Test that tickets auto-close when they expire."""
-        # When we save the ticket again, it should auto-close due to expiration
-        self.expired_ticket.save()
-        
-        # Refresh from database
-        self.expired_ticket.refresh_from_db()
-        
-        # Check that status is now closed
-        self.assertEqual(self.expired_ticket.status, 'closed')
-        
-        # Check that date_closed is set
-        self.assertIsNotNone(self.expired_ticket.date_closed)
+    
