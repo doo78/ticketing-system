@@ -134,7 +134,6 @@ class Ticket(models.Model):
             self.date_closed = now()
             self.closed_by = self.assigned_staff if self.assigned_staff else None
         super().save(*args, **kwargs)
-
     admin_message = models.TextField(null=True, blank=True)
 
     @property
