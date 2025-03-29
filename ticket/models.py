@@ -21,7 +21,6 @@ class CustomUser(AbstractUser):
     REQUIRED_FIELDS = ['email', 'first_name', 'last_name']
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
     is_email_verified = models.BooleanField(default=False)
-    
     remember_token = models.CharField(max_length=64, blank=True, null=True, unique=True)
     remember_token_expiry = models.DateTimeField(blank=True, null=True)
 
@@ -108,21 +107,17 @@ class Ticket(models.Model):
     description = models.TextField()
     department = models.CharField(max_length=50, choices=DEPT_CHOICES, null=True, blank=True)
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, null=True, blank=True)
-   
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='submitted_tickets', null=True)
-
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
     assigned_staff = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True)
     date_submitted = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
     date_closed = models.DateTimeField(blank=True, null=True)
     closed_by = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True, related_name='closed_tickets')
-    expiration_date = models.DateTimeField(default=now() + timedelta(days=30))
-
+    expiration_date = models.DateTimeField(null=True, blank=True)
     message_id = models.CharField(max_length=255, blank=True, null=True)
     ai_response = models.BooleanField(default=False)
     
-    # Rating field - nullable because rating is only available after closure
     rating = models.IntegerField(choices=RATING_CHOICES, null=True, blank=True)
     rating_comment = models.TextField(blank=True, null=True)
 
@@ -131,7 +126,8 @@ class Ticket(models.Model):
 
     
     def save(self, *args, **kwargs):
-
+        if not self.pk:
+            self.expiration_date = now() + timedelta(days=30)
         """Auto-close tickets if expiration time has passed."""
         if self.status in ['open', 'pending'] and now() >= self.expiration_date:
             self.status = 'closed'
