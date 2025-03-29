@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 
-from ticket.models import Ticket, Staff, Student, Message, CustomUser
+from ticket.models import Ticket, Staff, Student, AdminMessage, StudentMessage, StaffMessage, CustomUser
 
 class AnalyticsViewsTest(TestCase):
     """Tests for the analytics dashboard and export views."""
@@ -101,14 +101,14 @@ class AnalyticsViewsTest(TestCase):
         )
         
         # Messages for the tickets
-        Message.objects.create(
+        AdminMessage.objects.create(
             ticket=self.open_ticket,
             author=self.student_user,
             content='Initial message from student',
             created_at=self.open_ticket.date_submitted
         )
         
-        Message.objects.create(
+        AdminMessage.objects.create(
             ticket=self.pending_ticket,
             author=self.student_user,
             content='Initial message from student',
@@ -116,14 +116,14 @@ class AnalyticsViewsTest(TestCase):
         )
         
         # Staff response to the pending ticket
-        Message.objects.create(
+        AdminMessage.objects.create(
             ticket=self.pending_ticket,
             author=self.staff_user,
             content='Response from staff',
             created_at=self.pending_ticket.date_submitted + datetime.timedelta(hours=4)
         )
         
-        Message.objects.create(
+        AdminMessage.objects.create(
             ticket=self.closed_ticket,
             author=self.student_user,
             content='Initial message from student',
@@ -131,7 +131,7 @@ class AnalyticsViewsTest(TestCase):
         )
         
         # Staff response to the closed ticket
-        Message.objects.create(
+        AdminMessage.objects.create(
             ticket=self.closed_ticket,
             author=self.staff_user,
             content='Response from staff',

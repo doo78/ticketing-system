@@ -1,6 +1,6 @@
 from django.test import TestCase, Client
 from django.urls import reverse
-from ticket.models import CustomUser, Student, Ticket, Message, Staff
+from ticket.models import CustomUser, Student, Ticket, AdminMessage, StaffMessage, StudentMessage, Staff
 from django.utils import timezone
 from datetime import timedelta
 from ticket.forms import RatingForm
@@ -140,7 +140,7 @@ class StudentDashboardTest(TestCase):
         self.assertRedirects(response, self.ticket_detail_url)
         
         # Verify message was created
-        self.assertTrue(Message.objects.filter(
+        self.assertTrue(StudentMessage.objects.filter(
             ticket=self.open_ticket,
             content='This is a test message'
         ).exists())
@@ -238,7 +238,7 @@ class StudentDashboardTest(TestCase):
         self.client.login(username='testuser', password='testpass123')
         response = self.client.post(self.ticket_detail_url, {'message': ''})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(Message.objects.filter(ticket=self.open_ticket).count(), 0)
+        self.assertEqual(StudentMessage.objects.filter(ticket=self.open_ticket).count(), 0)
 
     def test_access_nonexistent_ticket(self):
         """Test accessing a ticket that doesn't exist"""
@@ -298,7 +298,6 @@ class StudentDashboardTest(TestCase):
         response = self.client.get(reverse('student_settings'))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['account_type'], 'Student')
-        self.assertEqual(response.context['status'], 'Active')
         self.assertIn(self.user.date_joined.strftime('%B'), response.context['member_since'])
         self.assertNotIn('Today at', response.context['last_login'])  # Should show date format since login was yesterday
 

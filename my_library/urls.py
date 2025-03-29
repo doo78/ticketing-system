@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.conf import settings
 from ticket import views
 from ticket.views import (
-     DashboardView, StaffUpdateProfileView, admin_ticket_detail, home, LogInView, LogOutView, StaffTicketListView, StaffTicketDetailView,
+    StaffUpdateProfileView, admin_ticket_detail, home, LogInView, LogOutView, StaffTicketListView, StaffTicketDetailView,
     ManageTicketView, StaffProfileView, password_reset_sent, staff_dashboard, SignUpView,AdminTicketListView, AdminAccountsView,AdminAccountView,AdminAccountEditView,
      AdminAPITicketDetailsView,AdminAPIStaffByDepartmentView,AdminAPITicketAssignView,ForgetPasswordMailView,ForgetPasswordNewPasswordView,PasswordResetSentView, admin_ticket_detail
 
@@ -28,7 +28,6 @@ urlpatterns = [
     path('logout/', LogOutView.as_view(), name='logout'),
     path('forget-password/mail', ForgetPasswordMailView.as_view(), name='forget_password_mail'),
     path('forget-password/reset/', ForgetPasswordNewPasswordView.as_view(), name='forget_password_reset_password'),
-    path('dashboard/', DashboardView.as_view(), name='dashboard'),
     path('forget-password/reset', ForgetPasswordNewPasswordView.as_view(), name='forget_password_reset_password'),
     path('sign_up/' , SignUpView.as_view() , name= 'sign_up'),
     path('forget-password/', views.ForgetPasswordMailView.as_view(), name='forget-password'),
@@ -98,7 +97,7 @@ urlpatterns = [
         path('control-panel/account/<int:account_id>/', views.AdminAccountEditView.as_view(), name='admin_account_edit'),
 
     ])),
-    path('dashboard/', DashboardView.as_view(), name='dashboard'),
+
 
 
 

@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 
-from ticket.models import Ticket, Staff, Student, Message, CustomUser
+from ticket.models import Ticket, Staff, Student, AdminMessage, StudentMessage, StaffMessage, CustomUser
 from ticket.views import analytics_dashboard
 
 class AnalyticsCalculationsTest(TestCase):
@@ -78,14 +78,14 @@ class AnalyticsCalculationsTest(TestCase):
         response_time1 = submission_time1 + datetime.timedelta(hours=2)
         
         # Messages for ticket 1
-        Message.objects.create(
+        AdminMessage.objects.create(
             ticket=self.ticket1,
             author=self.student_user,
             content='Initial message from student',
             created_at=submission_time1
         )
         
-        Message.objects.create(
+        AdminMessage.objects.create(
             ticket=self.ticket1,
             author=self.staff_user,
             content='Response from staff after 2 hours',
@@ -114,14 +114,14 @@ class AnalyticsCalculationsTest(TestCase):
         response_time2 = submission_time2 + datetime.timedelta(hours=4)
         
         # Messages for ticket 2
-        Message.objects.create(
+        AdminMessage.objects.create(
             ticket=self.ticket2,
             author=self.student_user,
             content='Initial message from student',
             created_at=submission_time2
         )
         
-        Message.objects.create(
+        AdminMessage.objects.create(
             ticket=self.ticket2,
             author=self.staff_user,
             content='Response from staff after 4 hours',

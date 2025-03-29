@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from ticket.models import Ticket, Staff, Student, CustomUser, Message
+from ticket.models import Ticket, Staff, Student, CustomUser, AdminMessage, StaffMessage, StudentMessage
 from unittest.mock import patch
 import json
 from django.contrib import messages
@@ -124,7 +124,7 @@ class ManageTicketViewTest(TestCase):
             student=self.student,
             assigned_staff=self.staff
         )
-        Message.objects.create(
+        StaffMessage.objects.create(
             ticket=ticket,
             author=self.staff_user,
             content='Test response'
@@ -429,8 +429,12 @@ class StaffTicketListViewTest(TestCase):
         )
         
         self.assertRedirects(response, self.ticket_detail_url)
-        self.assertTrue(self.open_ticket.messages.filter(content='This is a regular message').exists())
+        #self.assertTrue(self.open_ticket.messages.filter(content='This is a regular message').exists())
+        self.assertTrue(
+        StaffMessage.objects.filter(ticket=self.open_ticket, content='This is a regular message').exists()
+            )
 
+        
 class StaffTicketRatingTest(TestCase):
     def setUp(self):
         """Create a staff user and test tickets with ratings."""

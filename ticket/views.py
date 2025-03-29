@@ -550,9 +550,18 @@ class StaffTicketDetailView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View)
             ticket.date_closed = now()
             ticket.closed_by = ticket.assigned_staff if ticket.assigned_staff else None
             ticket.save()
+            
+        ticket_messages = sorted(
+                list(ticket.student_messages.all()) +  
+                list(ticket.staff_messages.all()) +  
+                list(ticket.admin_messages.all()),  
+                key=lambda msg: msg.created_at  
+            )
+        
         context = {
             'ticket': ticket,
-            'ticket_messages': ticket.messages.all().order_by('created_at')
+            #'ticket_messages': ticket.message_id.all().order_by('created_at')
+            'ticket_messages': ticket_messages,
         }
         return render(request, 'staff/ticket_detail.html', context)
 
