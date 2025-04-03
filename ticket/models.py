@@ -46,6 +46,9 @@ class CustomUser(AbstractUser):
         if not self.preferred_name:
             self.preferred_name = self.first_name
         super().save(*args, **kwargs)
+    
+    def get_full_name(self):
+        return f"{self.first_name} {self.last_name}"
 
 
 class Staff(models.Model):

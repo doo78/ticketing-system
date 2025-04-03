@@ -31,9 +31,9 @@ urlpatterns = [
     path('forget-password/reset', ForgetPasswordNewPasswordView.as_view(), name='forget_password_reset_password'),
     path('sign_up/' , SignUpView.as_view() , name= 'sign_up'),
     path('forget-password/', views.ForgetPasswordMailView.as_view(), name='forget-password'),
-    path('forget-password/sent/', views.PasswordResetSentView.as_view(), name='email-sent'), 
+    #path('forget-password/sent/', views.PasswordResetSentView.as_view(), name='email-sent'), 
     path('forget-password/sent/', PasswordResetSentView.as_view(), name='email-sent'),
-    path('forget-password/sent/', password_reset_sent, name='email-sent'),
+    #path('forget-password/sent/', password_reset_sent, name='email-sent'),
     path('forget-password/reset/', views.PasswordResetView.as_view(), name='password-reset'),
 
 

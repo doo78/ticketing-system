@@ -18,7 +18,7 @@ from django.conf import settings
 from django.http import HttpResponse, JsonResponse
 from ticket.mixins import RoleBasedRedirectMixin, StaffRequiredMixin, AdminRequiredMixin, AdminOrStaffRequiredMixin, StudentRequiredMixin
 from .models import Ticket, Staff, Student, CustomUser, AdminMessage, Announcement, StudentMessage, StaffMessage
-from .forms import DEPT_CHOICES, LogInForm, SignUpForm, StaffUpdateProfileForm, EditAccountForm, TicketForm, RatingForm, AdminUpdateProfileForm
+from .forms import DEPT_CHOICES, LogInForm, SignUpForm, StaffUpdateProfileForm, EditAccountForm, TicketForm, RatingForm, AdminUpdateProfileForm, AdminUpdateForm
 from django.views.generic.edit import UpdateView
 from django.views import View
 from datetime import datetime, timedelta
@@ -37,7 +37,6 @@ from django.contrib.auth import get_user_model
 from django import forms
 from urllib.parse import quote 
 
-
 #----Gen AI imports----#
 import boto3
 import json
@@ -50,13 +49,17 @@ from django.urls import reverse
 # from django.template.loader import render_to_string
 # from django.core.mail import EmailMultiAlternatives
 
+User = get_user_model()
+
 #------------------------------------STUDENT SECTION------------------------------------#
 class DashboardView(LoginRequiredMixin, View):
     """
-    Display the appropriate dashboard based on the user's role.
+    Displays the appropriate dashboard based on the user's role.
     """
-
     def get(self, request, *args, **kwargs):
+        """
+        Determines the correct dashboard based on the user's role.
+        """
         role_dispatch = {
             'admin': self.render_admin_dashboard,  
             'staff': self.render_staff_dashboard,
@@ -66,8 +69,9 @@ class DashboardView(LoginRequiredMixin, View):
         return handler(request)
 
     def render_staff_dashboard(self, request):
-        """Render staff dashboard."""
-        
+        """
+        Renders staff dashboard
+        """
         context = {
             'assigned_tickets_count': Ticket.objects.filter(
                 assigned_staff=request.user.staff if hasattr(request.user, 'staff') else None
@@ -78,16 +82,23 @@ class DashboardView(LoginRequiredMixin, View):
     
 @login_required
 def create_ticket(request):
+    """
+    Creates tickets for students
+    """
     if not hasattr(request.user, 'student'):
         raise PermissionDenied("Only students can create tickets")
 
-    if request.method == 'POST':
+    if request.method != 'POST':
+        form = TicketForm(student=request.user.student)
+        
+    else:
         form = TicketForm(request.POST, student=request.user.student)
         if form.is_valid():
             ticket = form.save()
 
             if ticket.department:
                 matching_staff = Staff.objects.filter(department=ticket.department)
+                
                 if matching_staff.exists():
                     assigned_staff = None
                     min_active_tickets = float('inf')
@@ -119,9 +130,7 @@ def create_ticket(request):
                 f'Your ticket #{ticket.id} has been submitted successfully. We will review it shortly.'
             )
             return redirect('student_dashboard')
-    else:
-        form = TicketForm(student=request.user.student)
-
+        
     return render(request, 'student/create_ticket.html', {
         'form': form,
         'title': 'Submit New Query'
@@ -129,6 +138,9 @@ def create_ticket(request):
 
 @login_required
 def student_settings(request):
+    """
+    Loads and processes student settings page
+    """
     if not hasattr(request.user, 'student'):
         return redirect('home')
 
@@ -137,10 +149,13 @@ def student_settings(request):
         from django.utils import timezone
         from django.utils.timezone import localtime
         now = timezone.now()
+        
         if now.date() == last_login.date():
             last_login_display = f"Today at {localtime(last_login).strftime('%I:%M %p')}"
+            
         else:
             last_login_display = localtime(last_login).strftime('%B %d, %Y %I:%M %p')
+            
     else:
         last_login_display = "Never"
 
@@ -159,6 +174,9 @@ def student_settings(request):
 
 @login_required
 def ticket_list(request):
+    """
+    Loads ticket list for students
+    """
     if not hasattr(request.user, 'student'):
         return redirect('home')
 
@@ -169,6 +187,9 @@ from ticket.models import StudentMessage, AdminMessage
 
 @login_required
 def ticket_detail(request, ticket_id):
+    """
+    Loads and processes page for viewing ticket details
+    """
     if not hasattr(request.user, 'student'):
         return redirect('home')
 
@@ -213,10 +234,16 @@ def ticket_detail(request, ticket_id):
 #------------------------------------STAFF SECTION------------------------------------#
 
 def home(request):
+    """
+    Renders the home page
+    """
     return render(request, 'home.html')
 
 @login_required
 def staff_dashboard(request):
+    """
+    Loads and processes all the details for staff dashboard
+    """
     if not hasattr(request.user, 'staff'):
         return redirect('home')
 
@@ -224,11 +251,13 @@ def staff_dashboard(request):
     assigned_tickets_count = Ticket.objects.filter(
         assigned_staff=request.user.staff
     ).exclude(status='closed').count()
+    
     department_tickets_count = 0
     if staff_department:
         department_tickets_count = Ticket.objects.filter(
             department=staff_department
         ).exclude(status='closed').count()
+        
     unassigned_dept_tickets = 0
     if staff_department:
         unassigned_dept_tickets = Ticket.objects.filter(
@@ -261,27 +290,35 @@ class LogInView(View, RoleBasedRedirectMixin):
         return render(request, 'login.html', {'form': form})
 
     def post(self, request):
+        """
+        Validates the login details
+        """
         form = AuthenticationForm(data=request.POST)
         if form.is_valid():
             user = form.get_user()
             login(request, user)
+            
             if not user.is_email_verified:
                 messages.warning(request, "Please verify your email address to access all features.")
+                
             redirect_url = self.get_redirect_url(user)
             if redirect_url.startswith('/'):
                 return redirect(redirect_url)
+            
             return redirect(redirect_url)
+        
         messages.error(request, "Invalid username or password.")
         return render(request, 'login.html', {'form': form})
 
     def render(self, request, next_page=''):
-        """Render login template with blank log in form."""
+        """Renders login the template with blank log in form."""
         form = LogInForm()
         return render(request, 'login.html', {'form': form, 'next': next_page})
 
 class LogOutView(View):
-    """Log out the current user and redirect to login page."""
-
+    """
+    Log out the current user and redirect to login page.
+    """
     def get(self, request):
         storage = messages.get_messages(request)
         storage.used = True
@@ -295,12 +332,14 @@ class SignUpView(View):
     """
     Handles user registration using Django's Class-Based Views.
     """
-        
     def get(self, request):
         form = SignUpForm()
         return render(request, "sign_up.html", {"form": form})
 
     def post(self, request):
+        """
+        Validates the sign up information and sends verification email
+        """
         form = SignUpForm(request.POST)
         if form.is_valid():
             user = form.save()
@@ -335,11 +374,15 @@ class SignUpView(View):
         return render(request, "sign_up.html", {"form": form})
 
 class VerifyEmailView(View):
+    """
+    Handles email verification when a verification link sent by email is clicked 
+    """
     def get(self, request, uidb64, token):
         User = get_user_model()
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = User.objects.get(pk=uid)
+            
         except (TypeError, ValueError, OverflowError, User.DoesNotExist):
             user = None
 
@@ -348,12 +391,17 @@ class VerifyEmailView(View):
             user.is_email_verified = True
             user.save()
             messages.success(request, "Your email has been verified successfully! Please log in.")
+            
         else:
             messages.error(request, "The verification link is invalid or has expired.")
+            
         return redirect('log_in')
 
 @login_required
 def student_dashboard(request):
+    """
+    Loads and processes the student dashboard
+    """
     if not hasattr(request.user, 'student'):
         return redirect('home')
 
@@ -389,8 +437,10 @@ def student_dashboard(request):
     }
     return render(request, 'student/dashboard.html', context)
 
-
 class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
+    """
+    Carries out actions initiated by clicking ticket buttons
+    """
     def get(self, request, ticket_id):
         ticket = Ticket.objects.get(id=ticket_id)
         return render(request, 'staff/ticket_detail.html', {'ticket': ticket})
@@ -405,8 +455,8 @@ class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
         if action == 'assign':
             ticket.assigned_staff = request.user.staff
             ticket.status = 'pending'
+        
         elif action == 'close':
-
             if ticket.assigned_staff is not None and ticket.assigned_staff != request.user.staff:
                 messages.error(request, 'Only the assigned staff member can close this ticket.')
                 return redirect('staff_ticket_list')
@@ -415,6 +465,7 @@ class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
             ticket.closed_by = request.user.staff
             ticket.date_closed = timezone.now()
             messages.success(request, f'Ticket #{ticket.id} has been closed successfully.')
+        
         else:
             new_department = request.POST.get('department')
 
@@ -452,8 +503,10 @@ class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
 
         return redirect(redirect_url)
 
-
 class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
+    """
+    Loads and processes the ticket list for staff
+    """
     def get(self, request):
         status = request.GET.get('status', 'all')
         department_filter = request.GET.get('department_filter', 'all')
@@ -494,8 +547,13 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
         return render(request, 'staff/staff_ticket_list.html', context)
 
 class StaffTicketDetailView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
-    """Display ticket details for staff members"""
+    """
+    Display ticket details for staff members
+    """
     def get(self, request, ticket_id):
+        """
+        Loads ticket details and associated messages
+        """
         ticket = get_object_or_404(Ticket, id=ticket_id)
         if ticket.status in ['open', 'pending'] and now() >= ticket.expiration_date:
             ticket.status = 'closed'
@@ -517,6 +575,9 @@ class StaffTicketDetailView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View)
         return render(request, 'staff/ticket_detail.html', context)
 
     def post(self, request, ticket_id):
+        """
+        Handles POST requests for support tickets by sending data to AWS for AI or adding a message to the ticket if not closed
+        """
         ticket = get_object_or_404(Ticket, id=ticket_id)
 
         # Check if this is a JSON request (AI generation)
@@ -621,7 +682,6 @@ class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
     """
     Loads relevant data and template for staff profile
     """
-
     def get(self, request):
         if request.user.role == 'staff':
             staff_member = request.user.staff
@@ -675,6 +735,7 @@ class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
                     avg_close_time_days_display = f"{avg_close_time_days} days"
                 else:
                     avg_close_time_days_display = "N/A"
+                    
             context = {
                 "open_tickets": open_tickets,
                 "pending_tickets": pending_tickets,
@@ -688,54 +749,62 @@ class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
                 "avg_rating_display": avg_rating_display,
                 "rated_tickets_count": rated_tickets_count
             }
+            
         else:
             context={}
+            
         return render(request, 'staff/profile.html', context)
 
 class StaffUpdateProfileView(UpdateView):
     """
     Loads the page and form to update the staff profile
     """
-
     model = CustomUser
     template_name = "staff/update_profile.html"
+    
     def get_form_class(self):
-        """Return the appropriate form class based on user role."""
+        """Return the appropriate form class based on user role"""
         if self.request.user.role == 'staff':
             return StaffUpdateProfileForm
         return AdminUpdateProfileForm
 
     def get_object(self):
-        """Return the object (user) to be updated."""
+        """Return the user to be updated"""
         return self.request.user
 
     def get_success_url(self):
-        """Return redirect URL after successful update."""
-
+        """Return redirect URL"""
         return reverse("staff_profile")
 
-
 def check_username(request):
+    """
+    Checks a username exists
+    """
     username = request.GET.get('username', '')
     exists = CustomUser.objects.filter(username=username).exists()
     return JsonResponse({'exists': exists})
 
 def check_email(request):
+    """
+    Checks an email exists
+    """
     email = request.GET.get('email', '')
     exists = CustomUser.objects.filter(email=email).exists()
     return JsonResponse({'exists': exists})
 
-
 def about(request):
-    """View function for the about page.Displays information about the University Helpdesk, its mission, team, values, and services offered. """
+    """Renders information about the University Helpdesk"""
     return render(request, 'about.html')
 
 def faq(request):
-    """View function for the FAQ page.Displays frequently asked questions organized by categories."""
+    """Renders FAQs organized by categories."""
     return render(request, 'faq.html')
 
 @login_required
 def admin_dashboard(request):
+    """
+    Loads and processes admin dashboard
+    """
     context={}
     context["open_tickets_count"] = Ticket.objects.filter(status='open').exclude(status='closed').exclude(status='pending').count()
     context["closed_tickets_count"] = Ticket.objects.filter(status='closed').exclude(status='pending').exclude(status='open').count()
@@ -744,8 +813,10 @@ def admin_dashboard(request):
     context["recent_activities"]=Ticket.objects.order_by('-date_updated')[:10]
     return render(request, 'admin-panel/admin_dashboard.html', context)
 
-
 class AdminTicketListView(LoginRequiredMixin,AdminRequiredMixin, View):
+    """
+    Loads and processes ticket list for admins
+    """
     def get(self, request):
         status = request.GET.get('status', 'all')
         order = request.GET.get('order', 'asce')
@@ -775,9 +846,8 @@ class AdminTicketListView(LoginRequiredMixin,AdminRequiredMixin, View):
 
 class AdminAccountView(LoginRequiredMixin,AdminRequiredMixin,View):
     """
-    Handles user registration using Django's Class-Based Views.
+    Handles admins creating new accounts
     """
-
     def get(self, request):
         form = SignUpForm()
         return render(request, "admin-panel/admin_accounts.html", {"form": form,"is_update":False})
@@ -797,13 +867,13 @@ class AdminAccountView(LoginRequiredMixin,AdminRequiredMixin,View):
                 )
             messages.success(request, "Account created successfully!.")
             return redirect('admin_accounts_list')
+        
         return render(request, "admin-panel/admin_accounts.html", {"form": form,"is_update":False})
 
 class AdminAccountEditView(LoginRequiredMixin,AdminRequiredMixin,View):
     """
-    Handles user registration using Django's Class-Based Views.
+    Handles admins editing accounts
     """
-
     def get(self, request,account_id):
         account=get_object_or_404(CustomUser, id=account_id)
         form = EditAccountForm(instance=account)
@@ -826,11 +896,12 @@ class AdminAccountEditView(LoginRequiredMixin,AdminRequiredMixin,View):
                 )
             messages.success(request, "Account updated successfully!.")
             return redirect('admin_accounts_list')
+        
         return render(request, "admin-panel/admin_accounts.html", {"form": form,"is_update":True})
     
 class AdminAccountsView(LoginRequiredMixin,AdminRequiredMixin,View):
     """
-    Handles user registration using Django's Class-Based Views.
+    Loads and processes account list for admins
     """
     def get(self, request):
         admin_count=CustomUser.objects.filter(role="admin").count()
@@ -858,6 +929,9 @@ class AdminAccountsView(LoginRequiredMixin,AdminRequiredMixin,View):
 
 
     def post(self, request):
+        """
+        Processes admin deleting a user
+        """
         account_id = request.POST.get("account_id") 
 
         if account_id:
@@ -871,6 +945,9 @@ class AdminAccountsView(LoginRequiredMixin,AdminRequiredMixin,View):
         return redirect("admin_accounts_list")
 
 class EmailVerificationTokenGenerator(PasswordResetTokenGenerator):
+    """
+    Generates token for email verification
+    """
     def _make_hash_value(self, user, timestamp):
         return (
             six.text_type(user.pk) + six.text_type(timestamp) +
@@ -878,6 +955,9 @@ class EmailVerificationTokenGenerator(PasswordResetTokenGenerator):
         )
         
 class AdminAPITicketDetailsView(LoginRequiredMixin,AdminRequiredMixin,View):
+    """
+    Handles POST requests and the JSON received, for ticket information 
+    """
     def post(self, request):
         try:
             body = json.loads(request.body.decode('utf-8'))
@@ -915,6 +995,9 @@ class AdminAPITicketDetailsView(LoginRequiredMixin,AdminRequiredMixin,View):
             return JsonResponse({'success': False, 'error': str(e)}, status=500)
         
 class AdminAPIStaffByDepartmentView(LoginRequiredMixin,AdminRequiredMixin,View):
+    """
+    Returns staff details by department in response to a POST request
+    """
     def post(self, request):
         try:
             body = json.loads(request.body.decode('utf-8'))
@@ -941,6 +1024,9 @@ class AdminAPIStaffByDepartmentView(LoginRequiredMixin,AdminRequiredMixin,View):
             return JsonResponse({'success': False, 'error': str(e)}, status=500)
         
 class AdminAPITicketAssignView(LoginRequiredMixin,AdminRequiredMixin,View):
+    """
+    Assigns staff member to ticket, updates its department and status, and returns a JSON response
+    """
     def post(self, request):
         try:
             body = json.loads(request.body.decode('utf-8'))
@@ -948,20 +1034,24 @@ class AdminAPITicketAssignView(LoginRequiredMixin,AdminRequiredMixin,View):
             assigned_staff_id = body.get('assigned_staff_id')
             department = body.get('department')
             status = body.get('ticket_status')
-            print("ticket_id=",ticket_id)
             ticket = Ticket.objects.get(id=ticket_id)
+            
             if department == "":
                 return JsonResponse({'success': False, 'error': 'department is required'}, status=400)
+            
             if assigned_staff_id != "" and department != "":
                 ticket.assigned_staff_id = assigned_staff_id
                 ticket.department = department
+                
                 if status :
                     ticket.status = "closed"
                 else:
                     ticket.status = 'pending'
+                    
                 ticket.save()
                 messages.success(request, "ticket assigned successfully.")
                 return JsonResponse({'success': True},status=200)
+            
             else:
                 ticket.department = department
                 ticket.status = 'open'
@@ -975,6 +1065,9 @@ class AdminAPITicketAssignView(LoginRequiredMixin,AdminRequiredMixin,View):
             return JsonResponse({'success': False, 'error': 'Invalid JSON format'}, status=400)
 
 def analytics_dashboard(request):
+    """
+    Loads and processes the analytics dashboard for admin
+    """
     today = timezone.now().date()
     default_start = today - timedelta(days=30)
     
@@ -984,6 +1077,7 @@ def analytics_dashboard(request):
     try:
         date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date() if date_from_str else default_start
         date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date() if date_to_str else today
+        
     except ValueError:
         date_from = default_start
         date_to = today
@@ -1035,7 +1129,9 @@ def analytics_dashboard(request):
         if ticket.date_closed and ticket.date_submitted and ticket.date_closed > ticket.date_submitted:
             time_diff = ticket.date_closed - ticket.date_submitted
             resolution_times.append(time_diff.total_seconds() / 3600) 
+    
     avg_resolution_time = round(sum(resolution_times) / len(resolution_times), 1) if resolution_times else 15.0  # Use the expected value from test
+    
     if tickets_with_responses > 0:
         avg_response_time = round(avg_response_time / tickets_with_responses, 1)
     else:
@@ -1174,6 +1270,9 @@ def analytics_dashboard(request):
     })
 
 def export_tickets_csv(request):
+    """
+    Generates CSV file for data of tickets submitted within a specified date range
+    """
     today = timezone.now().date()
     default_start = today - timedelta(days=30)
 
@@ -1183,6 +1282,7 @@ def export_tickets_csv(request):
     try:
         date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date() if date_from_str else default_start
         date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date() if date_to_str else today
+        
     except ValueError:
         date_from = default_start
         date_to = today
@@ -1237,7 +1337,9 @@ def export_tickets_csv(request):
     return response
 
 def export_performance_csv(request):
-    """Export staff performance metrics as CSV"""
+    """
+    Exports staff performance metrics as CSV
+    """
     today = timezone.now().date()
     default_start = today - timedelta(days=30)
     
@@ -1247,6 +1349,7 @@ def export_performance_csv(request):
     try:
         date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date() if date_from_str else default_start
         date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date() if date_to_str else today
+        
     except ValueError:
         date_from = default_start
         date_to = today
@@ -1309,6 +1412,9 @@ def export_performance_csv(request):
 
 @login_required
 def admin_profile(request):
+    """
+    Loads and processes profiles for admins
+    """
     if request.user.role != 'admin':
         raise PermissionDenied()
 
@@ -1320,21 +1426,11 @@ def admin_profile(request):
     }
     return render(request, 'admin-panel/admin_profile.html', context)
 
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.contrib.auth import get_user_model
-from django import forms
-
-
-User = get_user_model()
-
-class AdminUpdateForm(forms.ModelForm):
-    class Meta:
-        model = User
-        fields = ['first_name', 'last_name', 'email']
-
 @login_required
 def admin_update_profile(request):
+    """
+    Processes profile updates for admins
+    """
     user = request.user
 
     if user.role != 'admin':
@@ -1354,6 +1450,9 @@ def admin_update_profile(request):
 @login_required
 @csrf_protect
 def admin_ticket_detail(request, ticket_id):
+    """
+    Loads and processes ticket details for admins
+    """
     ticket = get_object_or_404(Ticket, id=ticket_id)
 
     if request.method == 'POST':
@@ -1396,8 +1495,9 @@ def admin_ticket_detail(request, ticket_id):
 
 @login_required
 def admin_announcements(request):
-    """View for admin to manage announcements"""
-
+    """
+    Handles announcements made by admins
+    """
     user = get_user(request)
     
     if user.role != 'admin':
@@ -1413,7 +1513,9 @@ def admin_announcements(request):
 
 @login_required
 def create_announcement(request):
-    """Handle creation of new announcements"""
+    """
+    Handles creation of new announcements by admins
+    """
     if request.user.role != 'admin':
         raise PermissionDenied
         
@@ -1435,7 +1537,9 @@ def create_announcement(request):
 
 @login_required
 def staff_announcements(request):
-    """View for staff to see all announcements"""
+    """
+    Displays announcements for staff
+    """
     if not hasattr(request.user, 'staff'):
         raise PermissionDenied
         
@@ -1450,7 +1554,9 @@ def staff_announcements(request):
 
 @login_required
 def delete_announcement(request, announcement_id):
-    """Handle deletion of announcements"""
+    """
+    Handles deletion of announcements
+    """
     if request.user.role != 'admin':
         raise PermissionDenied
         
@@ -1460,14 +1566,10 @@ def delete_announcement(request, announcement_id):
             
     return redirect('admin_announcements')
 
-def get_full_name(self):
-    return f"{self.first_name} {self.last_name}"
-
 class ForgetPasswordMailView(View):
     """
-    Handles user registration using Django's Class-Based Views.
+    Handles the forget password email functionality
     """
-    
     def get(self, request):
         context={}
         return render(request, 'forget-password/mail-page.html', context)
@@ -1505,7 +1607,6 @@ class ForgetPasswordMailView(View):
                 "email": mail
             })
 
-
         except CustomUser.DoesNotExist:
             return render(request, 'exception/error-page.html', {
                 "title": "User Not Found",
@@ -1514,14 +1615,21 @@ class ForgetPasswordMailView(View):
             })
         
 class AdminAccountEditView(LoginRequiredMixin, AdminRequiredMixin, View):
+    """
+    Handles admin editing accounts
+    """
     def get(self, request, account_id):
-        """ Logic to handle GET request, like displaying the account form """
+        """
+        Displays the account form
+        """
         account = get_object_or_404(CustomUser, id=account_id)
         form = EditAccountForm(instance=account)
         return render(request, "admin-panel/admin_accounts.html", {"form": form, "is_update": True})
 
     def post(self, request, account_id):
-        """ Logic to handle POST request, like saving updates """
+        """
+        Saves updates to accounts
+        """
         account = get_object_or_404(CustomUser, id=account_id)
         form = EditAccountForm(request.POST, instance=account)
         if form.is_valid():
@@ -1531,16 +1639,16 @@ class AdminAccountEditView(LoginRequiredMixin, AdminRequiredMixin, View):
         return render(request, "admin-panel/admin_accounts.html", {"form": form, "is_update": True})
 
 class PasswordResetSentView(View):
+    """
+    Renders the email sent page
+    """
     def get(self, request):
         return render(request, 'forget-password/email-sent.html')
-    
-def password_reset_sent(request):
-    return render(request, 'forget-password/email-sent.html')
-
-def ForgetPasswordView(request):
-    return render(request, 'forget-password/mail-page.html')
 
 class PasswordResetView(View):
+    """
+    Displays password reset form if token is valid
+    """
     def get(self, request):
         token = request.GET.get('token')
         if not token:
@@ -1552,7 +1660,13 @@ class PasswordResetView(View):
         return render(request, 'forget-password/new-password.html', {"token": token})
 
 class ForgetPasswordNewPasswordView(View):
+    """
+    Handles password reset form
+    """
     def get(self, request):
+        """
+        Validates token
+        """
         token = request.GET.get('token')
 
         try:
@@ -1575,6 +1689,9 @@ class ForgetPasswordNewPasswordView(View):
             })
 
     def post(self, request):
+        """
+        Updates password
+        """
         token = request.POST.get('token')
         new_password = request.POST.get('new_password')
         confirm_password = request.POST.get('confirm_password')
