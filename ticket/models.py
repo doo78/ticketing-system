@@ -50,7 +50,6 @@ class CustomUser(AbstractUser):
     def get_full_name(self):
         return f"{self.first_name} {self.last_name}"
 
-
 class Staff(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
     department = models.CharField(max_length=100)
@@ -82,17 +81,9 @@ class Ticket(models.Model):
         ('pending', 'Pending'),
         ('closed', 'Closed'),
     ]
-    DEPT_CHOICES = [
-        ('arts_humanities', 'Arts & Humanities'),
-        ('business', 'Business'),
-        ('dentistry', 'Dentistry, Oral & Craniofacial Sciences'),
-        ('law', 'Law'),
-        ('life_sciences_medicine', 'Life Sciences & Medicine'),
-        ('natural_mathematical_engineering', 'Natural, Mathematical & Engineering Sciences'),
-        ('nursing', 'Nursing, Midwifery & Palliative Care'),
-        ('psychiatry', 'Psychiatry, Psychology & Neuroscience'), 
-        ('social_science', 'Social Science & Public Policy'),
-    ]
+    
+    DEPT_CHOICES = DEPT_CHOICES[1:]
+    
     PRIORITY_CHOICES = [
         ('low', 'Low'),
         ('normal', 'Normal'),
@@ -167,10 +158,8 @@ class StaffMessage(models.Model):
     def __str__(self):
         return f"Staff message from {self.author} on {self.created_at}"
 
-
     class Meta:
         ordering = ['created_at']
-
 
 class Announcement(models.Model):
     content = models.TextField()

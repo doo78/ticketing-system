@@ -23,10 +23,6 @@ class AdminRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return self.request.user.role == 'admin'
 
-class AdminOrStaffRequiredMixin(UserPassesTestMixin):
-    def test_func(self):
-        return self.request.user.role == 'admin' or self.request.user.role == 'staff'
-
 class StudentRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return hasattr(self.request.user, 'student')

@@ -2,23 +2,14 @@ from django import forms
 from django.contrib.auth import authenticate
 from django.contrib.auth.forms import UserCreationForm,UserChangeForm
 from ticket.models import CustomUser, Ticket
+from django.conf import settings
 
-DEPT_CHOICES = [
-    ('', 'Select Department'),
-    ('arts_humanities', 'Arts & Humanities'),
-    ('business', 'Business'),
-    ('dentistry', 'Dentistry'),
-    ('law', 'Law'),
-    ('life_sciences_medicine', 'Life Sciences & Medicine'),
-    ('natural_mathematical_engineering', 'Natural, Mathematical & Engineering Sciences'),
-    ('nursing', 'Nursing'),
-    ('psychiatry', 'Psychiatry'),
-    ('social_science', 'Social Science')
-]
+DEPT_CHOICES = settings.DEPT_CHOICES
 
 class StaffUpdateProfileForm(forms.ModelForm):
-    """Form for staff to update their profile information."""
-
+    """
+    For staff to update their profile information
+    """
     department = forms.ChoiceField(
         required=True, 
         choices=DEPT_CHOICES,
@@ -30,7 +21,6 @@ class StaffUpdateProfileForm(forms.ModelForm):
         widget=forms.FileInput(attrs={'class': 'form-control'})
     )
     
-
     class Meta:
         model = CustomUser
         fields = ['first_name', 'last_name', 'email', 'preferred_name', 'profile_picture']
@@ -38,7 +28,6 @@ class StaffUpdateProfileForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # Bootstrap styling        
         for field in self.fields.values():
             field.widget.attrs['class'] = 'form-control'
             
@@ -49,10 +38,10 @@ class StaffUpdateProfileForm(forms.ModelForm):
         """Save user and update the related Staff model."""
         user = super().save(commit=False)
         
-    
         user.staff.department = self.cleaned_data['department']
         if self.cleaned_data.get('profile_picture'):
             user.staff.profile_picture = self.cleaned_data['profile_picture']
+            
         if commit:
             user.staff.save()
 
@@ -61,10 +50,10 @@ class StaffUpdateProfileForm(forms.ModelForm):
         
         return user
 
-
 class AdminUpdateProfileForm(forms.ModelForm):
-    """Form for staff to update their profile information."""
-
+    """
+    For staff to update their profile information
+    """
     class Meta:
         model = CustomUser
         fields = ['first_name', 'last_name', 'email', 'preferred_name']
@@ -72,7 +61,6 @@ class AdminUpdateProfileForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Bootstrap styling
         for field in self.fields.values():
             field.widget.attrs['class'] = 'form-control'
 
@@ -85,16 +73,16 @@ class AdminUpdateProfileForm(forms.ModelForm):
 
         return user
 
-
 class LogInForm(forms.Form):
-    """Form enabling registered users to log in."""
+    """
+    Enables registered users to log in
+    """
 
     username = forms.CharField(label="Username")
     password = forms.CharField(label="Password", widget=forms.PasswordInput())
 
     def get_user(self):
         """Returns authenticated user if possible."""
-
         user = None
         if self.is_valid():
             username = self.cleaned_data.get('username')
@@ -104,6 +92,9 @@ class LogInForm(forms.Form):
 
 
 class SignUpForm(UserCreationForm):
+    """
+    For signing up
+    """
     role = forms.ChoiceField(
         choices=[('', 'Select Role')] + list(CustomUser.ROLE_CHOICES),
         required=True
@@ -111,7 +102,6 @@ class SignUpForm(UserCreationForm):
     first_name = forms.CharField(max_length=150, required=True)
     last_name = forms.CharField(max_length=150, required=True)
 
-    # Student specific fields
     department = forms.CharField(max_length=100, required=False)
     program = forms.CharField(max_length=100, required=False)
     year_of_study = forms.IntegerField(min_value=1, max_value=7, required=False)
@@ -135,7 +125,6 @@ class SignUpForm(UserCreationForm):
             ('social_science', 'Social Science')
         ])
 
-        # Initially hide student-specific fields
         for field in ['department', 'program', 'year_of_study']:
             self.fields[field].widget.attrs['class'] = 'student-field d-none'
 
@@ -145,11 +134,9 @@ class SignUpForm(UserCreationForm):
         password1 = cleaned_data.get('password1')
         password2 = cleaned_data.get('password2')
 
-        # Ensure password mismatch error is correctly raised
         if password1 and password2 and password1 != password2:
             self.add_error('password2', "The two password fields didn't match.")
 
-        # Validate required fields for students
         if role == 'student':
             if not cleaned_data.get('department'):
                 self.add_error('department', 'This field is required for students.')
@@ -161,6 +148,9 @@ class SignUpForm(UserCreationForm):
         return cleaned_data
 
 class EditAccountForm(UserChangeForm):
+    """
+    For the admin to edit accounts
+    """
     role = forms.ChoiceField(
         choices=[('', 'Select Role')] + list(CustomUser.ROLE_CHOICES),
         required=True
@@ -168,7 +158,6 @@ class EditAccountForm(UserChangeForm):
     first_name = forms.CharField(max_length=150, required=True)
     last_name = forms.CharField(max_length=150, required=True)
 
-    # Student specific fields
     department = forms.CharField(max_length=100, required=False)
     program = forms.CharField(max_length=100, required=False)
     year_of_study = forms.IntegerField(min_value=1, max_value=7, required=False)
@@ -192,7 +181,6 @@ class EditAccountForm(UserChangeForm):
             ('social_science', 'Social Science')
         ])
 
-        # Initially hide student-specific fields
         for field in ['department', 'program', 'year_of_study']:
             self.fields[field].widget.attrs['class'] = 'student-field d-none'
 
@@ -217,6 +205,9 @@ class EditAccountForm(UserChangeForm):
 
 
 class TicketForm(forms.ModelForm):
+    """
+    For a student to create a ticket
+    """
     class Meta:
         model = Ticket
         fields = ['subject', 'description', 'department']
@@ -239,13 +230,10 @@ class TicketForm(forms.ModelForm):
         self.student = kwargs.pop('student', None)
         super().__init__(*args, **kwargs)
 
-        # Set the initial department value to the student's department
         if self.student:
             self.fields['department'].initial = self.student.department
 
-        # Use the same department choices as defined in the Ticket model
         self.fields['department'].choices = Ticket.DEPT_CHOICES
-        
         self.fields['subject'].help_text = 'Enter a clear, brief title for your query'
         self.fields['description'].help_text = 'Include all relevant details, dates, and any other information that might be helpful'
         self.fields['department'].help_text = 'Select the department related to your query'
@@ -257,13 +245,15 @@ class TicketForm(forms.ModelForm):
         ticket = super().save(commit=False)
         if self.student:
             ticket.student = self.student
-            ticket.status = 'open'  # Ensure the ticket starts as open
+            ticket.status = 'open'  
         if commit:
             ticket.save()
         return ticket
 
 class RatingForm(forms.ModelForm):
-    """Form for students to rate their ticket experience after closure."""
+    """
+    For students to rate their ticket experience after closure
+    """
     class Meta:
         model = Ticket
         fields = ['rating', 'rating_comment']
@@ -281,6 +271,9 @@ class RatingForm(forms.ModelForm):
         self.fields['rating_comment'].required = False
         
 class AdminUpdateForm(forms.ModelForm):
+    """
+    For admins to update their accounts
+    """
     class Meta:
         model = CustomUser
         fields = ['first_name', 'last_name', 'email']

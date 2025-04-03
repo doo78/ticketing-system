@@ -16,7 +16,7 @@ from django.contrib.auth import login, logout
 from django.urls import reverse
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
-from ticket.mixins import RoleBasedRedirectMixin, StaffRequiredMixin, AdminRequiredMixin, AdminOrStaffRequiredMixin, StudentRequiredMixin
+from ticket.mixins import RoleBasedRedirectMixin, StaffRequiredMixin, AdminRequiredMixin, StudentRequiredMixin
 from .models import Ticket, Staff, Student, CustomUser, AdminMessage, Announcement, StudentMessage, StaffMessage
 from .forms import DEPT_CHOICES, LogInForm, SignUpForm, StaffUpdateProfileForm, EditAccountForm, TicketForm, RatingForm, AdminUpdateProfileForm, AdminUpdateForm
 from django.views.generic.edit import UpdateView
@@ -37,7 +37,7 @@ from django.contrib.auth import get_user_model
 from django import forms
 from urllib.parse import quote 
 
-#----Gen AI imports----#
+#---------Gen AI imports---------#
 import boto3
 import json
 from botocore.config import Config
@@ -52,34 +52,6 @@ from django.urls import reverse
 User = get_user_model()
 
 #------------------------------------STUDENT SECTION------------------------------------#
-class DashboardView(LoginRequiredMixin, View):
-    """
-    Displays the appropriate dashboard based on the user's role.
-    """
-    def get(self, request, *args, **kwargs):
-        """
-        Determines the correct dashboard based on the user's role.
-        """
-        role_dispatch = {
-            'admin': self.render_admin_dashboard,  
-            'staff': self.render_staff_dashboard,
-            'student': self.render_student_dashboard,
-        }
-        handler = role_dispatch.get(request.user.role, self.redirect_to_home)
-        return handler(request)
-
-    def render_staff_dashboard(self, request):
-        """
-        Renders staff dashboard
-        """
-        context = {
-            'assigned_tickets_count': Ticket.objects.filter(
-                assigned_staff=request.user.staff if hasattr(request.user, 'staff') else None
-            ).exclude(status='closed').count(),
-            'department': request.user.staff.department if hasattr(request.user, 'staff') else "Admin"
-        }
-        return render(request, 'staff/dashboard.html', context)
-    
 @login_required
 def create_ticket(request):
     """
@@ -233,11 +205,22 @@ def ticket_detail(request, ticket_id):
 
 #------------------------------------STAFF SECTION------------------------------------#
 
-def home(request):
+@login_required
+def staff_announcements(request):
     """
-    Renders the home page
+    Displays announcements for staff
     """
-    return render(request, 'home.html')
+    if not hasattr(request.user, 'staff'):
+        raise PermissionDenied
+        
+    staff_department = request.user.staff.department
+    announcements = Announcement.objects.filter(
+        models.Q(department=None) | models.Q(department=staff_department)  
+    ).order_by('-created_at')
+    
+    return render(request, 'staff/announcements.html', {
+        'announcements': announcements
+    })
 
 @login_required
 def staff_dashboard(request):
@@ -279,123 +262,6 @@ def staff_dashboard(request):
         'announcements': announcements
     }
     return render(request, 'staff/dashboard.html', context)
-
-class LogInView(View, RoleBasedRedirectMixin):
-    """
-    Handles user login and redirection based on role.
-    """
-        
-    def get(self, request):
-        form = AuthenticationForm()
-        return render(request, 'login.html', {'form': form})
-
-    def post(self, request):
-        """
-        Validates the login details
-        """
-        form = AuthenticationForm(data=request.POST)
-        if form.is_valid():
-            user = form.get_user()
-            login(request, user)
-            
-            if not user.is_email_verified:
-                messages.warning(request, "Please verify your email address to access all features.")
-                
-            redirect_url = self.get_redirect_url(user)
-            if redirect_url.startswith('/'):
-                return redirect(redirect_url)
-            
-            return redirect(redirect_url)
-        
-        messages.error(request, "Invalid username or password.")
-        return render(request, 'login.html', {'form': form})
-
-    def render(self, request, next_page=''):
-        """Renders login the template with blank log in form."""
-        form = LogInForm()
-        return render(request, 'login.html', {'form': form, 'next': next_page})
-
-class LogOutView(View):
-    """
-    Log out the current user and redirect to login page.
-    """
-    def get(self, request):
-        storage = messages.get_messages(request)
-        storage.used = True
-
-        logout(request)
-
-        messages.success(request, "You have been logged out successfully.")
-        return redirect(reverse("log_in"))
-
-class SignUpView(View):
-    """
-    Handles user registration using Django's Class-Based Views.
-    """
-    def get(self, request):
-        form = SignUpForm()
-        return render(request, "sign_up.html", {"form": form})
-
-    def post(self, request):
-        """
-        Validates the sign up information and sends verification email
-        """
-        form = SignUpForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            if user.role == 'staff':
-                Staff.objects.create(user=user, department='', role='Staff Member')
-            elif user.role == 'student':
-                Student.objects.create(
-                    user=user,
-                    department=form.cleaned_data.get('department', ''),
-                    program=form.cleaned_data.get('program', 'Undeclared'),
-                    year_of_study=form.cleaned_data.get('year_of_study', 1)
-                )
-
-            token_generator = EmailVerificationTokenGenerator()
-            token = token_generator.make_token(user)
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
-            verification_url = reverse('verify_email', kwargs={'uidb64': uid, 'token': token})
-            verification_url = request.build_absolute_uri(verification_url)
-
-            subject = 'Verify Your Email Address'
-            message = f'Hello {user.first_name},\n\nPlease click the link below to verify your email address:\n{verification_url}\n\nThank you!'
-            send_mail(
-                subject=subject,
-                message=message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=False,
-            )
-
-            messages.success(request, "Account created successfully! Please check your email to verify your address.")
-            return redirect('log_in')
-        return render(request, "sign_up.html", {"form": form})
-
-class VerifyEmailView(View):
-    """
-    Handles email verification when a verification link sent by email is clicked 
-    """
-    def get(self, request, uidb64, token):
-        User = get_user_model()
-        try:
-            uid = force_str(urlsafe_base64_decode(uidb64))
-            user = User.objects.get(pk=uid)
-            
-        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-            user = None
-
-        token_generator = EmailVerificationTokenGenerator()
-        if user is not None and token_generator.check_token(user, token):
-            user.is_email_verified = True
-            user.save()
-            messages.success(request, "Your email has been verified successfully! Please log in.")
-            
-        else:
-            messages.error(request, "The verification link is invalid or has expired.")
-            
-        return redirect('log_in')
 
 @login_required
 def student_dashboard(request):
@@ -546,7 +412,7 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
         }
         return render(request, 'staff/staff_ticket_list.html', context)
 
-class StaffTicketDetailView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
+class StaffTicketDetailView(LoginRequiredMixin, AdminRequiredMixin, StaffRequiredMixin, View):
     """
     Display ticket details for staff members
     """
@@ -678,7 +544,7 @@ class StaffTicketDetailView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View)
 
         return redirect('staff_ticket_detail', ticket_id=ticket_id)
 
-class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
+class StaffProfileView(LoginRequiredMixin, AdminRequiredMixin, StaffRequiredMixin, View):
     """
     Loads relevant data and template for staff profile
     """
@@ -776,29 +642,7 @@ class StaffUpdateProfileView(UpdateView):
         """Return redirect URL"""
         return reverse("staff_profile")
 
-def check_username(request):
-    """
-    Checks a username exists
-    """
-    username = request.GET.get('username', '')
-    exists = CustomUser.objects.filter(username=username).exists()
-    return JsonResponse({'exists': exists})
-
-def check_email(request):
-    """
-    Checks an email exists
-    """
-    email = request.GET.get('email', '')
-    exists = CustomUser.objects.filter(email=email).exists()
-    return JsonResponse({'exists': exists})
-
-def about(request):
-    """Renders information about the University Helpdesk"""
-    return render(request, 'about.html')
-
-def faq(request):
-    """Renders FAQs organized by categories."""
-    return render(request, 'faq.html')
+#------------------------------------ADMIN SECTION------------------------------------#
 
 @login_required
 def admin_dashboard(request):
@@ -842,7 +686,6 @@ class AdminTicketListView(LoginRequiredMixin,AdminRequiredMixin, View):
             'closed_count': Ticket.objects.filter(status='closed').count(),
         }
         return render(request, 'admin-panel/admin_ticket_list.html', context)
-
 
 class AdminAccountView(LoginRequiredMixin,AdminRequiredMixin,View):
     """
@@ -943,16 +786,6 @@ class AdminAccountsView(LoginRequiredMixin,AdminRequiredMixin,View):
                 messages.success(request, f"Error deleting user: {e}")
 
         return redirect("admin_accounts_list")
-
-class EmailVerificationTokenGenerator(PasswordResetTokenGenerator):
-    """
-    Generates token for email verification
-    """
-    def _make_hash_value(self, user, timestamp):
-        return (
-            six.text_type(user.pk) + six.text_type(timestamp) +
-            six.text_type(user.is_email_verified)
-        )
         
 class AdminAPITicketDetailsView(LoginRequiredMixin,AdminRequiredMixin,View):
     """
@@ -1536,23 +1369,6 @@ def create_announcement(request):
     return redirect('admin_announcements')
 
 @login_required
-def staff_announcements(request):
-    """
-    Displays announcements for staff
-    """
-    if not hasattr(request.user, 'staff'):
-        raise PermissionDenied
-        
-    staff_department = request.user.staff.department
-    announcements = Announcement.objects.filter(
-        models.Q(department=None) | models.Q(department=staff_department)  
-    ).order_by('-created_at')
-    
-    return render(request, 'staff/announcements.html', {
-        'announcements': announcements
-    })
-
-@login_required
 def delete_announcement(request, announcement_id):
     """
     Handles deletion of announcements
@@ -1565,54 +1381,6 @@ def delete_announcement(request, announcement_id):
     messages.success(request, 'Announcement deleted successfully.')
             
     return redirect('admin_announcements')
-
-class ForgetPasswordMailView(View):
-    """
-    Handles the forget password email functionality
-    """
-    def get(self, request):
-        context={}
-        return render(request, 'forget-password/mail-page.html', context)
-
-    def post(self, request):
-        mail = request.POST.get("email")
-        try:
-            user = CustomUser.objects.get(email=mail)
-            if user:
-                token = user.generate_remember_token()
-                encoded_token = quote(token)
-                reset_link = f"{settings.MAIN_URL}/forget-password/reset?token={encoded_token}"
-
-                context = {
-                    "user": user,
-                    "reset_link": reset_link,
-                    'website_name': settings.WEBSITE_NAME,
-                    'main_mail': settings.EMAIL_HOST_USER
-                }
-
-                sendHtmlMail(
-                    view="mail-template/reset-password-mail.html",
-                    subject=f"Reset Your Password - {settings.WEBSITE_NAME}",
-                    from_email=settings.EMAIL_HOST_USER,
-                    to_email=[mail],
-                    context=context,
-                )
-
-            storage = messages.get_messages(request)
-            storage.used = True  
-
-            messages.success(request, "Reset email has been sent. Please check your inbox.")
-
-            return render(request, 'forget-password/email-sent.html', {
-                "email": mail
-            })
-
-        except CustomUser.DoesNotExist:
-            return render(request, 'exception/error-page.html', {
-                "title": "User Not Found",
-                "message": "We couldn't find an account associated with this email.",
-                "link": reverse('log_in')
-            })
         
 class AdminAccountEditView(LoginRequiredMixin, AdminRequiredMixin, View):
     """
@@ -1638,6 +1406,194 @@ class AdminAccountEditView(LoginRequiredMixin, AdminRequiredMixin, View):
             return redirect('admin_accounts_list')
         return render(request, "admin-panel/admin_accounts.html", {"form": form, "is_update": True})
 
+#------------------------------------GENERAL SECTION------------------------------------#
+
+class DashboardView(LoginRequiredMixin, View):
+    """
+    Displays the appropriate dashboard based on the user's role.
+    """
+    def get(self, request, *args, **kwargs):
+        """
+        Determines the correct dashboard based on the user's role.
+        """
+        role_dispatch = {
+            'admin': self.render_admin_dashboard,  
+            'staff': self.render_staff_dashboard,
+            'student': self.render_student_dashboard,
+        }
+        handler = role_dispatch.get(request.user.role, self.redirect_to_home)
+        return handler(request)
+
+    def render_staff_dashboard(self, request):
+        """
+        Renders staff dashboard
+        """
+        context = {
+            'assigned_tickets_count': Ticket.objects.filter(
+                assigned_staff=request.user.staff if hasattr(request.user, 'staff') else None
+            ).exclude(status='closed').count(),
+            'department': request.user.staff.department if hasattr(request.user, 'staff') else "Admin"
+        }
+        return render(request, 'staff/dashboard.html', context)
+    
+def home(request):
+    """
+    Renders the home page
+    """
+    return render(request, 'home.html')
+
+class LogInView(View, RoleBasedRedirectMixin):
+    """
+    Handles user login and redirection based on role.
+    """
+        
+    def get(self, request):
+        form = AuthenticationForm()
+        return render(request, 'login.html', {'form': form})
+
+    def post(self, request):
+        """
+        Validates the login details
+        """
+        form = AuthenticationForm(data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            login(request, user)
+            
+            if not user.is_email_verified:
+                messages.warning(request, "Please verify your email address to access all features.")
+                
+            redirect_url = self.get_redirect_url(user)
+            if redirect_url.startswith('/'):
+                return redirect(redirect_url)
+            
+            return redirect(redirect_url)
+        
+        messages.error(request, "Invalid username or password.")
+        return render(request, 'login.html', {'form': form})
+
+    def render(self, request, next_page=''):
+        """Renders login the template with blank log in form."""
+        form = LogInForm()
+        return render(request, 'login.html', {'form': form, 'next': next_page})
+
+class LogOutView(View):
+    """
+    Log out the current user and redirect to login page.
+    """
+    def get(self, request):
+        storage = messages.get_messages(request)
+        storage.used = True
+
+        logout(request)
+
+        messages.success(request, "You have been logged out successfully.")
+        return redirect(reverse("log_in"))
+
+class SignUpView(View):
+    """
+    Handles user registration using Django's Class-Based Views.
+    """
+    def get(self, request):
+        form = SignUpForm()
+        return render(request, "sign_up.html", {"form": form})
+
+    def post(self, request):
+        """
+        Validates the sign up information and sends verification email
+        """
+        form = SignUpForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            if user.role == 'staff':
+                Staff.objects.create(user=user, department='', role='Staff Member')
+            elif user.role == 'student':
+                Student.objects.create(
+                    user=user,
+                    department=form.cleaned_data.get('department', ''),
+                    program=form.cleaned_data.get('program', 'Undeclared'),
+                    year_of_study=form.cleaned_data.get('year_of_study', 1)
+                )
+
+            token_generator = EmailVerificationTokenGenerator()
+            token = token_generator.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            verification_url = reverse('verify_email', kwargs={'uidb64': uid, 'token': token})
+            verification_url = request.build_absolute_uri(verification_url)
+
+            subject = 'Verify Your Email Address'
+            message = f'Hello {user.first_name},\n\nPlease click the link below to verify your email address:\n{verification_url}\n\nThank you!'
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=False,
+            )
+
+            messages.success(request, "Account created successfully! Please check your email to verify your address.")
+            return redirect('log_in')
+        return render(request, "sign_up.html", {"form": form})
+
+class VerifyEmailView(View):
+    """
+    Handles email verification when a verification link sent by email is clicked 
+    """
+    def get(self, request, uidb64, token):
+        User = get_user_model()
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+            
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+
+        token_generator = EmailVerificationTokenGenerator()
+        if user is not None and token_generator.check_token(user, token):
+            user.is_email_verified = True
+            user.save()
+            messages.success(request, "Your email has been verified successfully! Please log in.")
+            
+        else:
+            messages.error(request, "The verification link is invalid or has expired.")
+            
+        return redirect('log_in')
+    
+
+def check_username(request):
+    """
+    Checks a username exists
+    """
+    username = request.GET.get('username', '')
+    exists = CustomUser.objects.filter(username=username).exists()
+    return JsonResponse({'exists': exists})
+
+def check_email(request):
+    """
+    Checks an email exists
+    """
+    email = request.GET.get('email', '')
+    exists = CustomUser.objects.filter(email=email).exists()
+    return JsonResponse({'exists': exists})
+
+def about(request):
+    """Renders information about the University Helpdesk"""
+    return render(request, 'about.html')
+
+def faq(request):
+    """Renders FAQs organized by categories."""
+    return render(request, 'faq.html')
+
+class EmailVerificationTokenGenerator(PasswordResetTokenGenerator):
+    """
+    Generates token for email verification
+    """
+    def _make_hash_value(self, user, timestamp):
+        return (
+            six.text_type(user.pk) + six.text_type(timestamp) +
+            six.text_type(user.is_email_verified)
+        )
+        
 class PasswordResetSentView(View):
     """
     Renders the email sent page
@@ -1726,3 +1682,52 @@ class ForgetPasswordNewPasswordView(View):
                 "link": reverse('log_in')
             })
 
+
+
+class ForgetPasswordMailView(View):
+    """
+    Handles the forget password email functionality
+    """
+    def get(self, request):
+        context={}
+        return render(request, 'forget-password/mail-page.html', context)
+
+    def post(self, request):
+        mail = request.POST.get("email")
+        try:
+            user = CustomUser.objects.get(email=mail)
+            if user:
+                token = user.generate_remember_token()
+                encoded_token = quote(token)
+                reset_link = f"{settings.MAIN_URL}/forget-password/reset?token={encoded_token}"
+
+                context = {
+                    "user": user,
+                    "reset_link": reset_link,
+                    'website_name': settings.WEBSITE_NAME,
+                    'main_mail': settings.EMAIL_HOST_USER
+                }
+
+                sendHtmlMail(
+                    view="mail-template/reset-password-mail.html",
+                    subject=f"Reset Your Password - {settings.WEBSITE_NAME}",
+                    from_email=settings.EMAIL_HOST_USER,
+                    to_email=[mail],
+                    context=context,
+                )
+
+            storage = messages.get_messages(request)
+            storage.used = True  
+
+            messages.success(request, "Reset email has been sent. Please check your inbox.")
+
+            return render(request, 'forget-password/email-sent.html', {
+                "email": mail
+            })
+
+        except CustomUser.DoesNotExist:
+            return render(request, 'exception/error-page.html', {
+                "title": "User Not Found",
+                "message": "We couldn't find an account associated with this email.",
+                "link": reverse('log_in')
+            })
