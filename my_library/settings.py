@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-522s1gd5yk5^td_+@y4u)=$z2zgbna-bj_p&89r_#idojf5)n#
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['universityhelp.com', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['alsubaie.pythonanywhere.com', 'localhost', '127.0.0.1']
 
 # Application definition
 
@@ -210,7 +210,7 @@ AWS_SECRET_ACCESS_KEY = '***REMOVED***'  # Replace with actual secret
 # Lambda Configuration
 LAMBDA_FUNCTION_NAME = 'ticket-context-handler'  # The name we gave our Lambda function
 
-MAIN_URL="http://universityhelp.com"
+MAIN_URL="http://alsubaie.pythonanywhere.com"
 WEBSITE_NAME="University Helpdesk"
 
 LOGGING = {
