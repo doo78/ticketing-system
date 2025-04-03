@@ -6,7 +6,6 @@ class RoleBasedRedirectMixin:
     """
     Mixin to redirect users based on their role.
     """
-
     def get_redirect_url(self, user):
         if user.role == "admin":
             return "admin_dashboard"
@@ -15,6 +14,8 @@ class RoleBasedRedirectMixin:
         return "student_dashboard"
     
     
+#------------------------------------ROLE REQUIRED MIXINS------------------------------------#
+
 class StaffRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return hasattr(self.request.user, 'staff')
@@ -26,3 +27,7 @@ class AdminRequiredMixin(UserPassesTestMixin):
 class StudentRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return hasattr(self.request.user, 'student')
+    
+class AdminOrStaffRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return hasattr(self.request.user, 'staff') or self.request.user.role == 'admin'

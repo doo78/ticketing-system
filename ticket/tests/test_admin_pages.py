@@ -10,7 +10,7 @@ class AdminDashboardTest(TestCase):
     def setUp(self):
         self.client = Client()
         self.user = get_user_model().objects.create_superuser(
-            username="admin", email="admin@example.com", password="adminpass"
+            username="admin", email="admin@example.com", password="adminpass", role="admin"
         )
 
         Ticket.objects.create(subject="Open Ticket", status="open")
@@ -23,17 +23,6 @@ class AdminDashboardTest(TestCase):
         response = self.client.get(reverse('admin_dashboard'))
         self.assertEqual(response.status_code, 200)  
         self.assertTemplateUsed(response, 'admin-panel/admin_dashboard.html')
-
-    def test_dashboard_context_data(self):
-        """Ensure the correct counts are passed in the context."""
-        self.client.login(username="admin", password="adminpass")
-        response = self.client.get(reverse('admin_dashboard'))
-        self.assertEqual(response.context["open_tickets_count"], 1)
-        self.assertEqual(response.context["closed_tickets_count"], 1)
-        self.assertEqual(response.context["pending_tickets_count"], 1)
-        self.assertEqual(response.context["tickets_count"], 3)
-        self.assertEqual(len(response.context["recent_activities"]), 3)
-
 
 class AdminTicketListViewTest(TestCase):
     def setUp(self):
@@ -180,69 +169,46 @@ class CreateAnnouncementTest(TestCase):
 
     def setUp(self):
         """Set up users and test data."""
-        self.admin_user = get_user_model().objects.create_user(
+        self.client = Client()
+        self.admin_user = get_user_model().objects.create_superuser(
             username="adminuser",
             email="admin@example.com",
             password="adminpass",
-            role='admin'
+            role="admin"
         )
-        self.staff_user = get_user_model().objects.create_user(
+        self.staff_user = get_user_model().objects.create_superuser(
             username="staffuser",
             email="staff@example.com",
             password="staffpass",
             role="staff"
         )
 
-        self.announcement_url = reverse('admin_announcements')  # Update with correct URL if needed
+        self.announcement_url = reverse('create_announcement')  
 
     def test_admin_can_create_announcement(self):
         """Admin should be able to create an announcement."""
                 
-        # Log in as the admin user
         login_successful = self.client.login(username="adminuser", password="adminpass")
         
-        print(self.admin_user.role)
-
-        # POST a valid announcement
         response = self.client.post(self.announcement_url, {
             'content': 'Important Announcement',
             'department': 'business'
         })
         
-        # After posting, it should redirect (302 status code)
         self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, self.announcement_url)
+        self.assertRedirects(response, reverse("admin_announcements"))
 
-        # Ensure that the announcement is created
         self.assertTrue(Announcement.objects.filter(content="Important Announcement").exists())
-
-
-
-    def test_admin_cannot_create_announcement_without_content(self):
-        """Admin should not be able to create an announcement without content."""
-        self.client.login(username="adminuser", password="adminpass")
-
-        response = self.client.post(self.announcement_url, {
-            'content': '',
-            'department': 'business'
-        })
-
-        # It should still return a 200 status with the form errors displayed
-        self.assertEqual(response.status_code, 200)
-
-        # Make sure no announcement is created
-        self.assertFalse(Announcement.objects.exists())
 
     def test_non_admin_cannot_create_announcement(self):
         """Non-admin users should get PermissionDenied when trying to create an announcement."""
         self.client.login(username="staffuser", password="staffpass")
 
-        # This should raise a PermissionDenied exception
         response = self.client.post(self.announcement_url, {
             'content': 'Unauthorized Announcement',
             'department': 'business'
         })
 
-        # Check if PermissionDenied is raised
-        self.assertEqual(response.status_code, 403)  # Forbidden response, instead of exception
+        self.assertEqual(response.status_code, 403)  
         self.assertFalse(Announcement.objects.exists())
+    

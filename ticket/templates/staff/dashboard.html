@@ -50,9 +50,6 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Messages from Administration</h5>
-                    {% if announcements %}
-                        <a href="{% url 'staff_announcements' %}" class="btn btn-link btn-sm text-decoration-none">View All</a>
-                    {% endif %}
                 </div>
                 <div class="card-body">
                     {% if announcements %}

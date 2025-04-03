@@ -16,7 +16,7 @@ from django.contrib.auth import login, logout
 from django.urls import reverse
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
-from ticket.mixins import RoleBasedRedirectMixin, StaffRequiredMixin, AdminRequiredMixin, StudentRequiredMixin
+from ticket.mixins import RoleBasedRedirectMixin, StaffRequiredMixin, AdminRequiredMixin, StudentRequiredMixin, AdminOrStaffRequiredMixin
 from .models import Ticket, Staff, Student, CustomUser, AdminMessage, Announcement, StudentMessage, StaffMessage
 from .forms import DEPT_CHOICES, LogInForm, SignUpForm, StaffUpdateProfileForm, EditAccountForm, TicketForm, RatingForm, AdminUpdateProfileForm, AdminUpdateForm
 from django.views.generic.edit import UpdateView
@@ -36,6 +36,10 @@ from django.utils.encoding import force_str
 from django.contrib.auth import get_user_model
 from django import forms
 from urllib.parse import quote 
+from django.utils import timezone
+from django.utils.timezone import localtime
+from django.utils.decorators import method_decorator
+
 
 #---------Gen AI imports---------#
 import boto3
@@ -52,35 +56,35 @@ from django.urls import reverse
 User = get_user_model()
 
 #------------------------------------STUDENT SECTION------------------------------------#
-@login_required
-def create_ticket(request):
-    """
-    Creates tickets for students
-    """
-    if not hasattr(request.user, 'student'):
-        raise PermissionDenied("Only students can create tickets")
 
-    if request.method != 'POST':
+class CreateTicketView(LoginRequiredMixin, StudentRequiredMixin, View):
+    def get(self, request):
+        """
+        Displays the ticket creation form for students
+        """
         form = TicketForm(student=request.user.student)
-        
-    else:
+        return render(request, 'student/create_ticket.html', {'form': form, 'title': 'Submit New Query'})
+
+    def post(self, request):
+        """
+        Handles ticket creation and staff assignment
+        """
         form = TicketForm(request.POST, student=request.user.student)
+
         if form.is_valid():
             ticket = form.save()
 
             if ticket.department:
                 matching_staff = Staff.objects.filter(department=ticket.department)
-                
+
                 if matching_staff.exists():
                     assigned_staff = None
                     min_active_tickets = float('inf')
 
                     for staff in matching_staff:
                         active_ticket_count = Ticket.objects.filter(
-                            assigned_staff=staff,
-                        ).exclude(
-                            status = 'closed'
-                        ).count()
+                            assigned_staff=staff
+                        ).exclude(status='closed').count()
 
                         if active_ticket_count < min_active_tickets:
                             min_active_tickets = active_ticket_count
@@ -102,167 +106,82 @@ def create_ticket(request):
                 f'Your ticket #{ticket.id} has been submitted successfully. We will review it shortly.'
             )
             return redirect('student_dashboard')
-        
-    return render(request, 'student/create_ticket.html', {
-        'form': form,
-        'title': 'Submit New Query'
-    })
 
-@login_required
-def student_settings(request):
+        return render(request, 'student/create_ticket.html', {'form': form, 'title': 'Submit New Query'})
+
+class StudentSettingsView(LoginRequiredMixin, StudentRequiredMixin, View):
     """
     Loads and processes student settings page
     """
-    if not hasattr(request.user, 'student'):
-        return redirect('home')
-
-    last_login = request.user.last_login
-    if last_login:
-        from django.utils import timezone
-        from django.utils.timezone import localtime
-        now = timezone.now()
-        
-        if now.date() == last_login.date():
-            last_login_display = f"Today at {localtime(last_login).strftime('%I:%M %p')}"
+    def get(self, request):
+        last_login = request.user.last_login
+        if last_login:
+            now = timezone.now()
             
+            if now.date() == last_login.date():
+                last_login_display = f"Today at {localtime(last_login).strftime('%I:%M %p')}"
+                
+            else:
+                last_login_display = localtime(last_login).strftime('%B %d, %Y %I:%M %p')
+                
         else:
-            last_login_display = localtime(last_login).strftime('%B %d, %Y %I:%M %p')
-            
-    else:
-        last_login_display = "Never"
+            last_login_display = "Never"
 
-    student_data = {
-        'name': request.user.get_full_name(),
-        'email': request.user.email,
-        'preferred_name': request.user.preferred_name,
-        'department': request.user.student.department,
-        'program': request.user.student.program,
-        'year_of_study': request.user.student.year_of_study,
-        'account_type': request.user.get_role_display(),
-        'member_since': localtime(request.user.date_joined).strftime('%B %d, %Y'),
-        'last_login': last_login_display,
-    }
-    return render(request, 'student/settings.html', student_data)
+        student_data = {
+            'name': request.user.get_full_name(),
+            'email': request.user.email,
+            'preferred_name': request.user.preferred_name,
+            'department': request.user.student.department,
+            'program': request.user.student.program,
+            'year_of_study': request.user.student.year_of_study,
+            'account_type': request.user.get_role_display(),
+            'member_since': localtime(request.user.date_joined).strftime('%B %d, %Y'),
+            'last_login': last_login_display,
+        }
+        return render(request, 'student/settings.html', student_data)
 
-@login_required
-def ticket_list(request):
-    """
-    Loads ticket list for students
-    """
-    if not hasattr(request.user, 'student'):
-        return redirect('home')
-
-    tickets = Ticket.objects.filter(student=request.user.student)
-    return render(request, 'student/ticket_list.html', {'tickets': tickets})
-
-from ticket.models import StudentMessage, AdminMessage  
-
-@login_required
-def ticket_detail(request, ticket_id):
+class StudentTicketDetail(LoginRequiredMixin, StudentRequiredMixin, View):
     """
     Loads and processes page for viewing ticket details
     """
-    if not hasattr(request.user, 'student'):
-        return redirect('home')
+    def get(self, request, ticket_id):
+        ticket = get_object_or_404(Ticket, id=ticket_id, student=request.user.student)
+        rating_form = None
 
-    ticket = get_object_or_404(Ticket, id=ticket_id, student=request.user.student)
-    rating_form = None
+        if ticket.status == 'closed' and ticket.rating is None:
+            rating_form = RatingForm(instance=ticket)
 
-    if ticket.status == 'closed' and ticket.rating is None:
-        rating_form = RatingForm(instance=ticket)
+        if request.method == 'POST':
+            if 'submit_rating' in request.POST and ticket.status == 'closed':
+                rating_form = RatingForm(request.POST, instance=ticket)
+                if rating_form.is_valid():
+                    rating_form.save()
+                    messages.success(request, 'Thank you for your feedback!')
+                    return redirect('ticket_detail', ticket_id=ticket_id)
 
-    if request.method == 'POST':
-        if 'submit_rating' in request.POST and ticket.status == 'closed':
-            rating_form = RatingForm(request.POST, instance=ticket)
-            if rating_form.is_valid():
-                rating_form.save()
-                messages.success(request, 'Thank you for your feedback!')
-                return redirect('ticket_detail', ticket_id=ticket_id)
+            elif 'message' in request.POST:
+                message_content = request.POST.get('message', '').strip()
+                if message_content:
+                    if ticket.status == 'closed':
+                        messages.error(request, 'Cannot add messages to a closed ticket.')
+                    else:
+                        StudentMessage.objects.create(
+                            ticket=ticket,
+                            author=request.user,
+                            content=message_content
+                        )
+                        messages.success(request, 'Message sent successfully.')
+                    return redirect('ticket_detail', ticket_id=ticket_id)
 
-        elif 'message' in request.POST:
-            message_content = request.POST.get('message', '').strip()
-            if message_content:
-                if ticket.status == 'closed':
-                    messages.error(request, 'Cannot add messages to a closed ticket.')
-                else:
-                    StudentMessage.objects.create(
-                        ticket=ticket,
-                        author=request.user,
-                        content=message_content
-                    )
-                    messages.success(request, 'Message sent successfully.')
-                return redirect('ticket_detail', ticket_id=ticket_id)
+        context = {
+            'ticket': ticket,
+            'student_messages': ticket.student_messages.order_by('created_at'), 
+            'admin_messages': ticket.admin_messages.order_by('created_at'),      
+            'rating_form': rating_form
+        }
 
-    context = {
-        'ticket': ticket,
-        'student_messages': ticket.student_messages.order_by('created_at'), 
-        'admin_messages': ticket.admin_messages.order_by('created_at'),      
-        'rating_form': rating_form
-    }
-
-    return render(request, 'student/ticket_detail.html', context)
-
-
-#------------------------------------STAFF SECTION------------------------------------#
-
-@login_required
-def staff_announcements(request):
-    """
-    Displays announcements for staff
-    """
-    if not hasattr(request.user, 'staff'):
-        raise PermissionDenied
-        
-    staff_department = request.user.staff.department
-    announcements = Announcement.objects.filter(
-        models.Q(department=None) | models.Q(department=staff_department)  
-    ).order_by('-created_at')
+        return render(request, 'student/ticket_detail.html', context)
     
-    return render(request, 'staff/announcements.html', {
-        'announcements': announcements
-    })
-
-@login_required
-def staff_dashboard(request):
-    """
-    Loads and processes all the details for staff dashboard
-    """
-    if not hasattr(request.user, 'staff'):
-        return redirect('home')
-
-    staff_department = request.user.staff.department
-    assigned_tickets_count = Ticket.objects.filter(
-        assigned_staff=request.user.staff
-    ).exclude(status='closed').count()
-    
-    department_tickets_count = 0
-    if staff_department:
-        department_tickets_count = Ticket.objects.filter(
-            department=staff_department
-        ).exclude(status='closed').count()
-        
-    unassigned_dept_tickets = 0
-    if staff_department:
-        unassigned_dept_tickets = Ticket.objects.filter(
-            department=staff_department,
-            assigned_staff=None,
-            status='open'
-        ).count()
-
-    announcements = Announcement.objects.filter(
-        models.Q(department=None) | models.Q(department=staff_department) 
-    ).order_by('-created_at')[:3]  
-
-    context = {
-        'assigned_tickets_count': assigned_tickets_count,
-        'department_tickets_count': department_tickets_count,
-        'unassigned_dept_tickets': unassigned_dept_tickets,
-        'department': request.user.staff.get_department_display() if staff_department else "Not Assigned",
-        'email_verified': request.user.is_email_verified,
-        'announcements': announcements
-    }
-    return render(request, 'staff/dashboard.html', context)
-
 @login_required
 def student_dashboard(request):
     """
@@ -302,6 +221,46 @@ def student_dashboard(request):
         'sort_order': sort_order,
     }
     return render(request, 'student/dashboard.html', context)
+
+#------------------------------------STAFF SECTION------------------------------------#
+
+class StaffDashboardView(LoginRequiredMixin, StaffRequiredMixin, View):
+    """
+    Loads and processes all the details for staff dashboard
+    """
+    def get(self, request):
+        staff_department = request.user.staff.department
+        assigned_tickets_count = Ticket.objects.filter(
+            assigned_staff=request.user.staff
+        ).exclude(status='closed').count()
+        
+        department_tickets_count = 0
+        if staff_department:
+            department_tickets_count = Ticket.objects.filter(
+                department=staff_department
+            ).exclude(status='closed').count()
+            
+        unassigned_dept_tickets = 0
+        if staff_department:
+            unassigned_dept_tickets = Ticket.objects.filter(
+                department=staff_department,
+                assigned_staff=None,
+                status='open'
+            ).count()
+
+        announcements = Announcement.objects.filter(
+            models.Q(department=None) | models.Q(department=staff_department) 
+        ).order_by('-created_at')[:3]  
+
+        context = {
+            'assigned_tickets_count': assigned_tickets_count,
+            'department_tickets_count': department_tickets_count,
+            'unassigned_dept_tickets': unassigned_dept_tickets,
+            'department': request.user.staff.get_department_display() if staff_department else "Not Assigned",
+            'email_verified': request.user.is_email_verified,
+            'announcements': announcements
+        }
+        return render(request, 'staff/dashboard.html', context)
 
 class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
     """
@@ -412,7 +371,7 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
         }
         return render(request, 'staff/staff_ticket_list.html', context)
 
-class StaffTicketDetailView(LoginRequiredMixin, AdminRequiredMixin, StaffRequiredMixin, View):
+class StaffTicketDetailView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
     """
     Display ticket details for staff members
     """
@@ -544,7 +503,7 @@ class StaffTicketDetailView(LoginRequiredMixin, AdminRequiredMixin, StaffRequire
 
         return redirect('staff_ticket_detail', ticket_id=ticket_id)
 
-class StaffProfileView(LoginRequiredMixin, AdminRequiredMixin, StaffRequiredMixin, View):
+class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
     """
     Loads relevant data and template for staff profile
     """
@@ -644,18 +603,20 @@ class StaffUpdateProfileView(UpdateView):
 
 #------------------------------------ADMIN SECTION------------------------------------#
 
-@login_required
-def admin_dashboard(request):
+#@login_required
+#def admin_dashboard(request):
+class AdminDashboardView(LoginRequiredMixin, AdminRequiredMixin, View):
     """
     Loads and processes admin dashboard
     """
-    context={}
-    context["open_tickets_count"] = Ticket.objects.filter(status='open').exclude(status='closed').exclude(status='pending').count()
-    context["closed_tickets_count"] = Ticket.objects.filter(status='closed').exclude(status='pending').exclude(status='open').count()
-    context["tickets_count"]=Ticket.objects.count()
-    context["pending_tickets_count"] = Ticket.objects.filter(status='pending').exclude(status='closed').exclude(status='open').count()
-    context["recent_activities"]=Ticket.objects.order_by('-date_updated')[:10]
-    return render(request, 'admin-panel/admin_dashboard.html', context)
+    def get(self, request):
+        context={}
+        context["open_tickets_count"] = Ticket.objects.filter(status='open').exclude(status='closed').exclude(status='pending').count()
+        context["closed_tickets_count"] = Ticket.objects.filter(status='closed').exclude(status='pending').exclude(status='open').count()
+        context["tickets_count"]=Ticket.objects.count()
+        context["pending_tickets_count"] = Ticket.objects.filter(status='pending').exclude(status='closed').exclude(status='open').count()
+        context["recent_activities"]=Ticket.objects.order_by('-date_updated')[:10]
+        return render(request, 'admin-panel/admin_dashboard.html', context)
 
 class AdminTicketListView(LoginRequiredMixin,AdminRequiredMixin, View):
     """
@@ -769,7 +730,6 @@ class AdminAccountsView(LoginRequiredMixin,AdminRequiredMixin,View):
             'student_count': student_count,
         }
         return render(request, 'admin-panel/admin_accounts_list.html', context)
-
 
     def post(self, request):
         """
@@ -897,406 +857,411 @@ class AdminAPITicketAssignView(LoginRequiredMixin,AdminRequiredMixin,View):
         except json.JSONDecodeError:
             return JsonResponse({'success': False, 'error': 'Invalid JSON format'}, status=400)
 
-def analytics_dashboard(request):
+class AdminAnalyticsDashboard(LoginRequiredMixin, AdminRequiredMixin, View):
     """
     Loads and processes the analytics dashboard for admin
     """
-    today = timezone.now().date()
-    default_start = today - timedelta(days=30)
-    
-    date_from_str = request.GET.get('date_from')
-    date_to_str = request.GET.get('date_to')
-    
-    try:
-        date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date() if date_from_str else default_start
-        date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date() if date_to_str else today
+    def get(self, request):
+        today = timezone.now().date()
+        default_start = today - timedelta(days=30)
         
-    except ValueError:
-        date_from = default_start
-        date_to = today
-    
-    tickets = Ticket.objects.filter(date_submitted__date__gte=date_from, date_submitted__date__lte=date_to)
-    
-    period_length = (date_to - date_from).days
-    prev_date_from = date_from - timedelta(days=period_length)
-    prev_date_to = date_from - timedelta(days=1)
-    prev_tickets = Ticket.objects.filter(date_submitted__date__gte=prev_date_from, date_submitted__date__lte=prev_date_to)
-    
-    total_tickets = tickets.count()
-    open_tickets = tickets.filter(status='open').count()
-    pending_tickets = tickets.filter(status='pending').count()
-    closed_tickets = tickets.filter(status='closed').count()
-    
-    prev_total = prev_tickets.count()
-    if prev_total > 0:
-        total_change_pct = round(((total_tickets - prev_total) / prev_total) * 100, 1)
-    else:
-        total_change_pct = 0
-    
-    resolution_rate = round((closed_tickets / total_tickets) * 100, 1) if total_tickets > 0 else 0
-    
-    avg_response_time = 0
-    tickets_with_responses = 0
-    
-    for ticket in tickets:
-        first_response = StaffMessage.objects.filter(
-            ticket=ticket, 
-            author__role__in=['staff']  
-        ).order_by('created_at').first()
+        date_from_str = request.GET.get('date_from')
+        date_to_str = request.GET.get('date_to')
         
-        if first_response:
-            time_diff = first_response.created_at - ticket.date_submitted
-            tickets_with_responses += 1
-            avg_response_time += time_diff.total_seconds() / 3600 
-    
-    if tickets_with_responses > 0:
-        avg_response_time = round(avg_response_time / tickets_with_responses, 1)
-    
-    closed_with_dates = tickets.filter(
-        status='closed', 
-        date_closed__isnull=False
-    )
-    
-    resolution_times = []
-    for ticket in closed_with_dates:
-        if ticket.date_closed and ticket.date_submitted and ticket.date_closed > ticket.date_submitted:
-            time_diff = ticket.date_closed - ticket.date_submitted
-            resolution_times.append(time_diff.total_seconds() / 3600) 
-    
-    avg_resolution_time = round(sum(resolution_times) / len(resolution_times), 1) if resolution_times else 15.0  # Use the expected value from test
-    
-    if tickets_with_responses > 0:
-        avg_response_time = round(avg_response_time / tickets_with_responses, 1)
-    else:
-        avg_response_time = 3.0     
-        
-    status_counts = {
-        'open': open_tickets,
-        'pending': pending_tickets,
-        'closed': closed_tickets
-    }
-    
-    department_counts = []
-    dept_dict = dict(Ticket.DEPT_CHOICES)
-    
-    dept_data = tickets.values('department').annotate(count=Count('id')).order_by('-count')
-    
-    for item in dept_data:
-        if item['department']:
-            dept_name = dept_dict.get(item['department'], 'Unknown')
-            department_counts.append({
-                'name': dept_name,
-                'count': item['count']
-            })
-    
-    if not department_counts:
-        department_counts = [
-            {'name': 'No Department Data', 'count': total_tickets}
-        ]
-    
-    date_counts = {}
-    delta = date_to - date_from
-    for i in range(delta.days + 1):
-        current_date = date_from + timedelta(days=i)
-        date_counts[current_date.strftime('%Y-%m-%d')] = 0
-
-    for ticket in tickets:
-        ticket_date = ticket.date_submitted.date().strftime('%Y-%m-%d')
-        if ticket_date in date_counts:
-            date_counts[ticket_date] += 1
-    
-    date_trend = [{'date': date, 'count': count} for date, count in date_counts.items()]
-    
-    staff_performance = []
-    assigned_staff = Staff.objects.filter(
-        ticket__in=tickets
-    ).distinct()
-    
-    for staff in assigned_staff:
-        staff_tickets = tickets.filter(assigned_staff=staff)
-        total_count = staff_tickets.count()
-        resolved_count = staff_tickets.filter(status='closed').count()
-        
-        staff_closed_tickets = staff_tickets.filter(
-            status='closed',
-            date_closed__isnull=False
-        )
-        
-        avg_res_time = 0
-        if staff_closed_tickets.exists():
-            res_times = []
-            for ticket in staff_closed_tickets:
-                if ticket.date_closed > ticket.date_submitted:  
-                    time_diff = abs(ticket.date_closed - ticket.date_submitted)
-                    res_times.append(time_diff.total_seconds() / 3600)
+        try:
+            date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date() if date_from_str else default_start
+            date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date() if date_to_str else today
             
-            avg_res_time = round(sum(res_times) / len(res_times), 1) if res_times else 0
+        except ValueError:
+            date_from = default_start
+            date_to = today
         
-        staff_rated_tickets = staff_tickets.filter(rating__isnull=False)
-        satisfaction = 0
-        if staff_rated_tickets.exists():
-            ratings_sum = sum(ticket.rating for ticket in staff_rated_tickets)
-            avg_rating = ratings_sum / staff_rated_tickets.count()
-            satisfaction = round((avg_rating / 5) * 100)  
+        tickets = Ticket.objects.filter(date_submitted__date__gte=date_from, date_submitted__date__lte=date_to)
         
-        staff_performance.append({
-            'name': f"{staff.user.first_name} {staff.user.last_name}",
-            'tickets_resolved': resolved_count,
-            'avg_resolution_time': avg_res_time,
-            'satisfaction_rating': satisfaction if satisfaction else 0
-        })
-    
-    staff_performance.sort(key=lambda x: x['tickets_resolved'], reverse=True)
-    
-    if not staff_performance:
-        staff_performance = [
-            {'name': 'No Staff Data', 'tickets_resolved': 0, 'avg_resolution_time': 0, 'satisfaction_rating': 0},
-        ]
-    
-    priority_counts = []
-    priority_dict = dict(Ticket.PRIORITY_CHOICES)
-    
-    priority_data = tickets.values('priority').annotate(count=Count('id')).order_by('-count')
-    
-    for item in priority_data:
-        if item['priority']:
-            priority_name = priority_dict.get(item['priority'], 'Not Set')
-            priority_counts.append({
-                'name': priority_name,
-                'count': item['count']
-            })
-    
-    if not priority_counts:
-        priority_counts = [
-            {'name': 'Not Specified', 'count': total_tickets}
-        ]
-    
-    satisfaction = {
-        'five_star': tickets.filter(rating=5).count(),
-        'four_star': tickets.filter(rating=4).count(),
-        'three_star': tickets.filter(rating=3).count(),
-        'two_star': tickets.filter(rating=2).count(),
-        'one_star': tickets.filter(rating=1).count()
-    }
-    
-    analytics = {
-        'total_tickets': total_tickets,
-        'total_tickets_change': total_change_pct,
-        'open_tickets': open_tickets,
-        'pending_tickets': pending_tickets,
-        'closed_tickets': closed_tickets,
-        'resolution_rate': resolution_rate,
-        'avg_response_time': avg_response_time,
-        'avg_resolution_time': avg_resolution_time,
-        'status_counts': status_counts,
-        'department_counts': department_counts,
-        'date_trend': date_trend,
-        'staff_performance': staff_performance,
-        'category_counts': priority_counts, 
-        'satisfaction': satisfaction
-    }
-    
-    return render(request, 'admin-panel/admin_analytics.html', {
-        'analytics': analytics,
-        'date_from': date_from,
-        'date_to': date_to
-    })
-
-def export_tickets_csv(request):
-    """
-    Generates CSV file for data of tickets submitted within a specified date range
-    """
-    today = timezone.now().date()
-    default_start = today - timedelta(days=30)
-
-    date_from_str = request.GET.get('date_from')
-    date_to_str = request.GET.get('date_to')
-
-    try:
-        date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date() if date_from_str else default_start
-        date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date() if date_to_str else today
+        period_length = (date_to - date_from).days
+        prev_date_from = date_from - timedelta(days=period_length)
+        prev_date_to = date_from - timedelta(days=1)
+        prev_tickets = Ticket.objects.filter(date_submitted__date__gte=prev_date_from, date_submitted__date__lte=prev_date_to)
         
-    except ValueError:
-        date_from = default_start
-        date_to = today
-
-    response = HttpResponse(content_type='text/csv')
-    filename = f'tickets_report_{date_from}_to_{date_to}.csv'
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-
-    writer = csv.writer(response)
-
-    writer.writerow(['Ticket ID', 'Subject', 'Status', 'Priority', 'Department',
-                     'Submitted Date', 'Closed Date', 'Assigned Staff',
-                     'Student', 'Rating', 'Resolution Time (Hours)'])
-
-    tickets = Ticket.objects.filter(
-        date_submitted__date__gte=date_from,
-        date_submitted__date__lte=date_to
-    )
-
-    for ticket in tickets:
-        resolution_time = ''
-        if ticket.status == 'closed' and ticket.date_closed:
-            time_diff = ticket.date_closed - ticket.date_submitted
-            resolution_time = round(time_diff.total_seconds() / 3600, 2)  
-            if resolution_time <= 0:
-                resolution_time = 0.01 
-
-        assigned_staff_name = ''
-        if ticket.assigned_staff:
-            assigned_staff_name = f"{ticket.assigned_staff.user.first_name} {ticket.assigned_staff.user.last_name}"
-
-        student_name = ''
-        if ticket.student:
-            student_name = f"{ticket.student.user.first_name} {ticket.student.user.last_name}"
-
-        department = dict(Ticket.DEPT_CHOICES).get(ticket.department, '') if ticket.department else ''
-
-        writer.writerow([
-            ticket.id,
-            ticket.subject,
-            dict(Ticket.STATUS_CHOICES).get(ticket.status, ticket.status),
-            dict(Ticket.PRIORITY_CHOICES).get(ticket.priority, '') if ticket.priority else '',
-            department,
-            ticket.date_submitted.strftime('%Y-%m-%d %H:%M'),
-            ticket.date_closed.strftime('%Y-%m-%d %H:%M') if ticket.date_closed else '',
-            assigned_staff_name,
-            student_name,
-            ticket.rating if ticket.rating else '',
-            resolution_time
-        ])
-
-    return response
-
-def export_performance_csv(request):
-    """
-    Exports staff performance metrics as CSV
-    """
-    today = timezone.now().date()
-    default_start = today - timedelta(days=30)
-    
-    date_from_str = request.GET.get('date_from')
-    date_to_str = request.GET.get('date_to')
-    
-    try:
-        date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date() if date_from_str else default_start
-        date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date() if date_to_str else today
+        total_tickets = tickets.count()
+        open_tickets = tickets.filter(status='open').count()
+        pending_tickets = tickets.filter(status='pending').count()
+        closed_tickets = tickets.filter(status='closed').count()
         
-    except ValueError:
-        date_from = default_start
-        date_to = today
-    
-    response = HttpResponse(content_type='text/csv')
-    filename = f'staff_performance_{date_from}_to_{date_to}.csv'
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    
-    writer = csv.writer(response)
-    
-    writer.writerow(['Staff Name', 'Department', 'Total Tickets', 'Tickets Resolved', 
-                    'Avg Resolution Time (Hours)', 'Avg Rating'])
+        prev_total = prev_tickets.count()
+        if prev_total > 0:
+            total_change_pct = round(((total_tickets - prev_total) / prev_total) * 100, 1)
+        else:
+            total_change_pct = 0
         
-    staff_with_tickets = Staff.objects.filter(
-        ticket__date_submitted__date__gte=date_from,
-        ticket__date_submitted__date__lte=date_to
-    ).distinct()
-    
-    for staff in staff_with_tickets:
-        assigned_tickets = Ticket.objects.filter(
-            assigned_staff=staff,
-            date_submitted__date__gte=date_from,
-            date_submitted__date__lte=date_to
-        )
+        resolution_rate = round((closed_tickets / total_tickets) * 100, 1) if total_tickets > 0 else 0
         
-        total_tickets = assigned_tickets.count()
-        resolved_tickets = assigned_tickets.filter(status='closed').count()
+        avg_response_time = 0
+        tickets_with_responses = 0
         
-        closed_tickets_with_dates = assigned_tickets.filter(
+        for ticket in tickets:
+            first_response = StaffMessage.objects.filter(
+                ticket=ticket, 
+                author__role__in=['staff']  
+            ).order_by('created_at').first()
+            
+            if first_response:
+                time_diff = first_response.created_at - ticket.date_submitted
+                tickets_with_responses += 1
+                avg_response_time += time_diff.total_seconds() / 3600 
+        
+        if tickets_with_responses > 0:
+            avg_response_time = round(avg_response_time / tickets_with_responses, 1)
+        
+        closed_with_dates = tickets.filter(
             status='closed', 
             date_closed__isnull=False
         )
-    
-        avg_resolution_time = ''
-        if closed_tickets_with_dates.exists():
-            resolution_times = []
-            for ticket in closed_tickets_with_dates:
-                if ticket.date_closed > ticket.date_submitted:
-
-                    time_diff = ticket.date_closed - ticket.date_submitted
-                    resolution_times.append(time_diff.total_seconds() / 3600)  
+        
+        resolution_times = []
+        for ticket in closed_with_dates:
+            if ticket.date_closed and ticket.date_submitted and ticket.date_closed > ticket.date_submitted:
+                time_diff = ticket.date_closed - ticket.date_submitted
+                resolution_times.append(time_diff.total_seconds() / 3600) 
+        
+        avg_resolution_time = round(sum(resolution_times) / len(resolution_times), 1) if resolution_times else 15.0  # Use the expected value from test
+        
+        if tickets_with_responses > 0:
+            avg_response_time = round(avg_response_time / tickets_with_responses, 1)
+        else:
+            avg_response_time = 3.0     
             
-            avg_resolution_time = round(sum(resolution_times) / len(resolution_times), 2) if resolution_times else ''
+        status_counts = {
+            'open': open_tickets,
+            'pending': pending_tickets,
+            'closed': closed_tickets
+        }
         
-        avg_rating = ''
-        rated_tickets = assigned_tickets.filter(rating__isnull=False)
-        if rated_tickets.exists():
-            avg_rating = round(rated_tickets.aggregate(Avg('rating'))['rating__avg'], 2)
+        department_counts = []
+        dept_dict = dict(Ticket.DEPT_CHOICES)
         
-        writer.writerow([
-            f"{staff.user.first_name} {staff.user.last_name}",
-            staff.get_department_display(),
-            total_tickets,
-            resolved_tickets,
-            avg_resolution_time,
-            avg_rating
-        ])
-    
-    return response
+        dept_data = tickets.values('department').annotate(count=Count('id')).order_by('-count')
+        
+        for item in dept_data:
+            if item['department']:
+                dept_name = dept_dict.get(item['department'], 'Unknown')
+                department_counts.append({
+                    'name': dept_name,
+                    'count': item['count']
+                })
+        
+        if not department_counts:
+            department_counts = [
+                {'name': 'No Department Data', 'count': total_tickets}
+            ]
+        
+        date_counts = {}
+        delta = date_to - date_from
+        for i in range(delta.days + 1):
+            current_date = date_from + timedelta(days=i)
+            date_counts[current_date.strftime('%Y-%m-%d')] = 0
 
-@login_required
-def admin_profile(request):
+        for ticket in tickets:
+            ticket_date = ticket.date_submitted.date().strftime('%Y-%m-%d')
+            if ticket_date in date_counts:
+                date_counts[ticket_date] += 1
+        
+        date_trend = [{'date': date, 'count': count} for date, count in date_counts.items()]
+        
+        staff_performance = []
+        assigned_staff = Staff.objects.filter(
+            ticket__in=tickets
+        ).distinct()
+        
+        for staff in assigned_staff:
+            staff_tickets = tickets.filter(assigned_staff=staff)
+            total_count = staff_tickets.count()
+            resolved_count = staff_tickets.filter(status='closed').count()
+            
+            staff_closed_tickets = staff_tickets.filter(
+                status='closed',
+                date_closed__isnull=False
+            )
+            
+            avg_res_time = 0
+            if staff_closed_tickets.exists():
+                res_times = []
+                for ticket in staff_closed_tickets:
+                    if ticket.date_closed > ticket.date_submitted:  
+                        time_diff = abs(ticket.date_closed - ticket.date_submitted)
+                        res_times.append(time_diff.total_seconds() / 3600)
+                
+                avg_res_time = round(sum(res_times) / len(res_times), 1) if res_times else 0
+            
+            staff_rated_tickets = staff_tickets.filter(rating__isnull=False)
+            satisfaction = 0
+            if staff_rated_tickets.exists():
+                ratings_sum = sum(ticket.rating for ticket in staff_rated_tickets)
+                avg_rating = ratings_sum / staff_rated_tickets.count()
+                satisfaction = round((avg_rating / 5) * 100)  
+            
+            staff_performance.append({
+                'name': f"{staff.user.first_name} {staff.user.last_name}",
+                'tickets_resolved': resolved_count,
+                'avg_resolution_time': avg_res_time,
+                'satisfaction_rating': satisfaction if satisfaction else 0
+            })
+        
+        staff_performance.sort(key=lambda x: x['tickets_resolved'], reverse=True)
+        
+        if not staff_performance:
+            staff_performance = [
+                {'name': 'No Staff Data', 'tickets_resolved': 0, 'avg_resolution_time': 0, 'satisfaction_rating': 0},
+            ]
+        
+        priority_counts = []
+        priority_dict = dict(Ticket.PRIORITY_CHOICES)
+        
+        priority_data = tickets.values('priority').annotate(count=Count('id')).order_by('-count')
+        
+        for item in priority_data:
+            if item['priority']:
+                priority_name = priority_dict.get(item['priority'], 'Not Set')
+                priority_counts.append({
+                    'name': priority_name,
+                    'count': item['count']
+                })
+        
+        if not priority_counts:
+            priority_counts = [
+                {'name': 'Not Specified', 'count': total_tickets}
+            ]
+        
+        satisfaction = {
+            'five_star': tickets.filter(rating=5).count(),
+            'four_star': tickets.filter(rating=4).count(),
+            'three_star': tickets.filter(rating=3).count(),
+            'two_star': tickets.filter(rating=2).count(),
+            'one_star': tickets.filter(rating=1).count()
+        }
+        
+        analytics = {
+            'total_tickets': total_tickets,
+            'total_tickets_change': total_change_pct,
+            'open_tickets': open_tickets,
+            'pending_tickets': pending_tickets,
+            'closed_tickets': closed_tickets,
+            'resolution_rate': resolution_rate,
+            'avg_response_time': avg_response_time,
+            'avg_resolution_time': avg_resolution_time,
+            'status_counts': status_counts,
+            'department_counts': department_counts,
+            'date_trend': date_trend,
+            'staff_performance': staff_performance,
+            'category_counts': priority_counts, 
+            'satisfaction': satisfaction
+        }
+        
+        return render(request, 'admin-panel/admin_analytics.html', {
+            'analytics': analytics,
+            'date_from': date_from,
+            'date_to': date_to
+        })
+
+class ExportTicketsView(LoginRequiredMixin, AdminRequiredMixin, View):
+    """
+    Generates CSV file for data of tickets submitted within a specified date range
+    """
+    def get(self, request):
+        today = timezone.now().date()
+        default_start = today - timedelta(days=30)
+
+        date_from_str = request.GET.get('date_from')
+        date_to_str = request.GET.get('date_to')
+
+        try:
+            date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date() if date_from_str else default_start
+            date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date() if date_to_str else today
+            
+        except ValueError:
+            date_from = default_start
+            date_to = today
+
+        response = HttpResponse(content_type='text/csv')
+        filename = f'tickets_report_{date_from}_to_{date_to}.csv'
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        writer = csv.writer(response)
+
+        writer.writerow(['Ticket ID', 'Subject', 'Status', 'Priority', 'Department',
+                        'Submitted Date', 'Closed Date', 'Assigned Staff',
+                        'Student', 'Rating', 'Resolution Time (Hours)'])
+
+        tickets = Ticket.objects.filter(
+            date_submitted__date__gte=date_from,
+            date_submitted__date__lte=date_to
+        )
+
+        for ticket in tickets:
+            resolution_time = ''
+            if ticket.status == 'closed' and ticket.date_closed:
+                time_diff = ticket.date_closed - ticket.date_submitted
+                resolution_time = round(time_diff.total_seconds() / 3600, 2)  
+                if resolution_time <= 0:
+                    resolution_time = 0.01 
+
+            assigned_staff_name = ''
+            if ticket.assigned_staff:
+                assigned_staff_name = f"{ticket.assigned_staff.user.first_name} {ticket.assigned_staff.user.last_name}"
+
+            student_name = ''
+            if ticket.student:
+                student_name = f"{ticket.student.user.first_name} {ticket.student.user.last_name}"
+
+            department = dict(Ticket.DEPT_CHOICES).get(ticket.department, '') if ticket.department else ''
+
+            writer.writerow([
+                ticket.id,
+                ticket.subject,
+                dict(Ticket.STATUS_CHOICES).get(ticket.status, ticket.status),
+                dict(Ticket.PRIORITY_CHOICES).get(ticket.priority, '') if ticket.priority else '',
+                department,
+                ticket.date_submitted.strftime('%Y-%m-%d %H:%M'),
+                ticket.date_closed.strftime('%Y-%m-%d %H:%M') if ticket.date_closed else '',
+                assigned_staff_name,
+                student_name,
+                ticket.rating if ticket.rating else '',
+                resolution_time
+            ])
+
+        return response
+
+class ExportPerformanceView(LoginRequiredMixin, AdminRequiredMixin, View):
+    """
+    Exports staff performance metrics as CSV
+    """
+    def get(self, request):
+        today = timezone.now().date()
+        default_start = today - timedelta(days=30)
+        
+        date_from_str = request.GET.get('date_from')
+        date_to_str = request.GET.get('date_to')
+        
+        try:
+            date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date() if date_from_str else default_start
+            date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date() if date_to_str else today
+            
+        except ValueError:
+            date_from = default_start
+            date_to = today
+        
+        response = HttpResponse(content_type='text/csv')
+        filename = f'staff_performance_{date_from}_to_{date_to}.csv'
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        writer = csv.writer(response)
+        
+        writer.writerow(['Staff Name', 'Department', 'Total Tickets', 'Tickets Resolved', 
+                        'Avg Resolution Time (Hours)', 'Avg Rating'])
+            
+        staff_with_tickets = Staff.objects.filter(
+            ticket__date_submitted__date__gte=date_from,
+            ticket__date_submitted__date__lte=date_to
+        ).distinct()
+        
+        for staff in staff_with_tickets:
+            assigned_tickets = Ticket.objects.filter(
+                assigned_staff=staff,
+                date_submitted__date__gte=date_from,
+                date_submitted__date__lte=date_to
+            )
+            
+            total_tickets = assigned_tickets.count()
+            resolved_tickets = assigned_tickets.filter(status='closed').count()
+            
+            closed_tickets_with_dates = assigned_tickets.filter(
+                status='closed', 
+                date_closed__isnull=False
+            )
+        
+            avg_resolution_time = ''
+            if closed_tickets_with_dates.exists():
+                resolution_times = []
+                for ticket in closed_tickets_with_dates:
+                    if ticket.date_closed > ticket.date_submitted:
+
+                        time_diff = ticket.date_closed - ticket.date_submitted
+                        resolution_times.append(time_diff.total_seconds() / 3600)  
+                
+                avg_resolution_time = round(sum(resolution_times) / len(resolution_times), 2) if resolution_times else ''
+            
+            avg_rating = ''
+            rated_tickets = assigned_tickets.filter(rating__isnull=False)
+            if rated_tickets.exists():
+                avg_rating = round(rated_tickets.aggregate(Avg('rating'))['rating__avg'], 2)
+            
+            writer.writerow([
+                f"{staff.user.first_name} {staff.user.last_name}",
+                staff.get_department_display(),
+                total_tickets,
+                resolved_tickets,
+                avg_resolution_time,
+                avg_rating
+            ])
+        
+        return response
+
+class AdminProfileView(LoginRequiredMixin, AdminRequiredMixin, View):
     """
     Loads and processes profiles for admins
     """
-    if request.user.role != 'admin':
-        raise PermissionDenied()
+    def get(self, request):
+        context = {
+            "tickets_count": Ticket.objects.count(),
+            "open_tickets_count": Ticket.objects.filter(status='open').count(),
+            "closed_tickets_count": Ticket.objects.filter(status='closed').count(),
+            "user_count": CustomUser.objects.count(),
+        }
+        return render(request, 'admin-panel/admin_profile.html', context)
 
-    context = {
-        "tickets_count": Ticket.objects.count(),
-        "open_tickets_count": Ticket.objects.filter(status='open').count(),
-        "closed_tickets_count": Ticket.objects.filter(status='closed').count(),
-        "user_count": CustomUser.objects.count(),
-    }
-    return render(request, 'admin-panel/admin_profile.html', context)
-
-@login_required
-def admin_update_profile(request):
+class AdminUpdateProfileView(LoginRequiredMixin, AdminRequiredMixin, View):
     """
     Processes profile updates for admins
     """
-    user = request.user
+    def get(self, request):
+        if request.user.role != 'admin':
+            return redirect('admin_dashboard')
 
-    if user.role != 'admin':
-        return redirect('admin_dashboard') 
+        form = AdminUpdateForm(instance=request.user)
+        return render(request, 'admin-panel/admin_update_profile.html', {'form': form})
 
-    if request.method == 'POST':
-        form = AdminUpdateForm(request.POST, instance=user)
+    def post(self, request):
+        form = AdminUpdateForm(request.POST, instance=request.user)
         if form.is_valid():
             form.save()
             messages.success(request, "Profile updated successfully.")
             return redirect('admin_profile')
-    else:
-        form = AdminUpdateForm(instance=user)
 
-    return render(request, 'admin-panel/admin_update_profile.html', {'form': form})
+        return render(request, 'admin-panel/admin_update_profile.html', {'form': form})
 
-@login_required
-@csrf_protect
-def admin_ticket_detail(request, ticket_id):
+@method_decorator(csrf_protect, name='post') 
+class AdminTicketDetailView(LoginRequiredMixin, AdminRequiredMixin, View):
     """
-    Loads and processes ticket details for admins
+    Handles ticket details and updates for admins
     """
-    ticket = get_object_or_404(Ticket, id=ticket_id)
+    def get(self, request, ticket_id):
+        ticket = get_object_or_404(Ticket, id=ticket_id)
+        context = {
+            'ticket': ticket,
+            'student_messages': StudentMessage.objects.filter(ticket=ticket).order_by('created_at'),
+            'admin_messages': AdminMessage.objects.filter(ticket=ticket).order_by('created_at'),
+            'staff_members': Staff.objects.select_related('user'),
+            'dept_choices': Ticket._meta.get_field('department').choices,
+        }
+        return render(request, 'admin-panel/admin_ticket_detail.html', context)
 
-    if request.method == 'POST':
+    def post(self, request, ticket_id):
+        ticket = get_object_or_404(Ticket, id=ticket_id)
+
         if 'message' in request.POST:
             content = request.POST.get('message', '').strip()
             if content:
-                AdminMessage.objects.create(
-                    ticket=ticket,
-                    author=request.user,
-                    content=content
-                )
+                AdminMessage.objects.create(ticket=ticket, author=request.user, content=content)
                 return redirect('admin_ticket_detail', ticket_id=ticket.id)
 
         elif 'update_ticket' in request.POST:
@@ -1317,42 +1282,31 @@ def admin_ticket_detail(request, ticket_id):
             ticket.save()
             return redirect('admin_ticket_detail', ticket_id=ticket.id)
 
-    context = {
-        'ticket': ticket,
-        'student_messages': StudentMessage.objects.filter(ticket=ticket).order_by('created_at'),
-        'admin_messages': AdminMessage.objects.filter(ticket=ticket).order_by('created_at'),
-        'staff_members': Staff.objects.select_related('user'),
-        'dept_choices': Ticket._meta.get_field('department').choices,
-    }
-    return render(request, 'admin-panel/admin_ticket_detail.html', context)
+        return self.get(request, ticket_id)  
 
-@login_required
-def admin_announcements(request):
+class AdminAnnouncementsView(LoginRequiredMixin, AdminRequiredMixin, View):
     """
     Handles announcements made by admins
     """
-    user = get_user(request)
-    
-    if user.role != 'admin':
-        raise PermissionDenied
+    def get(self, request):
+        user = get_user(request)
+            
+        announcements = Announcement.objects.all().order_by('-created_at')
+        dept_choices = settings.DEPT_CHOICES[1:] 
         
-    announcements = Announcement.objects.all().order_by('-created_at')
-    dept_choices = settings.DEPT_CHOICES[1:] 
+        return render(request, 'admin-panel/announcements.html', {
+            'announcements': announcements,
+            'dept_choices': dept_choices,
+        })
     
-    return render(request, 'admin-panel/announcements.html', {
-        'announcements': announcements,
-        'dept_choices': dept_choices,
-    })
-
-@login_required
-def create_announcement(request):
+class CreateAnnouncementView(LoginRequiredMixin, AdminRequiredMixin, View):
     """
     Handles creation of new announcements by admins
     """
-    if request.user.role != 'admin':
-        raise PermissionDenied
-        
-    if request.method == 'POST':
+    def get(self, request):
+        return redirect('admin_announcements')
+
+    def post(self, request):
         content = request.POST.get('content')
         department = request.POST.get('department') or None
         
@@ -1365,23 +1319,21 @@ def create_announcement(request):
             messages.success(request, 'Announcement posted successfully.')
         else:
             messages.error(request, 'Content is required.')
-            
-    return redirect('admin_announcements')
+        
+        return redirect('admin_announcements')
 
-@login_required
-def delete_announcement(request, announcement_id):
+class DeleteAnnouncementView(LoginRequiredMixin, AdminRequiredMixin, View):
     """
-    Handles deletion of announcements
+    Handles deletion of announcements by admins
     """
-    if request.user.role != 'admin':
-        raise PermissionDenied
+    def post(self, request, announcement_id):
         
-    announcement = get_object_or_404(Announcement, id=announcement_id)
-    announcement.delete()
-    messages.success(request, 'Announcement deleted successfully.')
-            
-    return redirect('admin_announcements')
-        
+        announcement = get_object_or_404(Announcement, id=announcement_id)
+        announcement.delete()
+        messages.success(request, 'Announcement deleted successfully.')
+
+        return redirect('admin_announcements')
+
 class AdminAccountEditView(LoginRequiredMixin, AdminRequiredMixin, View):
     """
     Handles admin editing accounts
@@ -1435,12 +1387,6 @@ class DashboardView(LoginRequiredMixin, View):
             'department': request.user.staff.department if hasattr(request.user, 'staff') else "Admin"
         }
         return render(request, 'staff/dashboard.html', context)
-    
-def home(request):
-    """
-    Renders the home page
-    """
-    return render(request, 'home.html')
 
 class LogInView(View, RoleBasedRedirectMixin):
     """
@@ -1559,30 +1505,44 @@ class VerifyEmailView(View):
             
         return redirect('log_in')
     
-
-def check_username(request):
+class CheckUsernameView(View):
     """
     Checks a username exists
     """
-    username = request.GET.get('username', '')
-    exists = CustomUser.objects.filter(username=username).exists()
-    return JsonResponse({'exists': exists})
+    def get(self, request):
+        username = request.GET.get('username', '')
+        exists = CustomUser.objects.filter(username=username).exists()
+        return JsonResponse({'exists': exists})
 
-def check_email(request):
+class CheckEmailView(View):
     """
     Checks an email exists
     """
-    email = request.GET.get('email', '')
-    exists = CustomUser.objects.filter(email=email).exists()
-    return JsonResponse({'exists': exists})
+    def get(self, request):
+        email = request.GET.get('email', '')
+        exists = CustomUser.objects.filter(email=email).exists()
+        return JsonResponse({'exists': exists})
 
-def about(request):
-    """Renders information about the University Helpdesk"""
-    return render(request, 'about.html')
+class AboutView(View):
+    """
+    Renders information about the University Helpdesk
+    """
+    def get(self, request):
+        return render(request, 'about.html')
 
-def faq(request):
-    """Renders FAQs organized by categories."""
-    return render(request, 'faq.html')
+class FaqView(View):
+    """
+    Renders FAQs organized by categories
+    """
+    def get(self, request):
+        return render(request, 'faq.html')
+
+class HomeView(View):
+    """
+    Renders the home page
+    """
+    def get(self, request):
+        return render(request, 'home.html')
 
 class EmailVerificationTokenGenerator(PasswordResetTokenGenerator):
     """
@@ -1681,8 +1641,6 @@ class ForgetPasswordNewPasswordView(View):
                 "message": "The token is invalid or expired.",
                 "link": reverse('log_in')
             })
-
-
 
 class ForgetPasswordMailView(View):
     """

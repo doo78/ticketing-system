@@ -3,9 +3,7 @@ from django.test import TestCase, RequestFactory
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.urls import reverse
-
 from ticket.models import Ticket, Staff, Student, AdminMessage, StudentMessage, StaffMessage, CustomUser
-from ticket.views import analytics_dashboard
 
 class AnalyticsCalculationsTest(TestCase):
     """Tests for the analytics calculation logic."""

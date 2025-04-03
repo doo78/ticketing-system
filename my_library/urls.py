@@ -7,21 +7,24 @@ from django.views import View
 from django.urls import reverse
 from django.conf import settings
 from ticket import views
-from ticket.views import (
-    StaffUpdateProfileView, admin_ticket_detail, home, LogInView, LogOutView, StaffTicketListView, StaffTicketDetailView,
-    ManageTicketView, StaffProfileView, staff_dashboard, SignUpView,AdminTicketListView, AdminAccountsView,AdminAccountView,AdminAccountEditView,
-     AdminAPITicketDetailsView,AdminAPIStaffByDepartmentView,AdminAPITicketAssignView,ForgetPasswordMailView,ForgetPasswordNewPasswordView,PasswordResetSentView, admin_ticket_detail
-
-)
-
 from django.conf.urls.static import static
-
+from ticket.views import (
+    StudentSettingsView, StaffUpdateProfileView, LogInView, LogOutView, 
+    StaffTicketListView, StaffTicketDetailView, ManageTicketView, StaffProfileView,
+    SignUpView,AdminTicketListView, AdminAccountsView,AdminAccountView,AdminAccountEditView,
+    AdminAPITicketDetailsView,AdminAPIStaffByDepartmentView,AdminAPITicketAssignView,ForgetPasswordMailView,
+    ForgetPasswordNewPasswordView,PasswordResetSentView, CreateTicketView,
+    StudentTicketDetail, StaffDashboardView, AdminDashboardView, AdminAnalyticsDashboard,
+    ExportTicketsView, ExportPerformanceView, AdminProfileView, AdminUpdateProfileView,
+    AdminTicketDetailView, AdminAnnouncementsView, CreateAnnouncementView, DeleteAnnouncementView,
+    CheckUsernameView, CheckEmailView, AboutView, FaqView, HomeView
+)
 
 urlpatterns = [
     path('admin-panel/', admin.site.urls),
-    path('', home, name='home'),
-    path('about/' , views.about, name='about'),
-    path('faq/',views.faq,name='faq'),
+    path('', HomeView.as_view(), name='home'),
+    path('about/' , AboutView.as_view(), name='about'),
+    path('faq/',FaqView.as_view(),name='faq'),
     
     #------------------------------------AUTHENTICATION URLS------------------------------------#
     path('login/', LogInView.as_view(), name='log_in'),
@@ -34,70 +37,56 @@ urlpatterns = [
     path('forget-password/sent/', PasswordResetSentView.as_view(), name='email-sent'),
     path('forget-password/reset/', views.PasswordResetView.as_view(), name='password-reset'),
 
-
-    #------------------------------------STAFF URLS------------------------------------#
-    path('staff/dashboard/', staff_dashboard, name='staff_dashboard'),
-    path('staff/tickets/', StaffTicketListView.as_view(), name='staff_ticket_list'),
-    path('staff/ticket/<int:ticket_id>/', StaffTicketDetailView.as_view(), name='staff_ticket_detail'),
-    path('staff/ticket/<int:ticket_id>/manage/', ManageTicketView.as_view(), name='manage_ticket'),
-    path('staff/profile', StaffProfileView.as_view(), name='staff_profile'),
-    path('staff/update_profile', StaffUpdateProfileView.as_view(), name='staff_update_profile'),
     #-------------------------------AUTHENTICATION URLS--------------------------------#
-
-    path('check_username/', views.check_username, name='check_username'),
-    path('check_email/', views.check_email, name='check_email'),
+    path('check_username/', CheckUsernameView.as_view(), name='check_username'),
+    path('check_email/', CheckEmailView.as_view(), name='check_email'),
     
     #------------------------------------STUDENT URLS------------------------------------#
     path('student/', include([
         path('dashboard/', views.student_dashboard, name='student_dashboard'),
-        path('settings/', views.student_settings, name='student_settings'),
+        path('settings/', StudentSettingsView.as_view(), name='student_settings'),
         path('tickets/', include([
-            path('', views.ticket_list, name='ticket_list'),
-            path('new/', views.create_ticket, name='create_ticket'),
-            path('<int:ticket_id>/', views.ticket_detail, name='ticket_detail'),
+            path('new/', CreateTicketView.as_view(), name='create_ticket'),
+            path('<int:ticket_id>/', StudentTicketDetail.as_view(), name='ticket_detail'),
         ])),
     ])),
     #------------------------------------STAFF URLS------------------------------------#
     path('staff/', include([
-        path('dashboard/', staff_dashboard, name='staff_dashboard'),
+        path('dashboard/', StaffDashboardView.as_view(), name='staff_dashboard'),
         path('profile/', StaffProfileView.as_view(), name='staff_profile'),
-        path('announcements/', views.staff_announcements, name='staff_announcements'),
         path('tickets/', StaffTicketListView.as_view(), name='staff_ticket_list'),
         path('ticket/<int:ticket_id>/manage/', ManageTicketView.as_view(), name='manage_ticket'),
+        path('update_profile', StaffUpdateProfileView.as_view(), name='staff_update_profile'),
+        path('staff/ticket/<int:ticket_id>/', StaffTicketDetailView.as_view(), name='staff_ticket_detail'),
     ])),
-     #------------------------------------admin URLS------------------------------------#
-
+    
+    #------------------------------------ADMIN URLS------------------------------------#
     path('control-panel/', include([
-        path('dashboard/', views.admin_dashboard, name='admin_dashboard'),
+        path('dashboard/', AdminDashboardView.as_view(), name='admin_dashboard'),
         path('tickets/', AdminTicketListView.as_view(), name='admin_ticket_list'),
         path('ticket/<int:ticket_id>/', StaffTicketDetailView.as_view(), name='admin_ticket_detail'),
         path('account/<int:account_id>/', AdminAccountEditView.as_view(), name='admin_edit_account'),
         path('account/', AdminAccountView.as_view(), name='admin_account'),
         path('accounts/', AdminAccountsView.as_view(), name='admin_accounts_list'),
-        path('analytics/', views.analytics_dashboard, name='admin_analytics'),
-        path('admin/export/tickets/', views.export_tickets_csv, name='export_tickets_csv'),
-        path('admin/export/performance/', views.export_performance_csv, name='export_performance_csv'),
-        path('announcements/', views.admin_announcements, name='admin_announcements'),
-        path('announcements/create/', views.create_announcement, name='create_announcement'),
-        path('announcements/delete/<int:announcement_id>/', views.delete_announcement, name='delete_announcement'),
+        path('analytics/', AdminAnalyticsDashboard.as_view(), name='admin_analytics'),
+        path('admin/export/tickets/', ExportTicketsView.as_view(), name='export_tickets_csv'),
+        path('admin/export/performance/', ExportPerformanceView.as_view(), name='export_performance_csv'),
+        path('announcements/', AdminAnnouncementsView.as_view(), name='admin_announcements'),
+        path('announcements/create/', CreateAnnouncementView.as_view(), name='create_announcement'),
+        path('announcements/delete/<int:announcement_id>/', DeleteAnnouncementView.as_view(), name='delete_announcement'),
         path('api/ticket_details', AdminAPITicketDetailsView.as_view(), name='api_ticket'),
         path('api/get_staff_by_department', AdminAPIStaffByDepartmentView.as_view(), name='api_get_staff_by_deparment'),
         path('api/ticket_assign', AdminAPITicketAssignView.as_view(), name='ticket_assign'),
         path('profile/', StaffProfileView.as_view(), name='admin_profile'),
         path('update_profile', StaffUpdateProfileView.as_view(), name='admin_update_profile'),
-        path('control-panel/announcements/', views.admin_announcements, name='admin_announcements'),
-        path('control-panel/announcements/create/', views.create_announcement, name='create_announcement'),
-        path('control-panel/announcements/delete/<int:announcement_id>/', views.delete_announcement, name='delete_announcement'),
-        path('admin/profile/', views.admin_profile, name='admin_profile'),
-        path('dashboard/', views.admin_dashboard, name='admin_dashboard'),
-        path('admin/profile/edit/', views.admin_update_profile, name='admin_update_profile'),
-        path('control-panel/tickets/<int:ticket_id>/', admin_ticket_detail, name='admin_ticket_detail'),
+        path('control-panel/announcements/', AdminAnnouncementsView.as_view(), name='admin_announcements'),
+        path('control-panel/announcements/create/', CreateAnnouncementView.as_view(), name='create_announcement'),
+        path('control-panel/announcements/delete/<int:announcement_id>/', DeleteAnnouncementView.as_view(), name='delete_announcement'),
+        path('admin/profile/', AdminProfileView.as_view(), name='admin_profile'),
+        path('admin/profile/edit/', AdminUpdateProfileView.as_view(), name='admin_update_profile'),
+        path('control-panel/tickets/<int:ticket_id>/', AdminTicketDetailView.as_view(), name='admin_ticket_detail'),
         path('control-panel/account/<int:account_id>/', views.AdminAccountEditView.as_view(), name='admin_account_edit'),
-
     ])),
-
-
-
 
     path('verify-email/<uidb64>/<token>/', views.VerifyEmailView.as_view(), name='verify_email'),
     
