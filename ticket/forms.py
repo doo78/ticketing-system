@@ -202,11 +202,9 @@ class EditAccountForm(UserChangeForm):
         password1 = cleaned_data.get('password1')
         password2 = cleaned_data.get('password2')
 
-        # Ensure password mismatch error is correctly raised
         if password1 and password2 and password1 != password2:
             self.add_error('password2', "The two password fields didn't match.")
 
-        # Validate required fields for students
         if role == 'student':
             if not cleaned_data.get('department'):
                 self.add_error('department', 'This field is required for students.')

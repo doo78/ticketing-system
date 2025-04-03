@@ -2,6 +2,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from ticket.models import Ticket, Staff, Student, CustomUser
+from ticket.views import AdminUpdateForm
 
 User = get_user_model()
 
@@ -183,3 +184,30 @@ class AdminViewsTestCase(TestCase):
         
         # Check user was deleted
         self.assertFalse(User.objects.filter(id=account_id).exists()) 
+    from django.urls import reverse
+
+    def test_admin_update_profile_get(self):
+        self.client.login(username='admin_user', password='adminpass')
+        response = self.client.get(reverse('admin_update_profile'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIsInstance(response.context['form'], AdminUpdateForm)
+        self.assertContains(response, 'Update')  
+
+    def test_admin_update_profile_post_valid(self):
+        self.client.login(username='admin_user', password='adminpass')
+        response = self.client.post(reverse('admin_update_profile'), {
+            'first_name': 'Updated',
+            'last_name': 'User',
+            'email': 'newadmin@example.com',
+            'username': 'admin_user'
+        })
+        self.assertRedirects(response, reverse('admin_profile'))
+        
+        self.admin_user.refresh_from_db()
+        self.assertEqual(self.admin_user.first_name, 'Updated')
+        self.assertEqual(self.admin_user.email, 'newadmin@example.com')
+
+    def test_admin_update_profile_redirect_if_not_admin(self):
+        self.client.login(username='studentuser', password='studentpass')
+        response = self.client.get(reverse('admin_update_profile'))
+        self.assertRedirects(response, reverse('admin_dashboard'))    
