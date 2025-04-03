@@ -1,6 +1,6 @@
 from django.shortcuts import redirect
 from django.core.exceptions import PermissionDenied
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 
 class RoleBasedRedirectMixin:
     """
@@ -13,3 +13,20 @@ class RoleBasedRedirectMixin:
         elif user.role == "staff":
             return "staff_dashboard"
         return "student_dashboard"
+    
+    
+class StaffRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return hasattr(self.request.user, 'staff')
+
+class AdminRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.role == 'admin'
+
+class AdminOrStaffRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.role == 'admin' or self.request.user.role == 'staff'
+
+class StudentRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return hasattr(self.request.user, 'student')

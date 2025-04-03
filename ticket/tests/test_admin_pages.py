@@ -2,6 +2,9 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from ticket.models import Ticket, Staff, Student
+from django.core.exceptions import PermissionDenied
+from ticket.models import Announcement
+from django.contrib.auth.models import Permission
 
 class AdminDashboardTest(TestCase):
     def setUp(self):
@@ -173,3 +176,73 @@ class AdminAccountEditViewTest(TestCase):
         self.assertEqual(student_profile.program, 'MBA')
         self.assertEqual(student_profile.year_of_study, 2)
 
+class CreateAnnouncementTest(TestCase):
+
+    def setUp(self):
+        """Set up users and test data."""
+        self.admin_user = get_user_model().objects.create_user(
+            username="adminuser",
+            email="admin@example.com",
+            password="adminpass",
+            role='admin'
+        )
+        self.staff_user = get_user_model().objects.create_user(
+            username="staffuser",
+            email="staff@example.com",
+            password="staffpass",
+            role="staff"
+        )
+
+        self.announcement_url = reverse('admin_announcements')  # Update with correct URL if needed
+
+    def test_admin_can_create_announcement(self):
+        """Admin should be able to create an announcement."""
+                
+        # Log in as the admin user
+        login_successful = self.client.login(username="adminuser", password="adminpass")
+        
+        print(self.admin_user.role)
+
+        # POST a valid announcement
+        response = self.client.post(self.announcement_url, {
+            'content': 'Important Announcement',
+            'department': 'business'
+        })
+        
+        # After posting, it should redirect (302 status code)
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, self.announcement_url)
+
+        # Ensure that the announcement is created
+        self.assertTrue(Announcement.objects.filter(content="Important Announcement").exists())
+
+
+
+    def test_admin_cannot_create_announcement_without_content(self):
+        """Admin should not be able to create an announcement without content."""
+        self.client.login(username="adminuser", password="adminpass")
+
+        response = self.client.post(self.announcement_url, {
+            'content': '',
+            'department': 'business'
+        })
+
+        # It should still return a 200 status with the form errors displayed
+        self.assertEqual(response.status_code, 200)
+
+        # Make sure no announcement is created
+        self.assertFalse(Announcement.objects.exists())
+
+    def test_non_admin_cannot_create_announcement(self):
+        """Non-admin users should get PermissionDenied when trying to create an announcement."""
+        self.client.login(username="staffuser", password="staffpass")
+
+        # This should raise a PermissionDenied exception
+        response = self.client.post(self.announcement_url, {
+            'content': 'Unauthorized Announcement',
+            'department': 'business'
+        })
+
+        # Check if PermissionDenied is raised
+        self.assertEqual(response.status_code, 403)  # Forbidden response, instead of exception
+        self.assertFalse(Announcement.objects.exists())

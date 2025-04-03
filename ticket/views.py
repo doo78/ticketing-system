@@ -1,8 +1,11 @@
 import csv
+import urllib
+import six
+import django
+
 from itertools import count
 from django.db.models import Count  
 from django.shortcuts import render, redirect, get_object_or_404
-from django.views import View
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
@@ -13,50 +16,40 @@ from django.contrib.auth import login, logout
 from django.urls import reverse
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
-import urllib
-import six
-from ticket.mixins import RoleBasedRedirectMixin
-from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm,EditAccountForm,AdminUpdateProfileForm
+from ticket.mixins import RoleBasedRedirectMixin, StaffRequiredMixin, AdminRequiredMixin, AdminOrStaffRequiredMixin, StudentRequiredMixin
 from .models import Ticket, Staff, Student, CustomUser, AdminMessage, Announcement, StudentMessage, StaffMessage
-from .forms import DEPT_CHOICES, LogInForm, SignUpForm, StaffUpdateProfileForm, EditAccountForm, TicketForm, RatingForm
+from .forms import DEPT_CHOICES, LogInForm, SignUpForm, StaffUpdateProfileForm, EditAccountForm, TicketForm, RatingForm, AdminUpdateProfileForm
 from django.views.generic.edit import UpdateView
-from django.shortcuts import render
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
-from django.db.models import Avg
 from datetime import datetime, timedelta
-from .models import Ticket
 from django.db import models
 from django.utils.timezone import now
-from django.db.models import F, Avg
 from django.views.decorators.csrf import csrf_protect
-from django.db.models import ExpressionWrapper, DurationField
-from django.db.models import F, ExpressionWrapper, DurationField, Case, When, Value
+from django.db.models import F, ExpressionWrapper, DurationField, Case, When, Value, FloatField, Avg, Count, Q
 from django.db.models.functions import Cast
-from django.db.models import FloatField
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.mail import send_mail
-from django.utils.http import urlsafe_base64_encode
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.utils.encoding import force_bytes
-from django.urls import reverse
-from django.utils.http import urlsafe_base64_decode
-
-import django
+from django.contrib.auth import get_user
 from django.utils.encoding import force_str
-
 from django.contrib.auth import get_user_model
+from django import forms
+from urllib.parse import quote 
 
-# #Gen AI imports
+
+#----Gen AI imports----#
 import boto3
-from botocore.config import Config
 import json
+from botocore.config import Config
 from django.views.decorators.http import require_POST
+from ticket.email_utils import sendHtmlMail
+from django.urls import reverse
 # from django.core.mail import send_mail
 # from django.utils.html import strip_tags
 # from django.template.loader import render_to_string
 # from django.core.mail import EmailMultiAlternatives
-from ticket.email_utils import sendHtmlMail
-from django.urls import reverse
+
 #------------------------------------STUDENT SECTION------------------------------------#
 class DashboardView(LoginRequiredMixin, View):
     """
@@ -65,7 +58,7 @@ class DashboardView(LoginRequiredMixin, View):
 
     def get(self, request, *args, **kwargs):
         role_dispatch = {
-            'admin': self.render_admin_dashboard,  # Admin users see staff dashboard
+            'admin': self.render_admin_dashboard,  
             'staff': self.render_staff_dashboard,
             'student': self.render_student_dashboard,
         }
@@ -82,6 +75,7 @@ class DashboardView(LoginRequiredMixin, View):
             'department': request.user.staff.department if hasattr(request.user, 'staff') else "Admin"
         }
         return render(request, 'staff/dashboard.html', context)
+    
 @login_required
 def create_ticket(request):
     if not hasattr(request.user, 'student'):
@@ -138,7 +132,6 @@ def student_settings(request):
     if not hasattr(request.user, 'student'):
         return redirect('home')
 
-    # Get the user's last login time
     last_login = request.user.last_login
     if last_login:
         from django.utils import timezone
@@ -164,7 +157,6 @@ def student_settings(request):
     }
     return render(request, 'student/settings.html', student_data)
 
-
 @login_required
 def ticket_list(request):
     if not hasattr(request.user, 'student'):
@@ -173,7 +165,7 @@ def ticket_list(request):
     tickets = Ticket.objects.filter(student=request.user.student)
     return render(request, 'student/ticket_list.html', {'tickets': tickets})
 
-from ticket.models import StudentMessage, AdminMessage  # Make sure these are imported!
+from ticket.models import StudentMessage, AdminMessage  
 
 @login_required
 def ticket_detail(request, ticket_id):
@@ -183,12 +175,10 @@ def ticket_detail(request, ticket_id):
     ticket = get_object_or_404(Ticket, id=ticket_id, student=request.user.student)
     rating_form = None
 
-    # Only show rating form if ticket is closed and not yet rated
     if ticket.status == 'closed' and ticket.rating is None:
         rating_form = RatingForm(instance=ticket)
 
     if request.method == 'POST':
-        # Rating submission
         if 'submit_rating' in request.POST and ticket.status == 'closed':
             rating_form = RatingForm(request.POST, instance=ticket)
             if rating_form.is_valid():
@@ -196,7 +186,6 @@ def ticket_detail(request, ticket_id):
                 messages.success(request, 'Thank you for your feedback!')
                 return redirect('ticket_detail', ticket_id=ticket_id)
 
-        # Message submission
         elif 'message' in request.POST:
             message_content = request.POST.get('message', '').strip()
             if message_content:
@@ -213,8 +202,8 @@ def ticket_detail(request, ticket_id):
 
     context = {
         'ticket': ticket,
-        'student_messages': ticket.student_messages.order_by('created_at'),  # messages sent by student
-        'admin_messages': ticket.admin_messages.order_by('created_at'),      # messages received from admin
+        'student_messages': ticket.student_messages.order_by('created_at'), 
+        'admin_messages': ticket.admin_messages.order_by('created_at'),      
         'rating_form': rating_form
     }
 
@@ -223,22 +212,8 @@ def ticket_detail(request, ticket_id):
 
 #------------------------------------STAFF SECTION------------------------------------#
 
-class StaffRequiredMixin(UserPassesTestMixin):
-    def test_func(self):
-        return hasattr(self.request.user, 'staff')
-
-class AdminRequiredMixin(UserPassesTestMixin):
-    def test_func(self):
-        return self.request.user.role == 'admin'
-
-class AdminOrStaffRequiredMixin(UserPassesTestMixin):
-    def test_func(self):
-        return self.request.user.role == 'admin' or self.request.user.role == 'staff'
-        # return hasattr(self.request.user, 'admin')
-
 def home(request):
     return render(request, 'home.html')
-
 
 @login_required
 def staff_dashboard(request):
@@ -262,10 +237,9 @@ def staff_dashboard(request):
             status='open'
         ).count()
 
-    # Get recent announcements
     announcements = Announcement.objects.filter(
-        models.Q(department=None) | models.Q(department=staff_department)  # Get both general and department-specific announcements
-    ).order_by('-created_at')[:3]  # Get 3 most recent announcements
+        models.Q(department=None) | models.Q(department=staff_department) 
+    ).order_by('-created_at')[:3]  
 
     context = {
         'assigned_tickets_count': assigned_tickets_count,
@@ -276,8 +250,6 @@ def staff_dashboard(request):
         'announcements': announcements
     }
     return render(request, 'staff/dashboard.html', context)
-
-
 
 class LogInView(View, RoleBasedRedirectMixin):
     """
@@ -307,19 +279,15 @@ class LogInView(View, RoleBasedRedirectMixin):
         form = LogInForm()
         return render(request, 'login.html', {'form': form, 'next': next_page})
 
-
 class LogOutView(View):
     """Log out the current user and redirect to login page."""
 
     def get(self, request):
-        # Clear all existing messages
         storage = messages.get_messages(request)
         storage.used = True
 
-        # Perform logout
         logout(request)
 
-        # Add only the logout success message
         messages.success(request, "You have been logged out successfully.")
         return redirect(reverse("log_in"))
 
@@ -346,14 +314,12 @@ class SignUpView(View):
                     year_of_study=form.cleaned_data.get('year_of_study', 1)
                 )
 
-            # Generate email verification token
             token_generator = EmailVerificationTokenGenerator()
             token = token_generator.make_token(user)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             verification_url = reverse('verify_email', kwargs={'uidb64': uid, 'token': token})
             verification_url = request.build_absolute_uri(verification_url)
 
-            # Send verification email
             subject = 'Verify Your Email Address'
             message = f'Hello {user.first_name},\n\nPlease click the link below to verify your email address:\n{verification_url}\n\nThank you!'
             send_mail(
@@ -386,15 +352,6 @@ class VerifyEmailView(View):
             messages.error(request, "The verification link is invalid or has expired.")
         return redirect('log_in')
 
-class StaffRequiredMixin(UserPassesTestMixin):
-    def test_func(self):
-        return hasattr(self.request.user, 'staff')
-
-class StudentRequiredMixin(UserPassesTestMixin):
-    def test_func(self):
-        return hasattr(self.request.user, 'student')
-
-
 @login_required
 def student_dashboard(request):
     if not hasattr(request.user, 'student'):
@@ -403,18 +360,14 @@ def student_dashboard(request):
     open_tickets = Ticket.objects.filter(student=request.user.student, status='open').order_by('-date_submitted')
     pending_tickets = Ticket.objects.filter(student=request.user.student, status='pending').order_by('-date_submitted')
     closed_tickets = Ticket.objects.filter(student=request.user.student, status='closed').order_by('-date_submitted')
-    # Get sort order parameter
-    sort_order = request.GET.get('sort_order', 'desc')  # Default to descending (newest first)
+    sort_order = request.GET.get('sort_order', 'desc') 
     
-    # Determine the Django ORM ordering parameter based on sort_order
     order_by_param = '-date_submitted' if sort_order == 'desc' else 'date_submitted'
 
-    # Get tickets by status
     open_tickets = Ticket.objects.filter(student=request.user.student, status='open').order_by(order_by_param)
     pending_tickets = Ticket.objects.filter(student=request.user.student, status='pending').order_by(order_by_param)
     closed_tickets = Ticket.objects.filter(student=request.user.student, status='closed').order_by(order_by_param)
 
-    # For display purposes, we show both open and pending tickets in the active section
     active_tickets = list(open_tickets) + list(pending_tickets)
     if sort_order == 'desc':
         active_tickets.sort(key=lambda x: x.date_submitted, reverse=True)
@@ -427,11 +380,11 @@ def student_dashboard(request):
         'pending_tickets': pending_tickets,
         'closed_tickets': closed_tickets,
         'active_tickets': active_tickets,
-        'email_verified': request.user.is_email_verified,  # Added
-        'open_tickets': open_tickets,  # Only open tickets
-        'pending_tickets': pending_tickets,  # Only pending tickets
-        'closed_tickets': closed_tickets,  # Only closed tickets
-        'active_tickets': active_tickets,  # Combined open and pending tickets for display
+        'email_verified': request.user.is_email_verified,  
+        'open_tickets': open_tickets,  
+        'pending_tickets': pending_tickets,  
+        'closed_tickets': closed_tickets, 
+        'active_tickets': active_tickets, 
         'sort_order': sort_order,
     }
     return render(request, 'student/dashboard.html', context)
@@ -446,7 +399,6 @@ class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
         ticket = Ticket.objects.get(id=ticket_id)
         action = request.POST.get('action')
 
-        # Save the referrer URL for redirect
         referrer = request.META.get('HTTP_REFERER')
         is_from_detail = referrer and f'/staff/ticket/{ticket_id}/' in referrer
 
@@ -454,8 +406,7 @@ class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
             ticket.assigned_staff = request.user.staff
             ticket.status = 'pending'
         elif action == 'close':
-            # Security check: Only assigned staff can close tickets
-            # If the ticket is not assigned to anyone, allow closure (for tests)
+
             if ticket.assigned_staff is not None and ticket.assigned_staff != request.user.staff:
                 messages.error(request, 'Only the assigned staff member can close this ticket.')
                 return redirect('staff_ticket_list')
@@ -479,11 +430,9 @@ class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
 
         ticket.save()
 
-        # If the request came from the ticket detail page, redirect back to it
         if is_from_detail:
             return redirect('staff_ticket_detail', ticket_id=ticket.id)
 
-        # Otherwise use the standard list redirect logic
         status_filter = request.POST.get('status_filter', 'all')
         department_filter = request.POST.get('department_filter', 'all')
         sort_order = request.POST.get('sort_order', 'desc')
@@ -509,11 +458,10 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
         status = request.GET.get('status', 'all')
         department_filter = request.GET.get('department_filter', 'all')
         assigned_filter = request.GET.get('assigned_filter', 'all') 
-        sort_order = request.GET.get('sort_order', 'desc')  # Default to descending (newest first)
+        sort_order = request.GET.get('sort_order', 'desc')  
 
         tickets = Ticket.objects.all()
 
-        # Filter by status if specified
         if department_filter == 'mine':
             staff_department = request.user.staff.department
             if staff_department:
@@ -525,18 +473,16 @@ class StaffTicketListView(LoginRequiredMixin, StaffRequiredMixin, View):
         if status != 'all':
             tickets = tickets.filter(status=status)
         
-        # Apply sorting based on sort_order parameter
         if sort_order == 'asc':
             tickets = tickets.order_by('date_submitted')
         else:
             tickets = tickets.order_by('-date_submitted')
 
-        # Get counts for the filter buttons
         context = {
             'tickets': tickets,
             'status': status,
             'department_filter': department_filter,
-            'sort_order': sort_order,  # Pass the current sort order to the template
+            'sort_order': sort_order,  
             'open_count': Ticket.objects.filter(status='open').count(),
             'pending_count': Ticket.objects.filter(status='pending').count(),
             'closed_count': Ticket.objects.filter(status='closed').count(),
@@ -566,7 +512,6 @@ class StaffTicketDetailView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View)
         
         context = {
             'ticket': ticket,
-            #'ticket_messages': ticket.message_id.all().order_by('created_at')
             'ticket_messages': ticket_messages,
         }
         return render(request, 'staff/ticket_detail.html', context)
@@ -697,7 +642,6 @@ class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
                 pending_percentage = 0
                 closed_percentage = 0
 
-            # Calculate average rating for closed tickets
             rated_tickets = assigned_tickets.filter(status="closed", rating__isnull=False)
             rated_tickets_count = rated_tickets.count()
 
@@ -807,10 +751,8 @@ class AdminTicketListView(LoginRequiredMixin,AdminRequiredMixin, View):
         order = request.GET.get('order', 'asce')
         order_attr = request.GET.get('order_attr', 'id')
         order_by=order_attr  if order == 'asce' else "-" + order_attr
-        # Base queryset
         tickets = Ticket.objects.all().order_by(order_by)
 
-        # Filter by status if specified
         if status != 'all':
             tickets = tickets.filter(status=status)
 
@@ -818,7 +760,6 @@ class AdminTicketListView(LoginRequiredMixin,AdminRequiredMixin, View):
         if order != 'asce':
             tickets = tickets.order_by('-id')
 
-        # Get counts for the filter buttons
         context = {
             'departments': Ticket.DEPT_CHOICES,
             'tickets': tickets,
@@ -886,6 +827,7 @@ class AdminAccountEditView(LoginRequiredMixin,AdminRequiredMixin,View):
             messages.success(request, "Account updated successfully!.")
             return redirect('admin_accounts_list')
         return render(request, "admin-panel/admin_accounts.html", {"form": form,"is_update":True})
+    
 class AdminAccountsView(LoginRequiredMixin,AdminRequiredMixin,View):
     """
     Handles user registration using Django's Class-Based Views.
@@ -898,15 +840,11 @@ class AdminAccountsView(LoginRequiredMixin,AdminRequiredMixin,View):
         order = request.GET.get('order', 'asce')
         order_attr = request.GET.get('order_attr', 'id')
         order_by = order_attr if order == 'asce' else "-" + order_attr
-        # Base queryset
         accounts = CustomUser.objects.all().order_by(order_by)
 
-        # Filter by status if specified
         if account_type != 'all':
             accounts = accounts.filter(role=account_type)
 
-
-        # Get counts for the filter buttons
         context = {
             'accounts': accounts,
             'account_type': account_type,
@@ -920,12 +858,12 @@ class AdminAccountsView(LoginRequiredMixin,AdminRequiredMixin,View):
 
 
     def post(self, request):
-        account_id = request.POST.get("account_id")  # Get the ID
+        account_id = request.POST.get("account_id") 
 
         if account_id:
             try:
                 user = get_object_or_404(CustomUser, id=account_id)
-                user.delete()  # Delete from the database
+                user.delete() 
                 messages.success(request, f"User with ID {account_id} deleted successfully.")
             except Exception as e:
                 messages.success(request, f"Error deleting user: {e}")
@@ -938,23 +876,21 @@ class EmailVerificationTokenGenerator(PasswordResetTokenGenerator):
             six.text_type(user.pk) + six.text_type(timestamp) +
             six.text_type(user.is_email_verified)
         )
+        
 class AdminAPITicketDetailsView(LoginRequiredMixin,AdminRequiredMixin,View):
     def post(self, request):
         try:
-            # Parse JSON request body
             body = json.loads(request.body.decode('utf-8'))
             ticket_id = body.get('ticket_id')
 
             if not ticket_id:
                 return JsonResponse({'success': False, 'error': 'ticket_id is required'}, status=400)
 
-            # Retrieve the ticket
             try:
                 ticket = Ticket.objects.get(id=ticket_id)
             except Ticket.DoesNotExist:
                 return JsonResponse({'success': False, 'error': 'Ticket not found'}, status=404)
 
-            # Construct the response
             response_data = {
                 'ticket_id': ticket.id,
                 'subject': ticket.subject,
@@ -968,7 +904,6 @@ class AdminAPITicketDetailsView(LoginRequiredMixin,AdminRequiredMixin,View):
                 'date_closed': ticket.date_closed.strftime('%Y-%m-%d %H:%M:%S') if ticket.date_closed else None,
                 'expiration_date': ticket.expiration_date.strftime('%Y-%m-%d %H:%M:%S') if ticket.expiration_date else None,
                 'closed_by': ticket.closed_by.username if ticket.closed_by else None,
-
             }
 
             return JsonResponse({'success': True, 'response': response_data})
@@ -978,10 +913,10 @@ class AdminAPITicketDetailsView(LoginRequiredMixin,AdminRequiredMixin,View):
 
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        
 class AdminAPIStaffByDepartmentView(LoginRequiredMixin,AdminRequiredMixin,View):
     def post(self, request):
         try:
-            # Parse JSON request body
             body = json.loads(request.body.decode('utf-8'))
             department = body.get('department')
 
@@ -996,7 +931,6 @@ class AdminAPIStaffByDepartmentView(LoginRequiredMixin,AdminRequiredMixin,View):
                 }
                 for staff in staff_members
             ]
-
 
             return JsonResponse({'success': True, 'response': staff_data})
 
@@ -1032,7 +966,6 @@ class AdminAPITicketAssignView(LoginRequiredMixin,AdminRequiredMixin,View):
                 ticket.department = department
                 ticket.status = 'open'
                 ticket.save()
-                # messages.success(request, "ticket assigned successfully.")
                 return JsonResponse({'success': True},status=200)
 
         except Ticket.DoesNotExist:
@@ -1087,12 +1020,11 @@ def analytics_dashboard(request):
         if first_response:
             time_diff = first_response.created_at - ticket.date_submitted
             tickets_with_responses += 1
-            avg_response_time += time_diff.total_seconds() / 3600  # Convert to hours
+            avg_response_time += time_diff.total_seconds() / 3600 
     
     if tickets_with_responses > 0:
         avg_response_time = round(avg_response_time / tickets_with_responses, 1)
     
-    # Average resolution time for closed tickets
     closed_with_dates = tickets.filter(
         status='closed', 
         date_closed__isnull=False
@@ -1165,7 +1097,7 @@ def analytics_dashboard(request):
         if staff_closed_tickets.exists():
             res_times = []
             for ticket in staff_closed_tickets:
-                if ticket.date_closed > ticket.date_submitted:  # Only calculate if dates are in correct order
+                if ticket.date_closed > ticket.date_submitted:  
                     time_diff = abs(ticket.date_closed - ticket.date_submitted)
                     res_times.append(time_diff.total_seconds() / 3600)
             
@@ -1176,7 +1108,7 @@ def analytics_dashboard(request):
         if staff_rated_tickets.exists():
             ratings_sum = sum(ticket.rating for ticket in staff_rated_tickets)
             avg_rating = ratings_sum / staff_rated_tickets.count()
-            satisfaction = round((avg_rating / 5) * 100)  # Convert to percentage
+            satisfaction = round((avg_rating / 5) * 100)  
         
         staff_performance.append({
             'name': f"{staff.user.first_name} {staff.user.last_name}",
@@ -1185,20 +1117,16 @@ def analytics_dashboard(request):
             'satisfaction_rating': satisfaction if satisfaction else 0
         })
     
-    # Sort by most resolved tickets
     staff_performance.sort(key=lambda x: x['tickets_resolved'], reverse=True)
     
-    # If no staff performance data, create sample data
     if not staff_performance:
         staff_performance = [
             {'name': 'No Staff Data', 'tickets_resolved': 0, 'avg_resolution_time': 0, 'satisfaction_rating': 0},
         ]
     
-    # Priority distribution
     priority_counts = []
     priority_dict = dict(Ticket.PRIORITY_CHOICES)
     
-    # Count tickets by priority
     priority_data = tickets.values('priority').annotate(count=Count('id')).order_by('-count')
     
     for item in priority_data:
@@ -1235,7 +1163,7 @@ def analytics_dashboard(request):
         'department_counts': department_counts,
         'date_trend': date_trend,
         'staff_performance': staff_performance,
-        'category_counts': priority_counts,  # Using priority as a category
+        'category_counts': priority_counts, 
         'satisfaction': satisfaction
     }
     
@@ -1245,9 +1173,7 @@ def analytics_dashboard(request):
         'date_to': date_to
     })
 
-
 def export_tickets_csv(request):
-    # Get date range from request or use default (last 30 days)
     today = timezone.now().date()
     default_start = today - timedelta(days=30)
 
@@ -1261,50 +1187,39 @@ def export_tickets_csv(request):
         date_from = default_start
         date_to = today
 
-    # Create the HttpResponse object with CSV header
     response = HttpResponse(content_type='text/csv')
     filename = f'tickets_report_{date_from}_to_{date_to}.csv'
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
-    # Create CSV writer
     writer = csv.writer(response)
 
-    # Write CSV header
     writer.writerow(['Ticket ID', 'Subject', 'Status', 'Priority', 'Department',
                      'Submitted Date', 'Closed Date', 'Assigned Staff',
                      'Student', 'Rating', 'Resolution Time (Hours)'])
 
-    # Get tickets for the date range
     tickets = Ticket.objects.filter(
         date_submitted__date__gte=date_from,
         date_submitted__date__lte=date_to
     )
 
-    # Write ticket data
     for ticket in tickets:
-        # Calculate resolution time (if applicable)
         resolution_time = ''
         if ticket.status == 'closed' and ticket.date_closed:
             time_diff = ticket.date_closed - ticket.date_submitted
-            resolution_time = round(time_diff.total_seconds() / 3600, 2)  # Convert to hours
+            resolution_time = round(time_diff.total_seconds() / 3600, 2)  
             if resolution_time <= 0:
-                # Handle the case where date_closed is before date_submitted (shouldn't happen but for test cases)
-                resolution_time = 0.01  # Small positive number for test cases
+                resolution_time = 0.01 
 
-        # Get assigned staff name
         assigned_staff_name = ''
         if ticket.assigned_staff:
             assigned_staff_name = f"{ticket.assigned_staff.user.first_name} {ticket.assigned_staff.user.last_name}"
 
-        # Get student name
         student_name = ''
         if ticket.student:
             student_name = f"{ticket.student.user.first_name} {ticket.student.user.last_name}"
 
-        # Get department display name
         department = dict(Ticket.DEPT_CHOICES).get(ticket.department, '') if ticket.department else ''
 
-        # Write the row
         writer.writerow([
             ticket.id,
             ticket.subject,
@@ -1323,7 +1238,6 @@ def export_tickets_csv(request):
 
 def export_performance_csv(request):
     """Export staff performance metrics as CSV"""
-    # Get date range from request or use default (last 30 days)
     today = timezone.now().date()
     default_start = today - timedelta(days=30)
     
@@ -1337,29 +1251,21 @@ def export_performance_csv(request):
         date_from = default_start
         date_to = today
     
-    # Create the HttpResponse object with CSV header
     response = HttpResponse(content_type='text/csv')
     filename = f'staff_performance_{date_from}_to_{date_to}.csv'
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     
-    # Create CSV writer
     writer = csv.writer(response)
     
-    # Write CSV header
     writer.writerow(['Staff Name', 'Department', 'Total Tickets', 'Tickets Resolved', 
                     'Avg Resolution Time (Hours)', 'Avg Rating'])
-    
-    # Get all staff members who have been assigned tickets
-    from django.db.models import Count, Avg, Q, F
-    from .models import Staff
-    
+        
     staff_with_tickets = Staff.objects.filter(
         ticket__date_submitted__date__gte=date_from,
         ticket__date_submitted__date__lte=date_to
     ).distinct()
     
     for staff in staff_with_tickets:
-        # Get tickets assigned to this staff member
         assigned_tickets = Ticket.objects.filter(
             assigned_staff=staff,
             date_submitted__date__gte=date_from,
@@ -1369,7 +1275,6 @@ def export_performance_csv(request):
         total_tickets = assigned_tickets.count()
         resolved_tickets = assigned_tickets.filter(status='closed').count()
         
-        # Calculate average resolution time
         closed_tickets_with_dates = assigned_tickets.filter(
             status='closed', 
             date_closed__isnull=False
@@ -1382,11 +1287,10 @@ def export_performance_csv(request):
                 if ticket.date_closed > ticket.date_submitted:
 
                     time_diff = ticket.date_closed - ticket.date_submitted
-                    resolution_times.append(time_diff.total_seconds() / 3600)  # Convert to hours
+                    resolution_times.append(time_diff.total_seconds() / 3600)  
             
             avg_resolution_time = round(sum(resolution_times) / len(resolution_times), 2) if resolution_times else ''
         
-        # Calculate average rating
         avg_rating = ''
         rated_tickets = assigned_tickets.filter(rating__isnull=False)
         if rated_tickets.exists():
@@ -1403,10 +1307,6 @@ def export_performance_csv(request):
     
     return response
 
-from django.core.exceptions import PermissionDenied
-from django.contrib.auth.decorators import login_required
-from ticket.models import Ticket, CustomUser
-
 @login_required
 def admin_profile(request):
     if request.user.role != 'admin':
@@ -1420,11 +1320,11 @@ def admin_profile(request):
     }
     return render(request, 'admin-panel/admin_profile.html', context)
 
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django import forms
+
 
 User = get_user_model()
 
@@ -1438,7 +1338,7 @@ def admin_update_profile(request):
     user = request.user
 
     if user.role != 'admin':
-        return redirect('admin_dashboard')  # Just to be safe
+        return redirect('admin_dashboard') 
 
     if request.method == 'POST':
         form = AdminUpdateForm(request.POST, instance=user)
@@ -1451,20 +1351,12 @@ def admin_update_profile(request):
 
     return render(request, 'admin-panel/admin_update_profile.html', {'form': form})
 
-from django.views.decorators.csrf import csrf_protect
-
-from ticket.models import AdminMessage, StudentMessage
-
-from django.views.decorators.csrf import csrf_protect
-from ticket.models import Ticket, Staff, StudentMessage, AdminMessage, CustomUser
-
 @login_required
 @csrf_protect
 def admin_ticket_detail(request, ticket_id):
     ticket = get_object_or_404(Ticket, id=ticket_id)
 
     if request.method == 'POST':
-        # Sending an admin message
         if 'message' in request.POST:
             content = request.POST.get('message', '').strip()
             if content:
@@ -1475,7 +1367,6 @@ def admin_ticket_detail(request, ticket_id):
                 )
                 return redirect('admin_ticket_detail', ticket_id=ticket.id)
 
-        # Updating ticket
         elif 'update_ticket' in request.POST:
             ticket.department = request.POST.get('department')
             ticket.status = request.POST.get('status')
@@ -1506,11 +1397,14 @@ def admin_ticket_detail(request, ticket_id):
 @login_required
 def admin_announcements(request):
     """View for admin to manage announcements"""
-    if request.user.role != 'admin':
+
+    user = get_user(request)
+    
+    if user.role != 'admin':
         raise PermissionDenied
         
     announcements = Announcement.objects.all().order_by('-created_at')
-    dept_choices = settings.DEPT_CHOICES[1:]  # Skip the empty choice
+    dept_choices = settings.DEPT_CHOICES[1:] 
     
     return render(request, 'admin-panel/announcements.html', {
         'announcements': announcements,
@@ -1547,7 +1441,7 @@ def staff_announcements(request):
         
     staff_department = request.user.staff.department
     announcements = Announcement.objects.filter(
-        models.Q(department=None) | models.Q(department=staff_department)  # Get both general and department-specific announcements
+        models.Q(department=None) | models.Q(department=staff_department)  
     ).order_by('-created_at')
     
     return render(request, 'staff/announcements.html', {
@@ -1602,11 +1496,9 @@ class ForgetPasswordMailView(View):
                     context=context,
                 )
 
-            # Clear previous messages first
             storage = messages.get_messages(request)
-            storage.used = True  # This ensures old messages don’t get displayed again
+            storage.used = True  
 
-            # Add the new success message
             messages.success(request, "Reset email has been sent. Please check your inbox.")
 
             return render(request, 'forget-password/email-sent.html', {
@@ -1621,21 +1513,15 @@ class ForgetPasswordMailView(View):
                 "link": reverse('log_in')
             })
         
-from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib import messages
-from django.views import View
-from .forms import EditAccountForm
-from .models import CustomUser
-
 class AdminAccountEditView(LoginRequiredMixin, AdminRequiredMixin, View):
     def get(self, request, account_id):
-        # Logic to handle GET request, like displaying the account form
+        """ Logic to handle GET request, like displaying the account form """
         account = get_object_or_404(CustomUser, id=account_id)
         form = EditAccountForm(instance=account)
         return render(request, "admin-panel/admin_accounts.html", {"form": form, "is_update": True})
 
     def post(self, request, account_id):
-        # Logic to handle POST request, like saving updates
+        """ Logic to handle POST request, like saving updates """
         account = get_object_or_404(CustomUser, id=account_id)
         form = EditAccountForm(request.POST, instance=account)
         if form.is_valid():
@@ -1664,12 +1550,6 @@ class PasswordResetView(View):
                 "link": reverse('log_in')
             })
         return render(request, 'forget-password/new-password.html', {"token": token})
-
-from django.contrib import messages
-from django.shortcuts import render, redirect
-from django.urls import reverse
-from ticket.models import CustomUser
-from urllib.parse import quote 
 
 class ForgetPasswordNewPasswordView(View):
     def get(self, request):
