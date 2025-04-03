@@ -27,8 +27,8 @@ SECRET_KEY = 'django-insecure-522s1gd5yk5^td_+@y4u)=$z2zgbna-bj_p&89r_#idojf5)n#
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['alsubaie.pythonanywhere.com', 'localhost']
-CSRF_TRUSTED_ORIGINS = [*]
+ALLOWED_HOSTS = ['alsubaie.pythonanywhere.com', 'localhost', '127.0.0.1']
+CSRF_TRUSTED_ORIGINS = ['http://localhost:8000']
 # Application definition
 
 INSTALLED_APPS = [
