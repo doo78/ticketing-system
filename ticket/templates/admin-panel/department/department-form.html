@@ -1,0 +1,80 @@
+{% extends 'admin-panel/base.html' %}
+{% load form_tags %}
+
+{% block content %}
+<div class="row mb-4 justify-content-center">
+    <div class="col-12">
+        <div class="card shadow-sm border-0 px-4 py-3"
+             style="border-radius: 1.25rem; background: linear-gradient(135deg, rgba(245, 247, 250, 0.667), rgba(232, 235, 238, 0.651));">
+            <br>
+             <div class="d-flex justify-content-between align-items-center">
+
+                <!-- Heading and subtext -->
+                <div>
+                    <h2 class="mb-1 fw-bold" style="color: #0055aa;">Department </h2>
+                </div>
+
+                <!-- Back to Dashboard Button -->
+                <div>
+                    <a href="{% url 'admin_department_list' %}" class="btn btn-outline-dark">
+                        <i class="fas fa-arrow-left me-2"></i> Back to Departments
+                    </a>
+                </div>
+            </div>
+            <br>
+        </div>
+    </div>
+</div>
+
+
+<div class="card shadow-lg p-4 w-100" style="border-radius: 10px; margin: 2rem 0; background: linear-gradient(135deg, rgba(245, 247, 250, 0.667), rgba(232, 235, 238, 0.651));">
+        <h4 class="text-center mb-4 text-primary">
+            {% if is_update %}
+                Edit
+            {% else %}
+                Create
+            {% endif %} Department
+        </h4>
+
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="row">
+                {% for field in form %}
+                    <div class="col-xl-4 col-lg-6 col-md-6 col-sm-12 mb-3">
+                        <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                        {{ field }}
+                    </div>
+                {% endfor %}
+                <input type="hidden" name="department_id" value="{{ department_id }}">
+            </div>
+            <div class="d-flex justify-content-center mt-3">
+                <button type="submit" class="btn btn-primary w-25">
+                    {% if is_update %}
+                        Update
+                    {% else %}
+                        Create
+                    {% endif %}
+                </button>
+            </div>
+        </form>
+
+    </div>
+
+
+{% endblock %}

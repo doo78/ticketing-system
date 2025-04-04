@@ -2,26 +2,54 @@ from django import forms
 from django.contrib.auth import authenticate
 from django.contrib.auth.forms import UserCreationForm,UserChangeForm
 from ticket.models import CustomUser, Ticket
+from ticket.models import Department
 
-DEPT_CHOICES = [
-    ('', 'Select Department'),
-    ('arts_humanities', 'Arts & Humanities'),
-    ('business', 'Business'),
-    ('dentistry', 'Dentistry'),
-    ('law', 'Law'),
-    ('life_sciences_medicine', 'Life Sciences & Medicine'),
-    ('natural_mathematical_engineering', 'Natural, Mathematical & Engineering Sciences'),
-    ('nursing', 'Nursing'),
-    ('psychiatry', 'Psychiatry'),
-    ('social_science', 'Social Science')
-]
+# DEPT_CHOICES = [
+#     ('', 'Select Department'),
+#     ('arts_humanities', 'Arts & Humanities'),
+#     ('business', 'Business'),
+#     ('dentistry', 'Dentistry'),
+#     ('law', 'Law'),
+#     ('life_sciences_medicine', 'Life Sciences & Medicine'),
+#     ('natural_mathematical_engineering', 'Natural, Mathematical & Engineering Sciences'),
+#     ('nursing', 'Nursing'),
+#     ('psychiatry', 'Psychiatry'),
+#     ('social_science', 'Social Science')
+# ]
+class DepartmentForm(forms.ModelForm):
+    name=  forms.CharField(
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter department name'
+        })
+    )
+    email = forms.EmailField(
+        required=True,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter e-mail for a department'
+        })
+    )
+
+    password = forms.CharField(
+        required=True,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            "type": "password",
+            'placeholder': 'Enter email password'
+        })
+    )
+    class Meta:
+        model = Department
+        fields = ['id','name',"email","password"]
 
 class StaffUpdateProfileForm(forms.ModelForm):
     """Form for staff to update their profile information."""
 
-    department = forms.ChoiceField(
-        required=True, 
-        choices=DEPT_CHOICES,
+    department = forms.ModelChoiceField(
+        queryset=Department.objects.none(),  # temporary empty queryset
+        required=True,
         widget=forms.Select(attrs={'class': 'form-control'})
     )
     
@@ -33,11 +61,11 @@ class StaffUpdateProfileForm(forms.ModelForm):
 
     class Meta:
         model = CustomUser
-        fields = ['first_name', 'last_name', 'email', 'preferred_name', 'profile_picture']
+        fields = ['first_name', 'last_name', 'email', 'preferred_name', 'profile_picture','department']
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
+        self.fields['department'].queryset = Department.objects.all()
         # Bootstrap styling        
         for field in self.fields.values():
             field.widget.attrs['class'] = 'form-control'
@@ -246,7 +274,7 @@ class TicketForm(forms.ModelForm):
             self.fields['department'].initial = self.student.department
 
         # Use the same department choices as defined in the Ticket model
-        self.fields['department'].choices = Ticket.DEPT_CHOICES
+        self.fields['department'].choices = Department.objects.all()
         
         self.fields['subject'].help_text = 'Enter a clear, brief title for your query'
         self.fields['description'].help_text = 'Include all relevant details, dates, and any other information that might be helpful'

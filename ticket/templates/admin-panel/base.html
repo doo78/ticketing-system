@@ -83,6 +83,11 @@
                             </a>
                         </li>
                         <li>
+                            <a class="dropdown-item {% if request.resolver_match.url_name == 'admin_department_list' %}active{% endif %}" href="{% url 'admin_department_list' %}">
+                                <i class="bi bi-archive me-2"></i>Department
+                            </a>
+                        </li>
+                        <li>
                             <a class="dropdown-item {% if request.resolver_match.url_name == 'admin_ticket_list' %}active{% endif %}" href="{% url 'admin_ticket_list' %}">
                                 <i class="bi bi-ticket-detailed me-2"></i>Tickets
                             </a>

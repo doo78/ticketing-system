@@ -10,7 +10,8 @@ from ticket import views
 from ticket.views import (
      DashboardView, StaffUpdateProfileView, admin_ticket_detail, home, LogInView, LogOutView, StaffTicketListView, StaffTicketDetailView,
     ManageTicketView, StaffProfileView, password_reset_sent, staff_dashboard, SignUpView,AdminTicketListView, AdminAccountsView,AdminAccountView,AdminAccountEditView,
-     AdminAPITicketDetailsView,AdminAPIStaffByDepartmentView,AdminAPITicketAssignView,ForgetPasswordMailView,ForgetPasswordNewPasswordView,PasswordResetSentView, admin_ticket_detail
+     AdminAPITicketDetailsView,AdminAPIStaffByDepartmentView,AdminAPITicketAssignView,ForgetPasswordMailView,ForgetPasswordNewPasswordView,PasswordResetSentView, admin_ticket_detail,
+    DepartmentFormView,DepartmentListView
 
 )
 
@@ -71,6 +72,11 @@ urlpatterns = [
      #------------------------------------admin URLS------------------------------------#
 
     path('control-panel/', include([
+        path('department/list', DepartmentListView.as_view(), name='admin_department_list'),
+        path('department/', DepartmentFormView.as_view(), name='admin_department_create'),
+        path('department/<int:department_id>/', DepartmentFormView.as_view(), name='admin_department_edit'),
+
+        path('tickets/', AdminTicketListView.as_view(), name='admin_ticket_list'),
         path('dashboard/', views.admin_dashboard, name='admin_dashboard'),
         path('tickets/', AdminTicketListView.as_view(), name='admin_ticket_list'),
         path('ticket/<int:ticket_id>/', StaffTicketDetailView.as_view(), name='admin_ticket_detail'),

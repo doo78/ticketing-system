@@ -16,9 +16,9 @@ from django.http import HttpResponse, JsonResponse
 import urllib
 import six
 from ticket.mixins import RoleBasedRedirectMixin,AdminRoleRequiredMixin
-from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm,EditAccountForm,AdminUpdateProfileForm
+from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm,EditAccountForm,AdminUpdateProfileForm,DepartmentForm
 from .models import Ticket, Staff, Student, CustomUser, AdminMessage, Announcement, StudentMessage, StaffMessage
-from .forms import DEPT_CHOICES, LogInForm, SignUpForm, StaffUpdateProfileForm, EditAccountForm, TicketForm, RatingForm
+from .forms import LogInForm, SignUpForm, StaffUpdateProfileForm, EditAccountForm, TicketForm, RatingForm
 from django.views.generic.edit import UpdateView
 from django.shortcuts import render
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -57,6 +57,9 @@ from django.views.decorators.http import require_POST
 # from django.core.mail import EmailMultiAlternatives
 from ticket.email_utils import sendHtmlMail
 from django.urls import reverse
+
+
+from ticket.models import Department
 #------------------------------------STUDENT SECTION------------------------------------#
 class DashboardView(LoginRequiredMixin, View):
     """
@@ -820,7 +823,7 @@ class AdminTicketListView(LoginRequiredMixin,AdminRequiredMixin, View):
 
         # Get counts for the filter buttons
         context = {
-            'departments': Ticket.DEPT_CHOICES,
+            'departments': Department.get_all_departments_list(),
             'tickets': tickets,
             'status': status,
             'order': order,
@@ -1116,7 +1119,7 @@ def analytics_dashboard(request):
     }
     
     department_counts = []
-    dept_dict = dict(Ticket.DEPT_CHOICES)
+    dept_dict = dict(Department.get_all_departments_list())
     
     dept_data = tickets.values('department').annotate(count=Count('id')).order_by('-count')
     
@@ -1299,7 +1302,7 @@ def export_tickets_csv(request):
             student_name = f"{ticket.student.user.first_name} {ticket.student.user.last_name}"
         
         # Get department display name
-        department = dict(Ticket.DEPT_CHOICES).get(ticket.department, '') if ticket.department else ''
+        department = dict(Department.get_all_departments_list()).get(ticket.department, '') if ticket.department else ''
         
         # Write the row
         writer.writerow([
@@ -1497,6 +1500,7 @@ def admin_ticket_detail(request, ticket_id):
         'admin_messages': AdminMessage.objects.filter(ticket=ticket).order_by('created_at'),
         'staff_members': Staff.objects.select_related('user'),
         'dept_choices': Ticket._meta.get_field('department').choices,
+    #     TODO change dept_choices
     }
     return render(request, 'admin-panel/admin_ticket_detail.html', context)
 
@@ -1507,7 +1511,7 @@ def admin_announcements(request):
         raise PermissionDenied
         
     announcements = Announcement.objects.all().order_by('-created_at')
-    dept_choices = settings.DEPT_CHOICES[1:]  # Skip the empty choice
+    dept_choices = Department.get_all_departments_list()  # Skip the empty choice
     
     return render(request, 'admin-panel/announcements.html', {
         'announcements': announcements,
@@ -1726,3 +1730,36 @@ class ForgetPasswordNewPasswordView(View):
                 "link": reverse('log_in')
             })
 
+class DepartmentFormView(AdminRequiredMixin,View):
+    def get(self, request,department_id=None):
+        if department_id is None:
+            form = DepartmentForm()
+        else:
+            department=get_object_or_404(Department, id=department_id)
+            form = DepartmentForm(instance=department)
+        return render(request,"admin-panel/department/department-form.html",
+                      {"form": form,
+                       "is_update": department_id is not None,
+                       "department_id": department_id,
+                       }
+                      )
+    def post(self, request,department_id=None):
+        # Handle POST for both create and update
+        department = get_object_or_404(Department, id=department_id) if department_id else None
+        form = DepartmentForm(request.POST, instance=department)
+
+        if form.is_valid():
+            form.save()
+            return redirect("admin_department_list")
+
+        return render(request, "admin-panel/department/department-form.html", {
+            "form": form,
+            "is_update": department_id is not None,
+            "department_id": department_id,
+        })
+class DepartmentListView(AdminRequiredMixin,View):
+    def get(self,request):
+        departments=Department.objects.all()
+        return render(request,"admin-panel/department/department-list.html",{
+            "departments": departments,
+        })
