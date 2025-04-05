@@ -148,33 +148,6 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 LOGIN_URL = '/login/'
 
-DEPT_CHOICES = [
-    ('', 'Select Department'),
-    ('arts_humanities', 'Arts & Humanities'),
-    ('business', 'Business'),
-    ('dentistry', 'Dentistry'),
-    ('law', 'Law'),
-    ('life_sciences_medicine', 'Life Sciences & Medicine'),
-    ('natural_mathematical_engineering', 'Natural, Mathematical & Engineering Sciences'),
-    ('nursing', 'Nursing'),
-    ('psychiatry', 'Psychiatry'),
-    ('social_science', 'Social Science')
-]
-
-DEPT_EMAILS = {
-    'arts_humanities': {
-        'email': 'artshumanities.teamsk@gmail.com',
-        'password': 'zhwewyafoeszdqtz'
-    },
-    'business': {
-        'email': 'businessdept.teamsk@gmail.com',
-        'password': 'wvfxzznugpegzeey'
-    },
-    'dentistry': {
-        'email': 'dentistry.teamsk@gmail.com',
-        'password': 'jumxjedgyngmgnge'
-    },
-}
 
 MAIN_EMAIL_HOST_USER = "testingteamsk@gmail.com"
 MAIN_EMAIL_HOST_PASSWORD = "kqlnawtipijjcvdv"

@@ -1,7 +1,7 @@
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth import get_user_model
-from ticket.models import Ticket, Staff, Student
+from ticket.models import Ticket, Staff, Student, Department
 from django.core.exceptions import PermissionDenied
 from ticket.models import Announcement
 from django.contrib.auth.models import Permission
@@ -9,6 +9,7 @@ from django.contrib.auth.models import Permission
 class AdminDashboardTest(TestCase):
     def setUp(self):
         self.client = Client()
+        self.business_dept = Department.objects.create(name='Business')
         self.user = get_user_model().objects.create_superuser(
             username="admin", email="admin@example.com", password="adminpass", role="admin"
         )
@@ -27,7 +28,7 @@ class AdminDashboardTest(TestCase):
 class AdminTicketListViewTest(TestCase):
     def setUp(self):
         self.client = Client()
-
+        self.business_dept = Department.objects.create(name='Business')
         self.admin_user = get_user_model().objects.create_user(
             username="adminuser",
             email="admin@example.com",
@@ -35,9 +36,9 @@ class AdminTicketListViewTest(TestCase):
             role="admin",
         )
 
-        self.ticket1 = Ticket.objects.create(subject="Ticket 1", status="open")
-        self.ticket2 = Ticket.objects.create(subject="Ticket 2", status="closed")
-        self.ticket3 = Ticket.objects.create(subject="Ticket 3", status="pending")
+        self.ticket1 = Ticket.objects.create(subject="Ticket 1", status="open",department=self.business_dept)
+        self.ticket2 = Ticket.objects.create(subject="Ticket 2", status="closed",department=self.business_dept)
+        self.ticket3 = Ticket.objects.create(subject="Ticket 3", status="pending",department=self.business_dept)
 
     def test_ticket_list_loads_for_admin(self):
         """Admin can access the ticket list page."""
@@ -74,7 +75,8 @@ class AdminTicketListViewTest(TestCase):
 class AdminAccountEditViewTest(TestCase):
     def setUp(self):
         self.client = Client()
-
+        self.business_dept = Department.objects.create(name='Business')
+        self.other_dept = Department.objects.create(name='Law')
         self.admin_user = get_user_model().objects.create_user(
             username="adminuser",
             email="admin@example.com",
@@ -89,12 +91,16 @@ class AdminAccountEditViewTest(TestCase):
             role="staff",
         )
 
+        self.staff = Staff.objects.create(user=self.staff_user, department=self.business_dept)
+
         self.student_user = get_user_model().objects.create_user(
             username="studentuser",
             email="studentuser@example.com",
             password="studentpassword",
             role="student",
         )
+        self.student = Student.objects.create(user=self.student_user, department=self.business_dept, program="CS",
+                                              year_of_study=1)
 
     def test_admin_account_edit_view_get(self):
         """Ensure the edit form is displayed correctly for editing a user's account."""
@@ -115,6 +121,7 @@ class AdminAccountEditViewTest(TestCase):
             'password1': 'newpassword',
             'password2': 'newpassword',
             'role': 'staff',
+            'department': str(self.other_dept.id)
         }
 
         response = self.client.post(reverse('admin_edit_account', kwargs={'account_id': self.staff_user.id}), data)
@@ -130,7 +137,7 @@ class AdminAccountEditViewTest(TestCase):
     def test_admin_account_edit_view_post_edit_student(self):
         """Test editing an existing student account."""
         self.client.login(username="adminuser", password="adminpass")
-
+        self.business_dept = Department.objects.create(name='Business')
         data = {
             'username': 'updatedstudentuser',
             'first_name': 'Updated',
@@ -139,7 +146,7 @@ class AdminAccountEditViewTest(TestCase):
             'password1': 'newpassword',
             'password2': 'newpassword',
             'role': 'student',
-            'department': 'business',
+            'department': str(self.other_dept.id),
             'program': 'MBA',
             'year_of_study': 2,
         }
@@ -161,7 +168,7 @@ class AdminAccountEditViewTest(TestCase):
         self.assertEqual(updated_student.last_name, 'Student')
         self.assertEqual(updated_student.email, 'updatedstudentuser@example.com')
 
-        self.assertEqual(student_profile.department, 'business')
+        self.assertEqual(student_profile.department, self.other_dept)
         self.assertEqual(student_profile.program, 'MBA')
         self.assertEqual(student_profile.year_of_study, 2)
 
@@ -170,6 +177,7 @@ class CreateAnnouncementTest(TestCase):
     def setUp(self):
         """Set up users and test data."""
         self.client = Client()
+        self.business_dept = Department.objects.create(name='Business')
         self.admin_user = get_user_model().objects.create_superuser(
             username="adminuser",
             email="admin@example.com",
@@ -192,7 +200,7 @@ class CreateAnnouncementTest(TestCase):
         
         response = self.client.post(self.announcement_url, {
             'content': 'Important Announcement',
-            'department': 'business'
+            'department': str(self.business_dept.id),
         })
         
         self.assertEqual(response.status_code, 302)
@@ -206,7 +214,7 @@ class CreateAnnouncementTest(TestCase):
 
         response = self.client.post(self.announcement_url, {
             'content': 'Unauthorized Announcement',
-            'department': 'business'
+            'department': str(self.business_dept.id),
         })
 
         self.assertEqual(response.status_code, 403)  

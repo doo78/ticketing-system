@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from ticket.models import Ticket, Staff, Student, CustomUser, AdminMessage, StaffMessage, StudentMessage
+from ticket.models import Ticket, Staff, Student, CustomUser, AdminMessage, StaffMessage, StudentMessage, Department
 from unittest.mock import patch
 import json
 from django.contrib import messages
@@ -13,6 +13,9 @@ User = get_user_model()
 class ManageTicketViewTest(TestCase):
     def setUp(self):
         """Create a staff user and a test ticket."""
+
+        self.business_dept = Department.objects.create(name='Business')
+        self.law_dept = Department.objects.create(name='Law')
         # Create staff user
         self.staff_user = User.objects.create_user(
             username='staffuser', 
@@ -32,7 +35,7 @@ class ManageTicketViewTest(TestCase):
         )
         self.student = Student.objects.create(
             user=self.student_user,
-            department='business',
+            department=self.business_dept,
             program='Business Administration',
             year_of_study=2
         )
@@ -48,7 +51,7 @@ class ManageTicketViewTest(TestCase):
             subject='Test Ticket',
             description='This is a test ticket.',
             status='pending', 
-            department='business',
+            department=self.business_dept,
             student=self.student
         )
         
@@ -56,7 +59,7 @@ class ManageTicketViewTest(TestCase):
             subject='Pending Ticket Assigned to Me',
             description='This is a pending ticket assigned to the current user.',
             status='pending',
-            department='business',
+            department=self.business_dept,
             assigned_staff=self.staff,
             student=self.student
         )
@@ -86,13 +89,13 @@ class ManageTicketViewTest(TestCase):
         """Test that the redirect button is visible when the ticket is assigned to the current user."""
         data = {
             'action': 'redirect',
-            'department': 'law',  
+            'department': str(self.law_dept.id),
         }
 
         response = self.client.post(reverse('manage_ticket', args=[self.pending_ticket_assigned.id]), data)
         self.pending_ticket_assigned.refresh_from_db()
         
-        self.assertEqual(self.pending_ticket_assigned.department, 'law')
+        self.assertEqual(self.pending_ticket_assigned.department, self.law_dept)
         self.assertEqual(self.pending_ticket_assigned.status, 'open')
         
         self.assertIsNone(self.pending_ticket_assigned.assigned_staff)
@@ -103,6 +106,7 @@ class ManageTicketViewTest(TestCase):
         """Test that the redirect button is not shown when the ticket is assigned to another user."""
         other_staff_user = User.objects.create_user(username='otherstaff', password='password123', email='otherstaff@gmail.com')
         other_staff = Staff.objects.create(user=other_staff_user)
+        other_staff_dept = self.law_dept
         
         self.pending_ticket.assigned_staff = other_staff
         self.pending_ticket.save()
@@ -226,6 +230,7 @@ class ManageTicketViewTest(TestCase):
 class StaffTicketListViewTest(TestCase):
     def setUp(self):
         """Create a staff user and some test tickets."""
+        self.business_dept = Department.objects.create(name='Business')
         # Create staff user
         self.staff_user = CustomUser.objects.create_user(
             username='staffuser',
@@ -237,7 +242,7 @@ class StaffTicketListViewTest(TestCase):
         )
         self.staff = Staff.objects.create(
             user=self.staff_user,
-            department='business',
+            department=self.business_dept,
             role='Staff Member'
         )
 
@@ -252,7 +257,7 @@ class StaffTicketListViewTest(TestCase):
         )
         self.student = Student.objects.create(
             user=self.student_user,
-            department='business',
+            department=self.business_dept,
             program='Business Administration',
             year_of_study=2
         )
@@ -261,7 +266,7 @@ class StaffTicketListViewTest(TestCase):
         self.open_ticket = Ticket.objects.create(
             subject='Open Ticket',
             description='This is a test ticket',
-            department='business',
+            department=self.business_dept,
             status='open',
             student=self.student
         )
@@ -434,6 +439,7 @@ class StaffTicketListViewTest(TestCase):
 class StaffTicketRatingTest(TestCase):
     def setUp(self):
         """Create a staff user and test tickets with ratings."""
+        self.business_dept = Department.objects.create(name='Business')
         # Create staff user
         self.staff_user = CustomUser.objects.create_user(
             username='staffuser',
@@ -445,7 +451,7 @@ class StaffTicketRatingTest(TestCase):
         )
         self.staff = Staff.objects.create(
             user=self.staff_user,
-            department='business',
+            department=self.business_dept,
             role='Staff Member'
         )
 
@@ -460,7 +466,7 @@ class StaffTicketRatingTest(TestCase):
         )
         self.student = Student.objects.create(
             user=self.student_user,
-            department='business',
+            department=self.business_dept,
             program='Business Administration',
             year_of_study=2
         )
@@ -469,7 +475,7 @@ class StaffTicketRatingTest(TestCase):
         self.rated_ticket1 = Ticket.objects.create(
             subject='Rated Ticket 1',
             description='This is a test ticket with rating',
-            department='business',
+            department=self.business_dept,
             status='closed',
             student=self.student,
             assigned_staff=self.staff,
@@ -481,7 +487,7 @@ class StaffTicketRatingTest(TestCase):
         self.rated_ticket2 = Ticket.objects.create(
             subject='Rated Ticket 2',
             description='This is another test ticket with rating',
-            department='business',
+            department=self.business_dept,
             status='closed',
             student=self.student,
             assigned_staff=self.staff,
@@ -493,7 +499,7 @@ class StaffTicketRatingTest(TestCase):
         self.unrated_ticket = Ticket.objects.create(
             subject='Unrated Closed Ticket',
             description='This is a closed ticket without rating',
-            department='business',
+            department=self.business_dept,
             status='closed',
             student=self.student,
             assigned_staff=self.staff,

@@ -1,6 +1,6 @@
 from django.test import TestCase, Client
 from django.urls import reverse
-from ticket.models import CustomUser, Staff, Student
+from ticket.models import CustomUser, Staff, Student, Department
 
 
 class StaffAuthenticationTest(TestCase):
@@ -8,6 +8,8 @@ class StaffAuthenticationTest(TestCase):
         self.client = Client()
         self.signup_url = reverse('sign_up')
         self.login_url = reverse('log_in')
+        self.business_dept = Department.objects.create(name='Business')
+        self.law_dept = Department.objects.create(name='Law')
         self.staff_data = {
             'username': 'staffuser',
             'email': 'staff@example.com',
@@ -16,7 +18,7 @@ class StaffAuthenticationTest(TestCase):
             'role': 'staff',
             'first_name': 'Staff',
             'last_name': 'User',
-            'department': 'business'
+            'department': str(self.business_dept.id)
         }
 
     def test_staff_signup_success(self):
@@ -27,6 +29,8 @@ class StaffAuthenticationTest(TestCase):
 
         # Verify user details
         user = CustomUser.objects.first()
+        staff_profile = Staff.objects.first()
+        self.assertIsNone(staff_profile.department)
         self.assertEqual(user.email, self.staff_data['email'])
         self.assertEqual(user.first_name, self.staff_data['first_name'])
         self.assertEqual(user.last_name, self.staff_data['last_name'])
@@ -42,7 +46,7 @@ class StaffAuthenticationTest(TestCase):
             last_name=self.staff_data['last_name'],
             role='staff'
         )
-        Staff.objects.create(user=user, department='business', role='Staff Member')
+        Staff.objects.create(user=user, department=self.business_dept, role='Staff Member')
 
         response = self.client.post(self.login_url, {
             'username': self.staff_data['username'],
@@ -75,6 +79,8 @@ class StudentAuthenticationTest(TestCase):
         self.client = Client()
         self.signup_url = reverse('sign_up')
         self.login_url = reverse('log_in')
+        self.business_dept = Department.objects.create(name='Business')
+        self.law_dept = Department.objects.create(name='Law')
         self.student_data = {
             'username': 'studentuser',
             'email': 'student@example.com',
@@ -83,7 +89,7 @@ class StudentAuthenticationTest(TestCase):
             'role': 'student',
             'first_name': 'Student',
             'last_name': 'User',
-            'department': 'business',
+            'department': str(self.business_dept.id),
             'program': 'Business Administration',
             'year_of_study': 2
         }
@@ -115,7 +121,7 @@ class StudentAuthenticationTest(TestCase):
         )
         Student.objects.create(
             user=user,
-            department=self.student_data['department'],
+            department=self.business_dept,
             program=self.student_data['program'],
             year_of_study=self.student_data['year_of_study']
         )

@@ -1,7 +1,7 @@
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth import get_user_model
-from ticket.models import Ticket, Staff, Student, CustomUser
+from ticket.models import Ticket, Staff, Student, CustomUser, Department
 import json
 
 User = get_user_model()
@@ -11,6 +11,8 @@ class AdminAPITestCase(TestCase):
 
     def setUp(self):
         """Set up test data"""
+        self.business_dept = Department.objects.create(name='Business')
+        self.eng_dept = Department.objects.create(name='Engineering')
         # Create admin user
         self.admin_user = User.objects.create_user(
             username='adminuser',
@@ -28,7 +30,7 @@ class AdminAPITestCase(TestCase):
             first_name='Staff',
             last_name='Test'
         )
-        self.staff = Staff.objects.create(user=self.staff_user, department='business')
+        self.staff = Staff.objects.create(user=self.staff_user, department=self.business_dept)
         
         # Create student user
         self.student_user = User.objects.create_user(
@@ -39,7 +41,7 @@ class AdminAPITestCase(TestCase):
         )
         self.student = Student.objects.create(
             user=self.student_user,
-            department='business',
+            department=self.business_dept,
             program='Computer Science',
             year_of_study=2
         )
@@ -49,7 +51,8 @@ class AdminAPITestCase(TestCase):
             subject='Open Ticket',
             description='This is an open ticket',
             status='open',
-            student=self.student
+            student=self.student,
+            department=self.business_dept
         )
         
         # URLs
@@ -134,7 +137,7 @@ class AdminAPITestCase(TestCase):
     def test_staff_by_department_api(self):
         """Test admin API for staff by department"""
         data = {
-            'department': 'business'
+            'department': str(self.business_dept.id)
         }
         
         response = self.client.post(
@@ -183,7 +186,7 @@ class AdminAPITestCase(TestCase):
         data = {
             'ticket_id': self.open_ticket.id,
             'assigned_staff_id': self.staff.id,
-            'department': 'business',
+            'department': str(self.business_dept.id),
             'ticket_status': False
         }
         
@@ -205,7 +208,7 @@ class AdminAPITestCase(TestCase):
         # Check ticket was updated
         self.open_ticket.refresh_from_db()
         self.assertEqual(self.open_ticket.assigned_staff_id, self.staff.id)
-        self.assertEqual(self.open_ticket.department, 'business')
+        self.assertEqual(self.open_ticket.department, self.business_dept)
         self.assertEqual(self.open_ticket.status, 'pending')
     
     def test_ticket_assign_api_department_only(self):
@@ -213,7 +216,7 @@ class AdminAPITestCase(TestCase):
         data = {
             'ticket_id': self.open_ticket.id,
             'assigned_staff_id': '',
-            'department': 'engineering',
+            'department': str(self.eng_dept.id),
             'ticket_status': False
         }
         
@@ -235,5 +238,5 @@ class AdminAPITestCase(TestCase):
         # Check ticket was updated
         self.open_ticket.refresh_from_db()
         self.assertIsNone(self.open_ticket.assigned_staff)
-        self.assertEqual(self.open_ticket.department, 'engineering')
+        self.assertEqual(self.open_ticket.department, self.eng_dept)
         self.assertEqual(self.open_ticket.status, 'open') 

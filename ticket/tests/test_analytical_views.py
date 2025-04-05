@@ -8,13 +8,17 @@ from django.urls import reverse
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 
-from ticket.models import Ticket, Staff, Student, AdminMessage, StudentMessage, StaffMessage, CustomUser
+from ticket.models import Ticket, Staff, Student, AdminMessage, StudentMessage, StaffMessage, CustomUser, Department
+
 
 class AnalyticsViewsTest(TestCase):
     """Tests for the analytics dashboard and export views."""
     
     def setUp(self):
         """Set up test data."""
+        self.business_dept = Department.objects.create(name='Business')
+        self.arts_dept = Department.objects.create(name='Arts & Humanities')
+        self.law_dept = Department.objects.create(name='Law')
         # Create admin user
         self.admin_user = CustomUser.objects.create_user(
             username='admin_user',
@@ -36,7 +40,7 @@ class AnalyticsViewsTest(TestCase):
         )
         self.staff = Staff.objects.create(
             user=self.staff_user,
-            department='business',
+            department=self.business_dept,
             role='IT Support'
         )
         
@@ -51,7 +55,7 @@ class AnalyticsViewsTest(TestCase):
         )
         self.student = Student.objects.create(
             user=self.student_user,
-            department='business',
+            department=self.business_dept,
             program='MBA',
             year_of_study=2
         )
@@ -68,7 +72,7 @@ class AnalyticsViewsTest(TestCase):
             description='This is an open test ticket',
             status='open',
             student=self.student,
-            department='business',
+            department=self.business_dept,
             priority='normal',
             date_submitted=self.two_days_ago
         )
@@ -80,7 +84,7 @@ class AnalyticsViewsTest(TestCase):
             status='pending',
             student=self.student,
             assigned_staff=self.staff,
-            department='arts_humanities',
+            department=self.arts_dept,
             priority='urgent',
             date_submitted=self.five_days_ago
         )
@@ -93,7 +97,7 @@ class AnalyticsViewsTest(TestCase):
             student=self.student,
             assigned_staff=self.staff,
             closed_by=self.staff,
-            department='law',
+            department=self.law_dept,
             priority='low',
             date_submitted=self.five_days_ago,
             date_closed=self.one_day_ago,
@@ -155,7 +159,7 @@ class AnalyticsViewsTest(TestCase):
         self.client.login(username='staff_user', password='staffpassword')
         
         response = self.client.get(reverse('admin_analytics'))
-        self.assertEqual(response.status_code, 200)  
+        self.assertEqual(response.status_code, 403)
     
     def test_analytics_dashboard_data(self):
         """Test that the analytics dashboard contains the correct data."""
@@ -168,7 +172,7 @@ class AnalyticsViewsTest(TestCase):
         description='This is another business department ticket',
         status='open',
         student=self.student,
-        department='business',
+        department=self.business_dept,
         priority='normal',
         date_submitted=timezone.now() - datetime.timedelta(days=1)
     )

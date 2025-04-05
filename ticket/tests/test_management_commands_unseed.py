@@ -1,13 +1,15 @@
 from django.test import TestCase
 from django.core.management import call_command
 from io import StringIO
-from ticket.models import CustomUser, Staff, Student, Ticket
+from ticket.models import CustomUser, Staff, Student, Ticket, Department
 
 
 class UnseedCommandTest(TestCase):
     """Test the unseed management command"""
 
     def setUp(self):
+        self.business_dept = Department.objects.create(name='Business Unseed')
+
         # Create test users and data
         # Admin user
         admin_user = CustomUser.objects.create(
@@ -26,7 +28,7 @@ class UnseedCommandTest(TestCase):
             last_name='Test',
             role='staff'
         )
-        staff = Staff.objects.create(user=staff_user, department='business', role='Support Staff')
+        staff = Staff.objects.create(user=staff_user, department=self.business_dept, role='Support Staff')
         
         # Student user with profile
         student_user = CustomUser.objects.create(
@@ -38,7 +40,7 @@ class UnseedCommandTest(TestCase):
         )
         student = Student.objects.create(
             user=student_user,
-            department='business',
+            department=self.business_dept,
             program='Computer Science',
             year_of_study=2
         )
@@ -60,7 +62,7 @@ class UnseedCommandTest(TestCase):
             student=student,
             assigned_staff=staff,
             status='pending',
-            department='business'
+            department=self.business_dept,
         )
         
         Ticket.objects.create(
@@ -68,7 +70,7 @@ class UnseedCommandTest(TestCase):
             description='This is another test ticket',
             student=student,
             status='open',
-            department='business'
+            department=self.business_dept,
         )
 
     def test_unseed_command(self):

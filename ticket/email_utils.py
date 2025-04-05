@@ -8,7 +8,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.db.models import Max, F
 from django.core.mail import send_mail
-from ticket.models import Ticket, Student, StudentMessage, AdminMessage
+from ticket.models import Ticket, Student, StudentMessage, AdminMessage, Department
 from django.utils.html import strip_tags
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
@@ -94,7 +94,7 @@ def process_emails_for_department(dept_code, email_address, password):
 # Main function to fetch emails from all departments
 def fetch_and_create_tickets():
     """Fetch emails from all department email accounts and create tickets."""
-    for dept_code, credentials in settings.DEPT_EMAILS.items():
+    for dept_code, credentials in Department.get_all_departments_with_email():
         email = credentials['email']
         password = credentials['password']
         process_emails_for_department(dept_code, email, password)

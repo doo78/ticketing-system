@@ -1,6 +1,6 @@
 from django.test import TestCase, Client
 from django.urls import reverse
-from ticket.models import CustomUser, Student, Ticket, AdminMessage, StaffMessage, StudentMessage, Staff
+from ticket.models import CustomUser, Student, Ticket, AdminMessage, StaffMessage, StudentMessage, Staff, Department
 from django.utils import timezone
 from datetime import timedelta
 from ticket.forms import RatingForm
@@ -9,6 +9,7 @@ class StudentDashboardTest(TestCase):
     def setUp(self):
         # Create a student user
         self.client = Client()
+        self.business_dept = Department.objects.create(name='Business')
         self.user = CustomUser.objects.create_user(
             username='testuser',
             password='testpass123',
@@ -19,7 +20,7 @@ class StudentDashboardTest(TestCase):
         )
         self.student = Student.objects.create(
             user=self.user,
-            department='business',
+            department=self.business_dept,
             program='Business Administration',
             year_of_study=2
         )
@@ -38,7 +39,7 @@ class StudentDashboardTest(TestCase):
             student=self.student,
             subject='Initial Support Query',
             description='This is a test open ticket',
-            department='business',
+            department=self.business_dept,
             status='open'
         )
         
@@ -46,7 +47,7 @@ class StudentDashboardTest(TestCase):
             student=self.student,
             subject='Resolved Issue',
             description='This is a test closed ticket',
-            department='business',
+            department=self.business_dept,
             status='closed',
             date_closed=timezone.now()
         )
@@ -92,7 +93,7 @@ class StudentDashboardTest(TestCase):
         ticket_data = {
             'subject': 'New Test Ticket',
             'description': 'This is a new test ticket',
-            'department': 'business'
+            'department': str(self.business_dept.id),
         }
         response = self.client.post(self.create_ticket_url, ticket_data)
         self.assertRedirects(response, self.dashboard_url)
@@ -110,7 +111,7 @@ class StudentDashboardTest(TestCase):
         ticket_data = {
             'subject': '',  # Subject is required
             'description': 'This is a new test ticket',
-            'department': 'business'
+            'department': str(self.business_dept.id),
         }
         response = self.client.post(self.create_ticket_url, ticket_data)
         self.assertEqual(response.status_code, 200)
@@ -158,7 +159,7 @@ class StudentDashboardTest(TestCase):
         )
         other_student = Student.objects.create(
             user=other_user,
-            department='business',
+            department=self.business_dept,
             program='Business Administration',
             year_of_study=2
         )
@@ -168,7 +169,7 @@ class StudentDashboardTest(TestCase):
             student=other_student,
             subject='Other Student Ticket',
             description='This is another student\'s ticket',
-            department='business',
+            department=self.business_dept,
             status='open'
         )
         
@@ -184,7 +185,7 @@ class StudentDashboardTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'student/settings.html')
         self.assertEqual(response.context['name'], 'Test User')
-        self.assertEqual(response.context['department'], 'business')
+        self.assertEqual(response.context['department'], self.business_dept)
         self.assertEqual(response.context['program'], 'Business Administration')
         self.assertEqual(response.context['year_of_study'], 2)
 
@@ -194,7 +195,7 @@ class StudentDashboardTest(TestCase):
         ticket_data = {
             'subject': 'x' * 201,  # Subject max length is 200
             'description': 'Test description',
-            'department': 'business'
+            'department': str(self.business_dept.id),
         }
         response = self.client.post(self.create_ticket_url, ticket_data)
         self.assertEqual(response.status_code, 200)
@@ -207,7 +208,7 @@ class StudentDashboardTest(TestCase):
         ticket_data = {
             'subject': 'Test Subject',
             'description': '',
-            'department': 'business'
+            'department': str(self.business_dept.id),
         }
         response = self.client.post(self.create_ticket_url, ticket_data)
         self.assertEqual(response.status_code, 200)
@@ -219,7 +220,7 @@ class StudentDashboardTest(TestCase):
         closed_ticket_url = reverse('ticket_detail', args=[self.closed_ticket.id])
         response = self.client.post(closed_ticket_url, {'message': 'Test message'})
         messages = list(response.wsgi_request._messages)
-        self.assertTrue(any('closed' in str(m).lower() for m in messages))
+        self.assertTrue(any('cannot add messages to a closed ticket' in str(m).lower() for m in messages))
 
     def test_create_ticket_with_invalid_department(self):
         """Test ticket creation with invalid department"""
@@ -253,7 +254,7 @@ class StudentDashboardTest(TestCase):
         ticket_data = {
             'subject': 'Duplicate Subject',
             'description': 'Test description',
-            'department': 'business'
+            'department': str(self.business_dept.id),
         }
         # Create first ticket
         response1 = self.client.post(self.create_ticket_url, ticket_data)
@@ -281,7 +282,7 @@ class StudentDashboardTest(TestCase):
         ticket_data = {
             'subject': '!@#$%^&*()',
             'description': '¡™£¢∞§¶•ªº',
-            'department': 'business'
+            'department': str(self.business_dept.id),
         }
         response = self.client.post(self.create_ticket_url, ticket_data)
         self.assertEqual(response.status_code, 302)
@@ -313,7 +314,7 @@ class StudentDashboardTest(TestCase):
             student=self.student,
             subject='First Open Ticket',
             description='This is the first open ticket',
-            department='business',
+            department=self.business_dept,
             status='open'
         )
         
@@ -321,7 +322,7 @@ class StudentDashboardTest(TestCase):
             student=self.student,
             subject='Second Open Ticket',
             description='This is the second open ticket',
-            department='business',
+            department=self.business_dept,
             status='open'
         )
         
@@ -329,7 +330,7 @@ class StudentDashboardTest(TestCase):
             student=self.student,
             subject='Pending Ticket',
             description='This is a pending ticket',
-            department='business',
+            department=self.business_dept,
             status='pending'
         )
         
@@ -337,7 +338,7 @@ class StudentDashboardTest(TestCase):
             student=self.student,
             subject='Closed Ticket',
             description='This is a closed ticket',
-            department='business',
+            department=self.business_dept,
             status='closed',
             date_closed=timezone.now()
         )
@@ -374,7 +375,7 @@ class StudentDashboardTest(TestCase):
         )
         Student.objects.create(
             user=new_user,
-            department='business',
+            department=self.business_dept,
             program='Business Administration',
             year_of_study=1
         )
@@ -399,7 +400,7 @@ class StudentDashboardTest(TestCase):
             student=self.student,
             subject='Older Ticket',
             description='This is an older ticket',
-            department='business',
+            department=self.business_dept,
             status='open'
         )
         older_ticket.date_submitted = timezone.now() - timedelta(days=5)
@@ -409,7 +410,7 @@ class StudentDashboardTest(TestCase):
             student=self.student,
             subject='Newer Ticket',
             description='This is a newer ticket',
-            department='business',
+            department=self.business_dept,
             status='open'
         )
         
@@ -459,7 +460,7 @@ class StudentDashboardTest(TestCase):
             student=self.student,
             subject='Pending Ticket',
             description='This is a pending ticket',
-            department='business',
+            department=self.business_dept,
             status='pending'
         )
         
@@ -474,7 +475,7 @@ class StudentDashboardTest(TestCase):
         ticket_data = {
             'subject': 'Concurrent Ticket',
             'description': 'This is a concurrent ticket',
-            'department': 'business'
+            'department': str(self.business_dept.id),
         }
         
         # Create tickets almost simultaneously
@@ -614,7 +615,7 @@ class StudentDashboardTest(TestCase):
             student=self.student,
             subject='Unrated Closed Ticket',
             description='This closed ticket has no rating',
-            department='business',
+            department=self.business_dept,
             status='closed',
             date_closed=timezone.now()
         )

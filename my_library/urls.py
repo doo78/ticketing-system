@@ -17,7 +17,8 @@ from ticket.views import (
     StudentTicketDetail, StaffDashboardView, AdminDashboardView, AdminAnalyticsDashboard,
     ExportTicketsView, ExportPerformanceView, AdminProfileView, AdminUpdateProfileView,
     AdminTicketDetailView, AdminAnnouncementsView, CreateAnnouncementView, DeleteAnnouncementView,
-    CheckUsernameView, CheckEmailView, AboutView, FaqView, HomeView
+    CheckUsernameView, CheckEmailView, AboutView, FaqView, HomeView,
+    DepartmentFormView,DepartmentListView
 )
 
 urlpatterns = [
@@ -62,6 +63,12 @@ urlpatterns = [
     
     #------------------------------------ADMIN URLS------------------------------------#
     path('control-panel/', include([
+        path('department/list', DepartmentListView.as_view(), name='admin_department_list'),
+        path('department/', DepartmentFormView.as_view(), name='admin_department_create'),
+        path('department/<int:department_id>/', DepartmentFormView.as_view(), name='admin_department_edit'),
+
+        path('tickets/', AdminTicketListView.as_view(), name='admin_ticket_list'),
+        # path('dashboard/', views.admin_dashboard, name='admin_dashboard'),
         path('dashboard/', AdminDashboardView.as_view(), name='admin_dashboard'),
         path('tickets/', AdminTicketListView.as_view(), name='admin_ticket_list'),
         path('ticket/<int:ticket_id>/', StaffTicketDetailView.as_view(), name='admin_ticket_detail'),

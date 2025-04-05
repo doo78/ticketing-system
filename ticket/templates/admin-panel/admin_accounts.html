@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const isStudent = roleSelect.value === 'student';
         const isStaff = roleSelect.value === "staff";
         studentFields.forEach(field => {
-            const parentDiv = field.closest('.col');
+            const parentDiv = field.closest('div');
             if (parentDiv) {
                 if(isStaff && field.id === "id_department"){
                     parentDiv.classList.toggle('d-none', !isStaff);

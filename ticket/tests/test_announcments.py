@@ -1,14 +1,15 @@
 from django.test import TestCase, Client
 from django.contrib.auth import get_user_model
 from django.urls import reverse
-from ticket.models import Student, Ticket, Announcement, Staff, AdminMessage, StudentMessage , CustomUser
+from ticket.models import Student, Ticket, Announcement, Staff, AdminMessage, StudentMessage, CustomUser, Department
 
 User = get_user_model()
 
 class AdminViewsTests(TestCase):
     def setUp(self):
         self.client = Client()
-
+        self.business_dept = Department.objects.create(name='Business')
+        self.it_dept = Department.objects.create(name='IT')
         # Create admin user
         self.admin_user = CustomUser.objects.create_user(
             username='admin_user',
@@ -31,7 +32,7 @@ class AdminViewsTests(TestCase):
         )
         self.staff = Staff.objects.create(
             user=self.staff_user,
-            department='business',
+            department=self.business_dept,
             role='IT Support'
         )
 
@@ -46,7 +47,7 @@ class AdminViewsTests(TestCase):
         )
         self.student = Student.objects.create(
             user=self.student_user,
-            department='business',
+            department=self.business_dept,
             program='MBA',
             year_of_study=2
         )
@@ -55,7 +56,7 @@ class AdminViewsTests(TestCase):
         self.ticket = Ticket.objects.create(
             subject='Wi-Fi Issue',
             description='Can’t connect to university Wi-Fi.',
-            department='business',
+            department=self.business_dept,
             status='open',
             student=self.student
         )
@@ -64,7 +65,7 @@ class AdminViewsTests(TestCase):
         self.announcement = Announcement.objects.create(
             content='Test Announcement for Business',
             created_by=self.admin_user,
-            department='business'
+            department=self.business_dept,
         )
 
     def test_admin_ticket_detail_view(self):
@@ -82,7 +83,7 @@ class AdminViewsTests(TestCase):
     def test_update_ticket_assign_staff(self):
         response = self.client.post(reverse('admin_ticket_detail', args=[self.ticket.id]), {
             'update_ticket': True,
-            'department': 'IT',
+            'department': str(self.it_dept.id),
             'status': 'in_progress',
             'assigned_staff': str(self.staff_user.id)
         })
@@ -96,6 +97,15 @@ class AdminViewsTests(TestCase):
         self.assertContains(response, 'Test Announcement')
 
     def test_create_announcement(self):
+        self.admin_user = CustomUser.objects.create_user(
+            username='admin2_user',
+            email='admin2@example.com',
+            password='adminpass',
+            role='admin',
+            first_name='Admin',
+            last_name='User'
+        )
+        self.client.login(username='admin2_user', password='adminpass')
         response = self.client.post(reverse('create_announcement'), {
             'content': 'New test announcement',
             'department': ''

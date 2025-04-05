@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.core.management import call_command
 from io import StringIO
 from django.utils.timezone import now, timedelta
-from ticket.models import CustomUser, Staff, Student, Ticket
+from ticket.models import CustomUser, Staff, Student, Ticket, Department
 from unittest.mock import patch
 
 
@@ -79,6 +79,7 @@ class SeedCommandTest(TestCase):
 
     def test_create_tickets(self):
         """Test that tickets are created with proper relationships"""
+        test_dept = Department.objects.create(name='Test Dept Seed')
         # First create some students and staff manually
         admin_user = CustomUser.objects.create(
             username='admin_test',
@@ -95,7 +96,7 @@ class SeedCommandTest(TestCase):
             last_name='Test',
             role='staff'
         )
-        staff = Staff.objects.create(user=staff_user, department='business', role='Support Staff')
+        staff = Staff.objects.create(user=staff_user, department=test_dept, role='Support Staff')
         
         student_user = CustomUser.objects.create(
             username='student_test',
@@ -106,7 +107,7 @@ class SeedCommandTest(TestCase):
         )
         student = Student.objects.create(
             user=student_user,
-            department='business',
+            department=test_dept,
             program='Computer Science',
             year_of_study=2
         )

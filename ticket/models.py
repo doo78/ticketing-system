@@ -1,11 +1,48 @@
+from dis import deoptmap
+
 from django.db import models
 from django.contrib.auth.models import AbstractUser
-from django.conf import settings  
+from django.conf import settings
+from django.forms import model_to_dict
 from django.utils.timezone import now, timedelta
-from datetime import timedelta 
+from datetime import timedelta
 import uuid
 
-DEPT_CHOICES = settings.DEPT_CHOICES
+# DEPT_CHOICES = settings.DEPT_CHOICES
+
+
+class Department(models.Model):
+    name = models.CharField(max_length=100)
+    email = models.CharField(max_length=100,default="")
+    password = models.CharField(max_length=100,default="")
+
+    @staticmethod
+    def get_all_departments_with_email():
+        departments = Department.objects.all()
+        result = [(dept.id, {"email":dept.email,"password":dept.password}) for dept in departments]
+        return result
+    @staticmethod
+    def get_all_departments_list():
+        departments = Department.objects.all()
+        result = [(dept.id,dept.name) for dept in departments if dept]
+        result.insert(0,("","Select Department"))
+        return result
+
+    @staticmethod
+    def get_department_display():
+        department = Department.objects.all()
+        department_dict = {dept.id: dept.name for dept in department}
+        department_dict[" "] = "Select Department"
+        return department_dict
+
+    @staticmethod
+    def get_all_department_dict():
+        department = Department.objects.all()
+        department_dict = {dept.id: dept.name for dept in department}
+        return department_dict
+
+    def __str__(self):
+        return self.name
 
 
 class CustomUser(AbstractUser):
@@ -52,7 +89,9 @@ class CustomUser(AbstractUser):
 
 class Staff(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
-    department = models.CharField(max_length=100)
+    # department = models.CharField(max_length=100)
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
+
     role = models.CharField(max_length=50)
     date_joined = models.DateTimeField(auto_now_add=True)
     profile_picture = models.ImageField(upload_to='media/profile_pics/', blank=True, null=True)
@@ -62,12 +101,15 @@ class Staff(models.Model):
     
     def get_department_display(self):
         """Map the department choice to a human-readable format"""
-        DEPT_DICT = dict(DEPT_CHOICES)  
-        return DEPT_DICT.get(self.department, "Not Assigned")  
+
+        DEPT_DICT = Department.get_department_display()
+        return DEPT_DICT.get(self.department.name, "Not Assigned")
 
 class Student(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
-    department = models.CharField(max_length=100)
+    # department = models.CharField(max_length=100)
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
+
     program = models.CharField(max_length=100)
     year_of_study = models.IntegerField(default=1)
     date_joined = models.DateTimeField(auto_now_add=True)
@@ -75,15 +117,13 @@ class Student(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.program}"
 
+
 class Ticket(models.Model):
     STATUS_CHOICES = [
         ('open', 'Open'),
         ('pending', 'Pending'),
         ('closed', 'Closed'),
     ]
-    
-    DEPT_CHOICES = DEPT_CHOICES[1:]
-    
     PRIORITY_CHOICES = [
         ('low', 'Low'),
         ('normal', 'Normal'),
@@ -99,7 +139,8 @@ class Ticket(models.Model):
 
     subject = models.CharField(max_length=200)
     description = models.TextField()
-    department = models.CharField(max_length=50, choices=DEPT_CHOICES, null=True, blank=True)
+    # department = models.CharField(max_length=50, choices=DEPT_CHOICES, null=True, blank=True)
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, null=True, blank=True)
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='submitted_tickets', null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
@@ -165,7 +206,8 @@ class Announcement(models.Model):
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='announcements')
-    department = models.CharField(max_length=50, choices=DEPT_CHOICES, null=True, blank=True)
+    # department = models.CharField(max_length=50, choices=DEPT_CHOICES, null=True, blank=True)
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
         ordering = ['-created_at']

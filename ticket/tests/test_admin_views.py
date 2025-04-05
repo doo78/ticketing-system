@@ -1,7 +1,7 @@
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth import get_user_model
-from ticket.models import Ticket, Staff, Student, CustomUser
+from ticket.models import Ticket, Staff, Student, CustomUser, Department
 from ticket.views import AdminUpdateForm
 
 User = get_user_model()
@@ -11,6 +11,7 @@ class AdminViewsTestCase(TestCase):
 
     def setUp(self):
         """Set up test data"""
+        self.business_dept = Department.objects.create(name='Business')
         # Create admin user
         self.admin_user = User.objects.create_user(
             username='adminuser',
@@ -26,7 +27,7 @@ class AdminViewsTestCase(TestCase):
             password='staffpass123',
             role='staff'
         )
-        self.staff = Staff.objects.create(user=self.staff_user, department='business')
+        self.staff = Staff.objects.create(user=self.staff_user, department=self.business_dept)
         
         # Create student user
         self.student_user = User.objects.create_user(
@@ -37,7 +38,7 @@ class AdminViewsTestCase(TestCase):
         )
         self.student = Student.objects.create(
             user=self.student_user,
-            department='business',
+            department=self.business_dept,
             program='Computer Science',
             year_of_study=2
         )
@@ -210,4 +211,4 @@ class AdminViewsTestCase(TestCase):
     def test_admin_update_profile_redirect_if_not_admin(self):
         self.client.login(username='studentuser', password='studentpass')
         response = self.client.get(reverse('admin_update_profile'))
-        self.assertRedirects(response, reverse('admin_dashboard'))    
+        self.assertEqual(response.status_code, 403)

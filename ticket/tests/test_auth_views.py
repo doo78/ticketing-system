@@ -2,7 +2,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
-from ticket.models import Ticket, Staff, Student, CustomUser
+from ticket.models import Ticket, Staff, Student, CustomUser, Department
 import json
 from ticket.views import EmailVerificationTokenGenerator
 from django.utils.http import urlsafe_base64_encode
@@ -15,6 +15,7 @@ class AuthenticationViewsTestCase(TestCase):
 
     def setUp(self):
         """Set up test data"""
+        self.business_dept = Department.objects.create(name='Business')
         # Create users
         self.admin_user = User.objects.create_user(
             username='adminuser',
@@ -29,7 +30,7 @@ class AuthenticationViewsTestCase(TestCase):
             password='staffpass123',
             role='staff'
         )
-        self.staff = Staff.objects.create(user=self.staff_user, department='business')
+        self.staff = Staff.objects.create(user=self.staff_user, department=self.business_dept)
         
         self.student_user = User.objects.create_user(
             username='studentuser',
@@ -39,7 +40,7 @@ class AuthenticationViewsTestCase(TestCase):
         )
         self.student = Student.objects.create(
             user=self.student_user,
-            department='business',
+            department=self.business_dept,
             program='Computer Science',
             year_of_study=2
         )
@@ -153,7 +154,7 @@ class AuthenticationViewsTestCase(TestCase):
             'first_name': 'New',
             'last_name': 'User',
             'role': 'student',
-            'department': 'business',
+            'department': str(self.business_dept.id),
             'program': 'Computer Science',
             'year_of_study': 2
         }
@@ -169,7 +170,7 @@ class AuthenticationViewsTestCase(TestCase):
         # Check student profile was created
         new_user = User.objects.get(username='newuser')
         self.assertTrue(hasattr(new_user, 'student'))
-        self.assertEqual(new_user.student.department, 'business')
+        self.assertEqual(new_user.student.department, self.business_dept)
         self.assertEqual(new_user.student.program, 'Computer Science')
         self.assertEqual(new_user.student.year_of_study, 2)
         
