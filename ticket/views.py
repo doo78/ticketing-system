@@ -1472,7 +1472,7 @@ class SignUpView(View):
         Validates the sign up information and sends verification email
         """
         form = SignUpForm(request.POST)
-        if form.is_valid() and request.POST.get("role") == "staff" or request.POST.get("role") == "student":
+        if form.is_valid() and request.POST.get("role") in ["student","staff"]:
             user = form.save()
             if user.role == 'staff':
                 Staff.objects.create(user=user, department=None, role='Staff Member')
