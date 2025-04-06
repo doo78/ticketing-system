@@ -1,12 +1,11 @@
 from django.shortcuts import redirect
 from django.core.exceptions import PermissionDenied
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 
 class RoleBasedRedirectMixin:
     """
     Mixin to redirect users based on their role.
     """
-
     def get_redirect_url(self, user):
         if user.role == "admin":
             return "admin_dashboard"
@@ -14,20 +13,21 @@ class RoleBasedRedirectMixin:
             return "staff_dashboard"
         return "student_dashboard"
     
+    
+#------------------------------------ROLE REQUIRED MIXINS------------------------------------#
 
+class StaffRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return hasattr(self.request.user, 'staff')
 
-class AdminRoleRequiredMixin(LoginRequiredMixin):
-    """
-    Only allows users with role='admin' to access the view.
-    Assumes `request.user.role` is defined.
-    """
-    def dispatch(self, request, *args, **kwargs):
-        # Ensure the user is authenticated first
-        if not request.user.is_authenticated:
-            return self.handle_no_permission()
-        
-        # Check custom role
-        if request.user.role != 'admin':
-            raise PermissionDenied("You do not have permission to access this resource.")
-        
-        return super().dispatch(request, *args, **kwargs)    
+class AdminRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.role == 'admin'
+
+class StudentRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return hasattr(self.request.user, 'student')
+    
+class AdminOrStaffRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return hasattr(self.request.user, 'staff') or self.request.user.role == 'admin'

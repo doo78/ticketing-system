@@ -2,7 +2,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from ticket.models import Staff, Student, Ticket, CustomUser
+from ticket.models import Staff, Student, Ticket, CustomUser, Department
 from bs4 import BeautifulSoup
 
 User = get_user_model()
@@ -13,21 +13,23 @@ class StaffTicketFilteringTests(TestCase):
 
     def setUp(self):
         """Set up test data for filtering tests."""
+        self.business_dept = Department.objects.create(name='Business')
+        self.law_dept = Department.objects.create(name='Law')
         # Create staff users with different departments
-        self.business_staff = self._create_staff_user('businessstaff', 'business')
-        self.law_staff = self._create_staff_user('lawstaff', 'law')
+        self.business_staff = self._create_staff_user('businessstaff', self.business_dept)
+        self.law_staff = self._create_staff_user('lawstaff', self.law_dept)
 
         # Create student user
-        self.student = self._create_student_user('student')
+        self.student = self._create_student_user('student',self.business_dept)
 
         # Create tickets in different departments with different statuses
-        self.business_open_ticket = self._create_ticket('Business Query 1', 'business', 'open')
-        self.business_pending_ticket = self._create_ticket('Business Query 2', 'business', 'pending')
-        self.business_closed_ticket = self._create_ticket('Business Query 3', 'business', 'closed')
+        self.business_open_ticket = self._create_ticket('Business Query 1', self.business_dept, 'open')
+        self.business_pending_ticket = self._create_ticket('Business Query 2', self.business_dept, 'pending')
+        self.business_closed_ticket = self._create_ticket('Business Query 3', self.business_dept, 'closed')
 
-        self.law_open_ticket = self._create_ticket('Law Query 1', 'law', 'open')
-        self.law_pending_ticket = self._create_ticket('Law Query 2', 'law', 'pending')
-        self.law_closed_ticket = self._create_ticket('Law Query 3', 'law', 'closed')
+        self.law_open_ticket = self._create_ticket('Law Query 1', self.law_dept, 'open')
+        self.law_pending_ticket = self._create_ticket('Law Query 2', self.law_dept, 'pending')
+        self.law_closed_ticket = self._create_ticket('Law Query 3', self.law_dept, 'closed')
 
         # Assign some tickets to staff
         self.business_pending_ticket.assigned_staff = self.business_staff
@@ -56,7 +58,7 @@ class StaffTicketFilteringTests(TestCase):
         )
         return staff
 
-    def _create_student_user(self, username):
+    def _create_student_user(self, username,department_instance):
         """Helper method to create a student user."""
         user = User.objects.create_user(
             username=username,
@@ -68,9 +70,9 @@ class StaffTicketFilteringTests(TestCase):
         )
         student = Student.objects.create(
             user=user,
-            department='business',
+            department=department_instance,
             program='Business Admin',
-            year_of_study=2
+            year_of_study=2,
         )
         return student
 
@@ -258,14 +260,14 @@ class StaffTicketFilteringTests(TestCase):
             data={
                 'subject': 'New Business Query',
                 'description': 'This is a test query for business department',
-                'department': 'business'
+                'department': str(self.business_dept.id)
             },
             follow=True
         )
 
         # Check that the ticket was created and assigned to business staff
         new_ticket = Ticket.objects.get(subject='New Business Query')
-        self.assertEqual(new_ticket.department, 'business')
+        self.assertEqual(new_ticket.department, self.business_dept)
         self.assertEqual(new_ticket.status, 'pending')  # Should be pending since it was assigned
         self.assertEqual(new_ticket.assigned_staff, self.business_staff)
 
@@ -275,14 +277,14 @@ class StaffTicketFilteringTests(TestCase):
             data={
                 'subject': 'New Law Query',
                 'description': 'This is a test query for law department',
-                'department': 'law'
+                'department': str(self.law_dept.id)
             },
             follow=True
         )
 
         # Check that the ticket was created and assigned to law staff
         new_ticket = Ticket.objects.get(subject='New Law Query')
-        self.assertEqual(new_ticket.department, 'law')
+        self.assertEqual(new_ticket.department, self.law_dept)
         self.assertEqual(new_ticket.status, 'pending')  # Should be pending since it was assigned
         self.assertEqual(new_ticket.assigned_staff, self.law_staff)
 
@@ -292,7 +294,7 @@ class StaffTicketFilteringTests(TestCase):
         response = self.client.get(reverse('staff_dashboard'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'My Department Tickets')
+        self.assertContains(response, 'Department Tickets')
 
         # There should be 1 unassigned open business ticket
         self.assertContains(response, '1 unassigned')
@@ -313,3 +315,19 @@ class StaffTicketFilteringTests(TestCase):
         # Check for department filter buttons
         self.assertContains(response, 'All Departments')
         self.assertContains(response, 'My Department')
+        self.assertContains(response, 'Assigned To Me')
+        
+    def test_assigned_to_me_filter(self):
+        """Test filtering tickets by the 'Assigned to Me' filter."""  
+        self._login_staff(self.business_staff)  
+
+        response = self.client.get(reverse('staff_ticket_list') + '?department_filter=assigned')
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertContains(response, 'Business Query 2') 
+        self.assertNotContains(response, 'Business Query 1')  
+        self.assertNotContains(response, 'Business Query 3') 
+        self.assertNotContains(response, 'Law Query 1') 
+        self.assertNotContains(response, 'Law Query 2')  
+        self.assertNotContains(response, 'Law Query 3')

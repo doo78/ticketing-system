@@ -8,7 +8,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.db.models import Max, F
 from django.core.mail import send_mail
-from ticket.models import Ticket, Student, StudentMessage, AdminMessage
+from ticket.models import Ticket, Student, StudentMessage, AdminMessage, Department
 from django.utils.html import strip_tags
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
@@ -57,13 +57,11 @@ def create_ticket_from_email(msg, dept_code):
     _, from_email = parseaddr(raw_from)
     student = Student.objects.filter(user__email=from_email).first()
     if not student:
-        print(f"Skipping email from {from_email} (not a student)")
         return
     msg_id = msg.get("Message-ID")
     if not msg_id:
         msg_id = f"{msg.get('From')}_{msg.get('Date')}"
     if Ticket.objects.filter(message_id=msg_id).exists():
-        print(f"Skipping duplicate email: {subject}")
         return
     Ticket.objects.create(
         subject=subject or "No Subject",
@@ -72,12 +70,10 @@ def create_ticket_from_email(msg, dept_code):
         message_id=msg_id,
         department=dept_code,
     )
-    print(f"Created ticket from email: {subject} for department: {dept_code}")
 
 def process_emails_for_department(dept_code, email_address, password):
     """Fetch and process emails for a specific department."""
     try:
-        print(f"Processing emails for {dept_code}")
         mail = imaplib.IMAP4_SSL("imap.gmail.com", 993)
         mail.login(email_address, password)
         mail.select("INBOX")
@@ -98,8 +94,7 @@ def process_emails_for_department(dept_code, email_address, password):
 # Main function to fetch emails from all departments
 def fetch_and_create_tickets():
     """Fetch emails from all department email accounts and create tickets."""
-    print(f"[{datetime.datetime.now()}] Running fetch_and_create_tickets in process {os.getpid()}")
-    for dept_code, credentials in settings.DEPT_EMAILS.items():
+    for dept_code, credentials in Department.get_all_departments_with_email():
         email = credentials['email']
         password = credentials['password']
         process_emails_for_department(dept_code, email, password)
@@ -150,7 +145,6 @@ def send_reminder_emails():
                 recipient_list=[student_email],
                 fail_silently=False,
             )
-            print(f"Sent reminder email for ticket {ticket.id} to {student_email}")
         except Exception as e:
             print(f"Error sending reminder for ticket {ticket.id}: {e}")
 

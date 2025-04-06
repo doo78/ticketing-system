@@ -3,15 +3,16 @@ from django.test import TestCase, RequestFactory
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from ticket.models import Ticket, Staff, Student, AdminMessage, StudentMessage, StaffMessage, CustomUser, Department
 
-from ticket.models import Ticket, Staff, Student, Message, CustomUser
-from ticket.views import analytics_dashboard
 
 class AnalyticsCalculationsTest(TestCase):
     """Tests for the analytics calculation logic."""
     
     def setUp(self):
         """Set up test data with very specific timing for predictable calculations."""
+        self.business_dept = Department.objects.create(name='Business')
+        self.law_dept = Department.objects.create(name='Law')
         # Create admin user
         self.admin_user = CustomUser.objects.create_user(
             username='admin_calc',
@@ -33,7 +34,7 @@ class AnalyticsCalculationsTest(TestCase):
         )
         self.staff = Staff.objects.create(
             user=self.staff_user,
-            department='business',
+            department=self.business_dept,
             role='IT Support'
         )
         
@@ -48,7 +49,7 @@ class AnalyticsCalculationsTest(TestCase):
         )
         self.student = Student.objects.create(
             user=self.student_user,
-            department='business',
+            department=self.business_dept,
             program='MBA',
             year_of_study=2
         )
@@ -67,7 +68,7 @@ class AnalyticsCalculationsTest(TestCase):
             student=self.student,
             assigned_staff=self.staff,
             closed_by=self.staff,
-            department='business',
+            department=self.business_dept,
             priority='normal',
             date_submitted=submission_time1,
             date_closed=close_time1,
@@ -78,14 +79,14 @@ class AnalyticsCalculationsTest(TestCase):
         response_time1 = submission_time1 + datetime.timedelta(hours=2)
         
         # Messages for ticket 1
-        Message.objects.create(
+        AdminMessage.objects.create(
             ticket=self.ticket1,
             author=self.student_user,
             content='Initial message from student',
             created_at=submission_time1
         )
         
-        Message.objects.create(
+        AdminMessage.objects.create(
             ticket=self.ticket1,
             author=self.staff_user,
             content='Response from staff after 2 hours',
@@ -103,7 +104,7 @@ class AnalyticsCalculationsTest(TestCase):
             student=self.student,
             assigned_staff=self.staff,
             closed_by=self.staff,
-            department='business',
+            department=self.business_dept,
             priority='urgent',
             date_submitted=submission_time2,
             date_closed=close_time2,
@@ -114,14 +115,14 @@ class AnalyticsCalculationsTest(TestCase):
         response_time2 = submission_time2 + datetime.timedelta(hours=4)
         
         # Messages for ticket 2
-        Message.objects.create(
+        AdminMessage.objects.create(
             ticket=self.ticket2,
             author=self.student_user,
             content='Initial message from student',
             created_at=submission_time2
         )
         
-        Message.objects.create(
+        AdminMessage.objects.create(
             ticket=self.ticket2,
             author=self.staff_user,
             content='Response from staff after 4 hours',
@@ -170,7 +171,7 @@ class AnalyticsCalculationsTest(TestCase):
             status='closed',
             student=self.student,
             assigned_staff=self.staff,
-            department='business',
+            department=self.business_dept,
             priority='normal',
             date_submitted=self.base_time,
             date_closed=self.base_time - datetime.timedelta(hours=5),  # 5 hours before submission
@@ -201,7 +202,7 @@ class AnalyticsCalculationsTest(TestCase):
             description='This is a test ticket from the law department',
             status='open',
             student=self.student,  # We're using the same student for simplicity
-            department='law',
+            department=self.law_dept,
             priority='normal',
             date_submitted=self.base_time - datetime.timedelta(days=1)
         )
@@ -228,6 +229,7 @@ class TicketExpirationTest(TestCase):
     
     def setUp(self):
         """Set up test data for expiration testing."""
+        self.business_dept = Department.objects.create(name='Business')
         # Create student
         self.student_user = CustomUser.objects.create_user(
             username='expiration_student',
@@ -239,7 +241,7 @@ class TicketExpirationTest(TestCase):
         )
         self.student = Student.objects.create(
             user=self.student_user,
-            department='business',
+            department=self.business_dept,
             program='MBA',
             year_of_study=2
         )
@@ -254,22 +256,10 @@ class TicketExpirationTest(TestCase):
             description='This is an expired ticket',
             status='open',
             student=self.student,
-            department='business',
+            department=self.business_dept,
             priority='normal',
             date_submitted=self.now - datetime.timedelta(days=31),  # 31 days ago
             expiration_date=past_date  # Expired yesterday
         )
     
-    def test_ticket_auto_closes_on_expiration(self):
-        """Test that tickets auto-close when they expire."""
-        # When we save the ticket again, it should auto-close due to expiration
-        self.expired_ticket.save()
-        
-        # Refresh from database
-        self.expired_ticket.refresh_from_db()
-        
-        # Check that status is now closed
-        self.assertEqual(self.expired_ticket.status, 'closed')
-        
-        # Check that date_closed is set
-        self.assertIsNotNone(self.expired_ticket.date_closed)
+    

@@ -2,7 +2,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from ticket.models import Staff, Student, Ticket, CustomUser
+from ticket.models import Staff, Student, Ticket, CustomUser, Department
 
 User = get_user_model()
 
@@ -12,34 +12,43 @@ class TicketAssignmentTests(TestCase):
 
     def setUp(self):
         """Set up test data for assignment tests."""
+        self.business_dept = Department.objects.create(name='Business')
+        self.law_dept = Department.objects.create(name='Law')
+        self.arts_dept = Department.objects.create(name='Arts & Humanities')
+        self.nursing_dept = Department.objects.create(name='Nursing')
+        self.psych_dept = Department.objects.create(name='Psychiatry')
         # Create multiple staff users in the same department to test load balancing
-        self.business_staff1 = self._create_staff_user('business_staff1', 'business')
-        self.business_staff2 = self._create_staff_user('business_staff2', 'business')
-        self.business_staff3 = self._create_staff_user('business_staff3', 'business')
+        self.business_staff1 = self._create_staff_user('business_staff1', self.business_dept)
+        self.business_staff2 = self._create_staff_user('business_staff2', self.business_dept)
+        self.business_staff3 = self._create_staff_user('business_staff3', self.business_dept)
 
         # Create staff in different departments
-        self.law_staff = self._create_staff_user('law_staff', 'law')
-        self.arts_staff = self._create_staff_user('arts_staff', 'arts_humanities')
+        self.law_staff = self._create_staff_user('law_staff', self.law_dept)
+        self.arts_staff = self._create_staff_user('arts_staff', self.arts_dept)
 
         # Create students
-        self.business_student = self._create_student_user('business_student', 'business')
-        self.law_student = self._create_student_user('law_student', 'law')
+        self.business_student = self._create_student_user('business_student', self.business_dept)
+        self.law_student = self._create_student_user('law_student', self.law_dept)
 
         # Assign some tickets to staff to test load balancing
         # business_staff1 has 3 active tickets
         for i in range(3):
-            self._create_ticket(f'Business Staff 1 Ticket {i}', 'business', 'pending',
+            self._create_ticket(f'Business Staff 1 Ticket {i}', self.business_dept, 'pending',
                                 self.business_student, self.business_staff1)
+            self._create_ticket('Business Staff 2 Ticket', self.business_dept, 'pending',
+                                self.business_student, self.business_staff2)
+            self._create_ticket('Law Staff Ticket', self.law_dept, 'pending',
+                                self.law_student, self.law_staff)
 
         # business_staff2 has 1 active ticket
-        self._create_ticket('Business Staff 2 Ticket', 'business', 'pending',
+        self._create_ticket('Business Staff 2 Ticket', self.business_dept, 'pending',
                             self.business_student, self.business_staff2)
 
         # business_staff3 has 0 active tickets
         # (no tickets created for this staff intentionally)
 
         # Create some existing tickets for law department
-        self._create_ticket('Law Staff Ticket', 'law', 'pending',
+        self._create_ticket('Law Staff Ticket', self.law_dept, 'pending',
                             self.law_student, self.law_staff)
 
         # Create a client for making requests
@@ -107,7 +116,7 @@ class TicketAssignmentTests(TestCase):
             data={
                 'subject': 'New Business Query for Load Balancing',
                 'description': 'This is a test query for load balancing',
-                'department': 'business'
+                'department': str(self.business_dept.id)
             },
             follow=True
         )
@@ -123,7 +132,7 @@ class TicketAssignmentTests(TestCase):
             data={
                 'subject': 'Second Business Query for Load Balancing',
                 'description': 'This is another test query for load balancing',
-                'department': 'business'
+                'department': str(self.business_dept.id)
             },
             follow=True
         )
@@ -134,7 +143,7 @@ class TicketAssignmentTests(TestCase):
 
         # Create two more tickets for staff3 to make it have more tickets than staff2
         for i in range(2):
-            self._create_ticket(f'Extra Business Staff 3 Ticket {i}', 'business', 'pending',
+            self._create_ticket(f'Extra Business Staff 3 Ticket {i}', self.business_dept, 'pending',
                                 self.business_student, self.business_staff3)
 
         # Create another business ticket
@@ -143,7 +152,7 @@ class TicketAssignmentTests(TestCase):
             data={
                 'subject': 'Third Business Query for Load Balancing',
                 'description': 'Yet another test query for load balancing',
-                'department': 'business'
+                'department': str(self.business_dept.id)
             },
             follow=True
         )
@@ -161,9 +170,10 @@ class TicketAssignmentTests(TestCase):
         response = self.client.post(
             reverse('create_ticket'),
             data={
+
                 'subject': 'New Law Query',
                 'description': 'This is a test query for law department',
-                'department': 'law'
+                'department': str(self.law_dept.id)
             },
             follow=True
         )
@@ -179,7 +189,7 @@ class TicketAssignmentTests(TestCase):
             data={
                 'subject': 'Query for Department with No Staff',
                 'description': 'This is a test query for a department with no staff',
-                'department': 'nursing'  # No staff assigned to nursing
+                'department': str(self.nursing_dept.id)  # No staff assigned to nursing
             },
             follow=True
         )
@@ -200,7 +210,7 @@ class TicketAssignmentTests(TestCase):
             data={
                 'subject': 'Business Assignment Notification Test',
                 'description': 'Testing assignment notification',
-                'department': 'business'
+                'department': str(self.business_dept.id),
             },
             follow=True
         )
@@ -215,7 +225,7 @@ class TicketAssignmentTests(TestCase):
             data={
                 'subject': 'Psychiatry Assignment Notification Test',
                 'description': 'Testing unassigned notification',
-                'department': 'psychiatry'  # Assuming no staff assigned to psychiatry
+                'department': str(self.psych_dept.id)  # Assuming no staff assigned to psychiatry
             },
             follow=True
         )

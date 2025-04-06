@@ -1,7 +1,7 @@
 from django.test import TestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
 from ticket.forms import StaffUpdateProfileForm, RatingForm
-from ticket.models import Staff, CustomUser, Ticket, Student
+from ticket.models import Staff, CustomUser, Ticket, Student, Department
 from django.utils import timezone
 from django.urls import reverse
 from django import forms
@@ -9,6 +9,7 @@ from django import forms
 class StaffUpdateProfileFormTest(TestCase):
     def setUp(self):
         """Set up test data."""
+        self.business_dept = Department.objects.create(name='Business')
         self.user = CustomUser.objects.create_user(
             username='teststaff',
             password='testpass123',
@@ -19,7 +20,7 @@ class StaffUpdateProfileFormTest(TestCase):
         )
         self.staff = Staff.objects.create(
             user=self.user,
-            department='business',
+            department=self.business_dept,
             role='Staff Member'
         )
 
@@ -30,13 +31,15 @@ class StaffUpdateProfileFormTest(TestCase):
             'last_name': 'Staff',
             'email': 'updated@test.com',
             'preferred_name': 'Upd',
-            'department': 'business'
+            'department': str(self.business_dept.id),
         }
         form = StaffUpdateProfileForm(data=form_data, instance=self.user)  # Pass user instance
         self.assertTrue(form.is_valid())
         updated_user = form.save()
         self.assertEqual(updated_user.first_name, 'Updated')
         self.assertEqual(updated_user.email, 'updated@test.com')
+        updated_user.staff.refresh_from_db()  # Reload staff profile
+        self.assertEqual(updated_user.staff.department, self.business_dept)
 
     def test_profile_picture_upload(self):
         """Test uploading a profile picture."""
@@ -48,7 +51,7 @@ class StaffUpdateProfileFormTest(TestCase):
             'last_name': 'Staff',
             'email': 'staff@test.com',
             'preferred_name': 'Test',
-            'department': 'business'
+            'department': str(self.business_dept.id),
         }
         file_data = {'profile_picture': image}
         
@@ -75,6 +78,7 @@ class StaffUpdateProfileFormTest(TestCase):
 class RatingFormTest(TestCase):
     def setUp(self):
         """Set up test data for rating tests."""
+        self.business_dept = Department.objects.create(name='Business')
         # Create a student user
         self.student_user = CustomUser.objects.create_user(
             username='teststudent',
@@ -86,7 +90,7 @@ class RatingFormTest(TestCase):
         )
         self.student = Student.objects.create(
             user=self.student_user,
-            department='business',
+            department=self.business_dept,
             program='Test Program',
             year_of_study=2
         )
@@ -102,7 +106,7 @@ class RatingFormTest(TestCase):
         )
         self.staff = Staff.objects.create(
             user=self.staff_user,
-            department='business',
+            department=self.business_dept,
             role='Staff Member'
         )
         
@@ -111,7 +115,7 @@ class RatingFormTest(TestCase):
         self.closed_ticket = Ticket.objects.create(
             subject='Test Closed Ticket',
             description='This is a test closed ticket.',
-            department='business',
+            department=self.business_dept,
             status='closed',
             student=self.student,
             assigned_staff=self.staff,
@@ -209,7 +213,7 @@ class RatingFormTest(TestCase):
         new_ticket = Ticket.objects.create(
             subject='Test Validation Ticket',
             description='Testing validation logic',
-            department='business',
+            department=self.business_dept,
             status='closed',
             student=self.student,
             assigned_staff=self.staff,
