@@ -95,6 +95,7 @@ class Staff(models.Model):
     role = models.CharField(max_length=50)
     date_joined = models.DateTimeField(auto_now_add=True)
     profile_picture = models.ImageField(upload_to='media/profile_pics/', blank=True, null=True)
+    is_approved = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.user.username} - {self.role}"

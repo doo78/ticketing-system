@@ -133,9 +133,14 @@ class SignUpForm(UserCreationForm):
     """
     For signing up
     """
+    # role = forms.ChoiceField(
+    #     choices=[('', 'Select Role')] + list(CustomUser.ROLE_CHOICES),
+    #     required=True
+    # )
     role = forms.ChoiceField(
-        choices=[('', 'Select Role')] + list(CustomUser.ROLE_CHOICES),
-        required=True
+        choices=[('', 'Select Role')] + [choice for choice in CustomUser.ROLE_CHOICES if choice[0] != 'admin'],
+        required=True,
+        widget=forms.Select(attrs={'class': 'form-control'})
     )
     first_name = forms.CharField(max_length=150, required=True)
     last_name = forms.CharField(max_length=150, required=True)

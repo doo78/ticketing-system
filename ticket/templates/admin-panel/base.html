@@ -108,6 +108,12 @@
                             </a>
                         </li>
                         <li>
+                            <a class="dropdown-item {% if request.resolver_match.url_name == 'admin_staff_approval_list' %}active{% endif %}"
+                               href="{% url 'admin_staff_approval_list' %}">
+                                <i class="bi bi-person-check-fill me-2"></i>Approve Staff
+                            </a>
+                        </li>
+                        <li>
                          <a class="dropdown-item {% if request.resolver_match.url_name == 'admin_profile' %}active{% endif %}"
                         href="{% url 'admin_profile' %}">
                             <i class="bi bi-person me-2"></i>Profile

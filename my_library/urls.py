@@ -93,6 +93,9 @@ urlpatterns = [
         path('admin/profile/edit/', AdminUpdateProfileView.as_view(), name='admin_update_profile'),
         path('control-panel/tickets/<int:ticket_id>/', AdminTicketDetailView.as_view(), name='admin_ticket_detail'),
         path('control-panel/account/<int:account_id>/', views.AdminAccountEditView.as_view(), name='admin_account_edit'),
+        path('approve-staff/', views.AdminStaffApprovalListView.as_view(), name='admin_staff_approval_list'),
+        path('approve-staff/<int:staff_profile_id>/', views.ApproveStaffUserView.as_view(), name='approve_staff_user'),
+
     ])),
 
     path('verify-email/<uidb64>/<token>/', views.VerifyEmailView.as_view(), name='verify_email'),

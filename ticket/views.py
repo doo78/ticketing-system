@@ -1414,6 +1414,19 @@ class LogInView(View, RoleBasedRedirectMixin):
         form = AuthenticationForm(data=request.POST)
         if form.is_valid():
             user = form.get_user()
+            # --- Approval Check ---
+            if user.role == 'staff':
+                try:
+                    staff_profile = Staff.objects.get(user=user)
+                    if not staff_profile.is_approved:
+                        messages.error(request, "Your staff account is awaiting admin approval. You cannot log in yet.")
+                        return render(request, 'login.html', {'form': form})
+                except Staff.DoesNotExist:
+                    # This case should ideally not happen if signup logic is correct,
+                    # but handle it just in case.
+                    messages.error(request, "Staff profile not found. Please contact support.")
+                    return render(request, 'login.html', {'form': form})
+            # --- End Approval Check ---
             login(request, user)
             
             if not user.is_email_verified:
@@ -1459,7 +1472,7 @@ class SignUpView(View):
         Validates the sign up information and sends verification email
         """
         form = SignUpForm(request.POST)
-        if form.is_valid():
+        if form.is_valid() and request.POST.get("role") == "staff" or request.POST.get("role") == "student":
             user = form.save()
             if user.role == 'staff':
                 Staff.objects.create(user=user, department=None, role='Staff Member')
@@ -1479,6 +1492,8 @@ class SignUpView(View):
 
             subject = 'Verify Your Email Address'
             message = f'Hello {user.first_name},\n\nPlease click the link below to verify your email address:\n{verification_url}\n\nThank you!'
+            if user.role == 'staff':
+                message += "\n\nPlease note: Your staff account requires administrator approval before you can log in."
             send_mail(
                 subject=subject,
                 message=message,
@@ -1486,8 +1501,10 @@ class SignUpView(View):
                 recipient_list=[user.email],
                 fail_silently=False,
             )
-
-            messages.success(request, "Account created successfully! Please check your email to verify your address.")
+            success_msg = "Account created successfully! Please check your email to verify your address."
+            if user.role == 'staff':
+                success_msg += " Staff accounts require admin approval before login."
+            messages.success(request, success_msg)
             return redirect('log_in')
         return render(request, "sign_up.html", {"form": form})
 
@@ -1732,3 +1749,22 @@ class DepartmentListView(AdminRequiredMixin,View):
         return render(request,"admin-panel/department/department-list.html",{
             "departments": departments,
         })
+
+class AdminStaffApprovalListView(LoginRequiredMixin, AdminRequiredMixin, View):
+    def get(self, request):
+        pending_staff_profiles = Staff.objects.filter(is_approved=False).select_related('user')
+        context = {'pending_staff_profiles': pending_staff_profiles}  # Pass staff profiles
+        return render(request, 'admin-panel/approve_staff.html', context)
+
+class ApproveStaffUserView(LoginRequiredMixin, AdminRequiredMixin, View):
+     def post(self, request, staff_profile_id):
+         try:
+             # Get Staff object by its ID
+             staff_to_approve = Staff.objects.get(id=staff_profile_id, is_approved=False)
+             staff_to_approve.is_approved = True
+             staff_to_approve.save()
+             messages.success(request, f"Staff user {staff_to_approve.user.username} approved successfully.")
+             # Optionally: Send an email notification to the staff member
+         except Staff.DoesNotExist:
+             messages.error(request, "Staff profile not found or already approved.")
+         return redirect('admin_staff_approval_list')

@@ -170,6 +170,7 @@ class TicketAssignmentTests(TestCase):
         response = self.client.post(
             reverse('create_ticket'),
             data={
+
                 'subject': 'New Law Query',
                 'description': 'This is a test query for law department',
                 'department': str(self.law_dept.id)
