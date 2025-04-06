@@ -65,6 +65,8 @@ urlpatterns = [
         path('announcements/', views.staff_announcements, name='staff_announcements'),
         path('tickets/', StaffTicketListView.as_view(), name='staff_ticket_list'),
         path('ticket/<int:ticket_id>/manage/', ManageTicketView.as_view(), name='manage_ticket'),
+        path('ticket/<int:ticket_id>/', views.ticket_detail, name='staff_ticket_detail'),  
+
     ])),
      #------------------------------------admin URLS------------------------------------#
 

@@ -12,7 +12,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import login, logout
 from django.urls import reverse
 from django.conf import settings
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 import urllib
 from ticket.mixins import RoleBasedRedirectMixin,AdminRoleRequiredMixin
 from ticket.forms import LogInForm, SignUpForm, StaffUpdateProfileForm,EditAccountForm,AdminUpdateProfileForm
@@ -542,11 +542,25 @@ class StaffTicketDetailView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View)
             ticket.date_closed = now()
             ticket.closed_by = ticket.assigned_staff if ticket.assigned_staff else None
             ticket.save()
+
+        from itertools import chain
+        from ticket.models import StudentMessage, AdminMessage, StaffMessage
+
+        student_msgs = StudentMessage.objects.filter(ticket=ticket)
+        admin_msgs = AdminMessage.objects.filter(ticket=ticket)
+        staff_msgs = StaffMessage.objects.filter(ticket=ticket)
+
+        combined_messages = sorted(
+            chain(student_msgs, admin_msgs, staff_msgs),
+            key=lambda msg: msg.created_at
+        )
+
         context = {
             'ticket': ticket,
             'ticket_messages': ticket.messages.all().order_by('created_at')
         }
         return render(request, 'staff/ticket_detail.html', context)
+
 
     def post(self, request, ticket_id):
         ticket = get_object_or_404(Ticket, id=ticket_id)
@@ -648,6 +662,27 @@ class StaffTicketDetailView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View)
                 messages.success(request, 'Message sent successfully.')
 
         return redirect('staff_ticket_detail', ticket_id=ticket_id)
+
+from ticket.models import StaffMessage
+
+def ticket_detail(request, ticket_id):
+        ticket = get_object_or_404(Ticket, id=ticket_id)
+        
+        # Add any permission checks if needed
+        if ticket.assigned_staff and ticket.assigned_staff != request.user.staff:
+            return HttpResponseForbidden()
+
+        ticket_messages = ticket.messages.all().order_by("created_at")
+
+        if request.method == "POST":
+            # Handle message posting or AI logic
+            pass
+
+        context = {
+            "ticket": ticket,
+            'ticket_messages': StaffMessage.objects.filter(ticket=ticket).order_by('created_at')
+        }
+        return render(request, "staff/ticket_detail.html", context)
 
 class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
     """
@@ -823,6 +858,8 @@ class AdminTicketListView(LoginRequiredMixin,AdminRequiredMixin, View):
         }
         return render(request, 'admin-panel/admin_ticket_list.html', context)
 
+def custom_admin_login(request):
+    return render(request, "admin/login.html", {})
 
 class AdminAccountView(LoginRequiredMixin,AdminRequiredMixin,View):
     """
@@ -1528,11 +1565,9 @@ def staff_announcements(request):
     if not hasattr(request.user, 'staff'):
         raise PermissionDenied
         
+    announcements = Announcement.objects.all().order_by('-created_at')
     staff_department = request.user.staff.department
-    announcements = Announcement.objects.filter(
-        models.Q(department=None) | models.Q(department=staff_department)  # Get both general and department-specific announcements
-    ).order_by('-created_at')
-    
+
     return render(request, 'staff/announcements.html', {
         'announcements': announcements
     })

@@ -33,7 +33,7 @@
                         {{ field|add_class:"form-control" }}
                     {% endif %}
                     {% if field.errors %}
-                        <div class="text-danger">
+                        <div class="error-message">
                             {% for error in field.errors %}
                                 <p>{{ error }}</p>
                             {% endfor %}
@@ -98,4 +98,22 @@ document.addEventListener('DOMContentLoaded', function() {
     toggleStudentFields(); // Run once on page load
 });
 </script>
+
+<style>
+    .error-message p {
+        font-size: 0.875rem;
+        color: #d9534f;  /* Red color */
+        margin: 0;
+        padding: 0;
+    }
+
+    .error-message {
+        margin-top: 0.25rem;
+        font-size: 0.9rem; /* Smaller font size */
+    }
+
+    .small {
+        font-size: 0.75rem;
+    }
+</style>
 {% endblock %}
