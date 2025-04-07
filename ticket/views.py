@@ -1,46 +1,62 @@
 import csv
 import urllib
-import six
-import django
-
-from itertools import count
-from django.db.models import Count  
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.contrib import messages
-from django.core.exceptions import PermissionDenied
-from django.utils import timezone
-from django.contrib.auth.forms import AuthenticationForm
-from django.contrib.auth import login, logout
-from django.urls import reverse
-from django.conf import settings
-from django.http import HttpResponse, JsonResponse
-import urllib
-import six
-from ticket.mixins import RoleBasedRedirectMixin, StaffRequiredMixin, AdminRequiredMixin, StudentRequiredMixin, AdminOrStaffRequiredMixin
-from .models import Ticket, Staff, Student, CustomUser, AdminMessage, Announcement, StudentMessage, StaffMessage
-from .forms import LogInForm, SignUpForm, StaffUpdateProfileForm, EditAccountForm, TicketForm, RatingForm,AdminUpdateProfileForm, AdminUpdateForm, DepartmentForm
-from django.views.generic.edit import UpdateView
-from django.views import View
 from datetime import datetime, timedelta
-from django.db import models
-from django.utils.timezone import now
-from django.views.decorators.csrf import csrf_protect
-from django.db.models import F, ExpressionWrapper, DurationField, Case, When, Value, FloatField, Avg, Count, Q
-from django.db.models.functions import Cast
-from django.contrib.auth.tokens import PasswordResetTokenGenerator
-from django.core.mail import send_mail
-from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from django.utils.encoding import force_bytes
-from django.contrib.auth import get_user
-from django.utils.encoding import force_str
-from django.contrib.auth import get_user_model
+from itertools import count
+from urllib.parse import quote
+import six
 from django import forms
-from urllib.parse import quote 
+from django.conf import settings
+from django.contrib import messages
+from django.contrib.auth import login, logout, get_user, get_user_model
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.core.exceptions import PermissionDenied
+from django.core.mail import send_mail
+from django.db import models
+from django.db.models import Avg, Case, Count, DurationField, ExpressionWrapper, F, FloatField, Q, Value , When
+from django.db.models.functions import Cast
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
-from django.utils.timezone import localtime
 from django.utils.decorators import method_decorator
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils.timezone import localtime, now
+from django.views import View
+from django.views.decorators.csrf import csrf_protect
+from django.views.generic.edit import UpdateView
+from ticket.forms import TicketForm
+from ticket.mixins import (
+    AdminOrStaffRequiredMixin,
+    AdminRequiredMixin,
+    RoleBasedRedirectMixin,
+    StaffRequiredMixin,
+    StudentRequiredMixin
+)
+from .forms import (
+    AdminUpdateForm,
+    AdminUpdateProfileForm,
+    DepartmentForm,
+    EditAccountForm,
+    LogInForm,
+    RatingForm,
+    SignUpForm,
+    StaffUpdateProfileForm,
+    TicketForm
+)
+from .models import (
+    AdminMessage,
+    Announcement,
+    CustomUser,
+    Staff,
+    StaffMessage,
+    Student,
+    StudentMessage,
+    Ticket
+)
 
 
 #---------Gen AI imports---------#
