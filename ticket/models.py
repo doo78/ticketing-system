@@ -98,9 +98,10 @@ class Staff(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.role}"
-
+    
     def get_department_display(self):
         return self.department.name if self.department else "Not Assigned"
+
 
 
 class Student(models.Model):

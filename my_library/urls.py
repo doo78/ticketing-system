@@ -60,7 +60,6 @@ urlpatterns = [
         path('staff/profile/edit/', StaffUpdateProfileView.as_view(), name='staff_update_profile'),
         path('staff/announcements/', StaffAnnouncementsView.as_view(), name='staff_announcements'),
         path('staff/ticket/<int:ticket_id>/', StaffTicketDetailView.as_view(), name='staff_ticket_detail'),
-
     ])),
     
     #------------------------------------ADMIN URLS------------------------------------#

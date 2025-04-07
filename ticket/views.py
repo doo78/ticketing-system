@@ -227,6 +227,7 @@ def student_dashboard(request):
 #------------------------------------STAFF SECTION------------------------------------#
 
 class StaffDashboardView(LoginRequiredMixin, StaffRequiredMixin, View):
+    
     """
     Loads and processes all the details for staff dashboard
     """
@@ -541,8 +542,8 @@ class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
     def get(self, request):
         if request.user.role == 'staff':
             staff_member = request.user.staff
-            department_display = staff_member.get_department_display()
             assigned_tickets = Ticket.objects.filter(assigned_staff=staff_member)
+            department_display = request.user.staff.get_department_display() if request.user.staff.department else "Not Assigned"
 
             open_tickets = assigned_tickets.filter(status="open").count()
             pending_tickets = assigned_tickets.filter(status="pending").count()

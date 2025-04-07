@@ -1,19 +1,66 @@
 {% extends 'staff/base.html' %}
+{% load static %}
+
+{% block title %}Edit Profile - University Ticketing System{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <!-- Title and Back Button -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="display-4">Edit Profile</h1>
-        <a href="{% url 'staff_profile' %}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left me-2"></i>Back to Profile
-        </a>
-    </div>    
+<div class="ticket-header p-4 rounded shadow-sm mb-4 text-left"
+     style="border-radius: 1.5rem; background: linear-gradient(135deg, #f5f7fa, #e8ebee);">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+        <div>
+            <h2 class="mb-1 fw-bold text-primary">Edit Profile</h2>
+            <p class="text-muted mb-0">Keep your staff profile updated with accurate information</p>
+        </div>
+        <div>
+            <a href="{% url 'staff_profile' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Profile
+            </a>
+        </div>
+    </div>
+</div>
 
-    <form action="{% url 'staff_update_profile' %}" method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <input type="submit" value="Update" class="btn btn-primary">
-    </form>
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm p-4"
+             style="border-radius: 1.5rem; background: rgba(255, 255, 255, 0.95);">
+            <div class="text-center mb-4">
+                <div class="position-relative d-inline-block">
+                    <img src="{% if request.user.staff.profile_picture %}{{ request.user.staff.profile_picture.url }}{% else %}{% static 'images/default-profile.png' %}{% endif %}"
+                         alt="Profile Picture" class="rounded-circle shadow" width="110" height="110">
+                    <div class="position-absolute bottom-0 end-0">
+                        <i class="fas fa-pen text-primary bg-white rounded-circle p-2 shadow-sm"
+                           style="cursor: pointer;"></i>
+                    </div>
+                </div>
+                <h4 class="mt-3 fw-semibold">{{ request.user.preferred_name|default:request.user.first_name }}</h4>
+                <p class="text-muted mb-0">Staff Member</p>
+            </div>
+
+            <form action="{% url 'staff_update_profile' %}" method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                {% for field in form.visible_fields %}
+                    <div class="mb-3">
+                        <label for="{{ field.id_for_label }}" class="form-label fw-semibold text-muted">
+                            {{ field.label }}
+                        </label>
+                        {{ field }}
+                        {% if field.help_text %}
+                            <small class="form-text text-muted">{{ field.help_text }}</small>
+                        {% endif %}
+                        {% for error in field.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary rounded-pill shadow-sm py-2">
+                        <i class="fas fa-save me-2"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %}
