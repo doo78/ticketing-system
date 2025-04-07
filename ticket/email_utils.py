@@ -75,12 +75,10 @@ def process_emails_for_department(dept_code, email_address, password):
     """Fetch and process emails for a specific department."""
     try:
         mail = imaplib.IMAP4_SSL("imap.gmail.com", 993)
-        print(f"Logging in to {email_address} with password {password}")
         mail.login(email_address, password)
         mail.select("INBOX")
         status, message_numbers = mail.search(None, 'UNSEEN')
         if status == "OK":
-            print(f"Processing emails for {dept_code}...")
             for num in message_numbers[0].split():
                 status, data = mail.fetch(num, '(RFC822)')
                 if status == "OK":
