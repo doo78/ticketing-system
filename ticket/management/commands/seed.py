@@ -43,30 +43,31 @@ DEPT_EMAILS = {
     },
     'law': {
         'email': 'lawdept.teamsk@gmail.com',
-        'password': 'wvfxzznugpegzeey'
+        'password': 'uygzwywhwpfluawa'
     },
     'life_sciences_medicine': {
         'email': 'med.teamsk@gmail.com',
-        'password': 'wvfxzznugpegzeey'
+        'password': 'ohalbixvnnlglgpn'
     },
     'natural_mathematical_engineering': {
         'email': 'math.teamsk@gmail.com',
-        'password': 'wvfxzznugpegzeey'
+        'password': 'lthajxvuuwlqfjdu'
     },
     'nursing': {
         'email': 'nursing.teamsk@gmail.com',
-        'password': 'wvfxzznugpegzeey'
+        'password': 'qkltedzmmglufyqa'
     },
     'psychiatry': {
         'email': 'psych.teamsk@gmail.com',
-        'password': 'wvfxzznugpegzeey'
+        'password': 'kufxoyhhmedaxjim'
     },
     'social_science': {
         'email': 'scisoc.teamsk@gmail.com',
-        'password': 'wvfxzznugpegzeey'
+        'password': 'okjbjvjfpzlbrmzn'
     },
 }
 
+# wvfxzznugpegzeey
 # Fixed Users
 DEFAULT_USERS = [
     {
