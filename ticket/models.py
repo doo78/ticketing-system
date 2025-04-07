@@ -1,4 +1,5 @@
 from dis import deoptmap
+from pickle import EMPTY_DICT
 
 from django.db import models
 from django.contrib.auth.models import AbstractUser
@@ -29,11 +30,10 @@ class Department(models.Model):
         return result
 
     @staticmethod
-    def get_department_display():
-        department = Department.objects.all()
-        department_dict = {dept.id: dept.name for dept in department}
-        department_dict[" "] = "Select Department"
-        return department_dict
+    def get_department_display(self):
+        if self.department:
+            return EMPTY_DICT.get(self.department.name, "Unknown")
+        return "Not Assigned"
 
     @staticmethod
     def get_all_department_dict():
@@ -89,7 +89,6 @@ class CustomUser(AbstractUser):
 
 class Staff(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
-    # department = models.CharField(max_length=100)
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
 
     role = models.CharField(max_length=50)
@@ -99,12 +98,10 @@ class Staff(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.role}"
-    
-    def get_department_display(self):
-        """Map the department choice to a human-readable format"""
 
-        DEPT_DICT = Department.get_department_display()
-        return DEPT_DICT.get(self.department.name, "Not Assigned")
+    def get_department_display(self):
+        return self.department.name if self.department else "Not Assigned"
+
 
 class Student(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)

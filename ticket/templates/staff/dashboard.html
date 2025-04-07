@@ -2,104 +2,95 @@
 
 {% block content %}
 <div class="container mt-5">
-    <br>
-    <br>
-    <!-- Welcome Section with time-based greeting -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card welcome-card" style="max-width: 95%;">
-                <div class="card-body p-5 d-flex justify-content-between align-items-center flex-wrap">
 
-                    <!-- Greeting -->
-                    <div>
-                        <h3 id="greeting" class="gradient-text mb-2 fw-bold"></h3>
-                        <br>
-                        {% if assigned_tickets_count > 0 %}
-                        <p class="text-muted mb-0" style="font-size: 1.1rem;">
-                            You have <strong>{{ assigned_tickets_count }}</strong> assigned ticket{{ assigned_tickets_count|pluralize }}.
-                        </p>
-                        {% else %}
-                        <p class="text-muted mb-0" style="font-size: 1.1rem;">
-                            <i class="bi bi-check-circle-fill me-2 text-success"></i>No assigned tickets at the moment.
-                        </p>
-                        {% endif %}
-                    </div>
+    <!-- Welcome Card -->
+    <div class="card welcome-card mb-4 shadow-sm border-0">
+        <div class="card-body p-5 d-flex justify-content-between align-items-center flex-wrap">
 
-                    <!-- Date -->
-<!-- Date and Dropdown Navigation -->
-<div class="text-end mt-4 mt-md-0 d-flex flex-column align-items-end">
-    <!-- Date -->
-    <span class="text-muted mb-2" id="current-date" style="font-size: 1rem;">Loading...</span>
+            <!-- Greeting & Ticket Count -->
+            <div>
+                <h3 id="greeting" class="gradient-text mb-3 fw-bold"></h3>
 
-    <!-- Dropdown -->
-    <div class="dropdown">
-        <button class="btn btn-outline-dark dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-            Go to Page
-        </button>
-        <ul class="dropdown-menu dropdown-menu-end">
-            <li>
-                <a class="dropdown-item" href="{% url 'staff_ticket_list' %}">
-                    <i class="bi bi-ticket-detailed me-2 text-dark"></i> Ticket List
-                </a>
-            </li>
-            <li>
-                <a class="dropdown-item" href="{% url 'staff_profile' %}">
-                    <i class="bi bi-person-circle me-2 text-dark"></i> My Profile
-                </a>
-            </li>
-        </ul>
+                {% if assigned_tickets_count > 0 %}
+                    <p class="text-muted fs-6">
+                        You have <strong>{{ assigned_tickets_count }}</strong> assigned ticket{{ assigned_tickets_count|pluralize }}.
+                    </p>
+                {% else %}
+                    <p class="text-muted fs-6">
+                        <i class="bi bi-check-circle-fill me-2 text-success"></i>No assigned tickets at the moment.
+                    </p>
+                {% endif %}
+            </div>
+
+            <!-- Date & Quick Navigation -->
+            <div class="text-end mt-4 mt-md-0 d-flex flex-column align-items-end">
+                <span class="text-muted mb-2" id="current-date" style="font-size: 0.95rem;">Loading...</span>
+
+                <div class="dropdown">
+                    <button class="btn btn-outline-dark dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        Go to Page
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="{% url 'staff_ticket_list' %}"><i class="bi bi-ticket-detailed me-2"></i>Ticket List</a></li>
+                        <li><a class="dropdown-item" href="{% url 'staff_profile' %}"><i class="bi bi-person-circle me-2"></i>My Profile</a></li>
+                        <li><a class="dropdown-item" href="{% url 'staff_announcements' %}"><i class="bi bi-megaphone me-2"></i>Announcements</a></li>
+                        
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+<!-- Announcements -->
+<div class="card mb-4 shadow-sm border-0" style="background-color: #f0f4f8; border-radius: 1rem;">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center" style="border-top-left-radius: 1rem; border-top-right-radius: 1rem;">
+        <h5 class="mb-0">Messages from Administration</h5>
+        {% if announcements %}
+            <a href="{% url 'staff_announcements' %}" class="btn btn-sm btn-outline-primary">
+                View All
+            </a>
+        {% endif %}
+    </div>
+    <div class="card-body px-5 py-4">
+        {% if announcements %}
+            {% for announcement in announcements %}
+                <div class="alert alert-warning d-flex justify-content-between align-items-center mb-3" style="font-size: 1rem;">
+                    <span>{{ announcement.content }}</span>
+                    <small class="text-muted ms-3">{{ announcement.created_at|date:"M d, Y" }}</small>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-muted text-center mb-0"><i class="bi bi-envelope me-2"></i>No announcements right now.</p>
+        {% endif %}
     </div>
 </div>
 
-                </div>
+
+<!-- Stats -->
+<div class="row">
+    <!-- My Assigned Tickets -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm border-0 h-100" style="background-color: #f0f4f8; border-radius: 1rem;">
+            <div class="card-header bg-white text-start" style="border-top-left-radius: 1rem; border-top-right-radius: 1rem;">
+                <h5 class="mb-0 fw-semibold">My Assigned Tickets</h5>
+            </div>
+            <div class="card-body px-5 py-4 text-center">
+                <h2 class="text-primary mb-2">{{ assigned_tickets_count|default:"0" }}</h2>
+                <p class="text-muted mb-3">Tickets assigned directly to you</p>
+                <a href="{% url 'staff_ticket_list' %}?status=open&assigned_to=me" class="btn btn-outline-secondary btn-sm">View All</a>
             </div>
         </div>
     </div>
 
-    <!-- Admin Announcements -->
-    <div class="row mb-4 justify-content-center">
-        <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-radius: 1rem;">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Messages from Administration</h5>
-                    {% if announcements %}
-                        <a href="{% url 'staff_announcements' %}" class="btn btn-link btn-sm text-decoration-none">View All</a>
-                    {% endif %}
-                </div>
-                <div class="card-body">
-                    {% if announcements %}
-                        {% for announcement in announcements %}
-                            <div class="alert alert-warning mb-2 d-flex justify-content-between align-items-center">
-                                <span>{{ announcement.content }}</span>
-                                <small class="text-muted ms-3">{{ announcement.created_at|date:"M d, Y" }}</small>
-                            </div>
-                        {% endfor %}
-                    {% else %}
-                        <p class="text-muted text-center mb-0"><i class="bi bi-envelope me-2"></i>No announcements right now.</p>
-                    {% endif %}
-                </div>
+    <!-- Department Tickets -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm border-0 h-100" style="background-color: #f0f4f8; border-radius: 1rem;">
+            <div class="card-header bg-white text-start" style="border-top-left-radius: 1rem; border-top-right-radius: 1rem;">
+                <h5 class="mb-0 fw-semibold">Department Tickets</h5>
             </div>
-        </div>
-    </div>
-
-    <!-- Stats Cards Row -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">My Assigned Tickets</h5>
-                </div>
-                <div class="card-body">
-                    <h1>{{ assigned_tickets_count|default:"0" }}</h1>
-                    <p>Tickets assigned directly to you</p>
-                    <a href="{% url 'staff_ticket_list' %}?status=open&assigned_to=me" class="btn btn-outline-secondary btn-sm">View all</a>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6 mb-3 d-flex justify-content-center">
-            <div class="card shadow-sm border-0 text-center px-4 py-4" style="width: 100%; max-width: 320px; background-color: #f0f4f8; border-radius: 1rem;">
-                <h5 class="fw-bold mb-2">Department Tickets</h5>
-                <h2 class="fw-semibold text-primary">{{ department_tickets_count|default:"0" }}</h2>
+            <div class="card-body px-5 py-4 text-center">
+                <h2 class="text-primary mb-2">{{ department_tickets_count|default:"0" }}</h2>
                 <p class="text-muted mb-3">Tickets in your department</p>
                 {% if unassigned_dept_tickets > 0 %}
                     <span class="badge bg-danger mb-2">{{ unassigned_dept_tickets }} unassigned</span><br>
@@ -110,7 +101,8 @@
     </div>
 </div>
 
-<!-- JavaScript Greeting -->
+
+<!-- Greeting Script -->
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const greetingEl = document.getElementById("greeting");
@@ -121,13 +113,9 @@
         const hour = now.getHours();
         let timeOfDay;
 
-        if (hour < 12) {
-            timeOfDay = "Good Morning";
-        } else if (hour < 18) {
-            timeOfDay = "Good Afternoon";
-        } else {
-            timeOfDay = "Good Evening";
-        }
+        if (hour < 12) timeOfDay = "Good Morning";
+        else if (hour < 18) timeOfDay = "Good Afternoon";
+        else timeOfDay = "Good Evening";
 
         const firstName = fullName.trim().split(" ")[0];
         greetingEl.textContent = `${timeOfDay}, ${firstName}`;
@@ -140,20 +128,16 @@
     });
 </script>
 
-<!-- Styling to match student layout -->
+<!-- Styles -->
 <style>
     .welcome-card {
         background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
         border-radius: 1rem;
-        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.05);
-        margin-left: auto;
-        margin-right: auto;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
     }
 
     .gradient-text {
         font-size: 2rem;
-        font-weight: 700;
         background: linear-gradient(270deg, #00aaff, #0055aa, #002b5e);
         background-size: 300% 300%;
         animation: gradientMove 6s ease infinite;
@@ -166,6 +150,22 @@
         0% { background-position: 0% 50%; }
         50% { background-position: 100% 50%; }
         100% { background-position: 0% 50%; }
+    }
+    .card {
+        border-radius: 1rem;
+    }
+
+    .card-body {
+        padding: 1.5rem;
+    }
+
+    h5.fw-bold {
+        font-size: 1.25rem;
+    }
+
+    h2.text-primary {
+        font-weight: 600;
+        font-size: 2rem;
     }
 </style>
 {% endblock %}

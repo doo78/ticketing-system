@@ -294,7 +294,7 @@ class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
             messages.success(request, f'Ticket #{ticket.id} has been closed successfully.')
         
         else:
-            new_department = Department.objects.get(id=request.POST.get('department'))
+            new_department = Department.objects.get(name=request.POST.get('department'))
 
             if not new_department:
                 messages.error(request, 'Please select a department to redirect the ticket to.')
@@ -400,7 +400,7 @@ class StaffTicketDetailView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View)
             'ticket': ticket,
             'ticket_messages': ticket_messages,
         }
-        return render(request, 'staff/ticket_detail.html', context)
+        return render(request, 'staff/staff_ticket_detail.html', context)
 
 
     def post(self, request, ticket_id):
@@ -528,6 +528,12 @@ def ticket_detail(request, ticket_id):
         }
         return render(request, "staff/ticket_detail.html", context)
 
+class StaffAnnouncementsView(View):
+    def get(self, request):
+        announcements = Announcement.objects.all().order_by('-created_at')
+        context = {'announcements': announcements}
+        return render(request, 'staff/announcements.html', context)
+    
 class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
     """
     Loads relevant data and template for staff profile
@@ -535,6 +541,7 @@ class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
     def get(self, request):
         if request.user.role == 'staff':
             staff_member = request.user.staff
+            department_display = staff_member.get_department_display()
             assigned_tickets = Ticket.objects.filter(assigned_staff=staff_member)
 
             open_tickets = assigned_tickets.filter(status="open").count()
@@ -586,6 +593,7 @@ class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
                 else:
                     avg_close_time_days_display = "N/A"
                     
+
             context = {
                 "open_tickets": open_tickets,
                 "pending_tickets": pending_tickets,
@@ -597,8 +605,10 @@ class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
                 "avg_close_time_days": avg_close_time_days_display,
                 "avg_rating": avg_rating,
                 "avg_rating_display": avg_rating_display,
-                "rated_tickets_count": rated_tickets_count
+                "rated_tickets_count": rated_tickets_count, 
+                "department_display": department_display,
             }
+
             
         else:
             context={}

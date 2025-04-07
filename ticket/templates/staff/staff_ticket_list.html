@@ -1,5 +1,4 @@
 {% extends 'staff/base.html' %}
-
 {% block title %}Staff Tickets - University Helpdesk{% endblock %}
 
 {% block content %}
@@ -10,9 +9,8 @@
             <div class="d-flex justify-content-between align-items-center flex-wrap">
                 <div>
                     <h2 class="mb-1 fw-bold" style="color: #0055aa;">Tickets</h2>
-                    <p class="text-muted mb-0">View and manage tickets assigned to you</p>
-                    <br>
-                    <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#ticketFilter" aria-expanded="false" aria-controls="ticketFilter">
+                    <p class="text-muted mb-2">View and manage tickets assigned to you</p>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#ticketFilter" aria-expanded="false" aria-controls="ticketFilter">
                         <i class="fas fa-filter me-2"></i> Filter Tickets
                     </button>
                 </div>
@@ -27,43 +25,43 @@
 </div>
 
 
-<!-- Filters -->
-<!-- Filter Section (Collapsible) -->
+<!-- Filters (Collapsible Section) -->
 <div class="collapse mb-4" id="ticketFilter">
     <div class="card shadow-sm border-0" style="border-radius: 1.25rem;">
         <div class="card-body px-4 py-3">
             <div class="d-flex flex-wrap justify-content-center gap-3">
-            <!-- Ticket Status -->
-            <div class="btn-group" role="group">
-                <a href="?status=all&department_filter={{ department_filter }}&sort_order={{ sort_order }}" class="btn btn-outline-primary {% if status == 'all' %}active{% endif %}">All</a>
-                <a href="?status=open&department_filter={{ department_filter }}&sort_order={{ sort_order }}" class="btn btn-outline-primary {% if status == 'open' %}active{% endif %}">Open ({{ open_count }})</a>
-                <a href="?status=pending&department_filter={{ department_filter }}&sort_order={{ sort_order }}" class="btn btn-outline-primary {% if status == 'pending' %}active{% endif %}">Pending ({{ pending_count }})</a>
-                <a href="?status=closed&department_filter={{ department_filter }}&sort_order={{ sort_order }}" class="btn btn-outline-primary {% if status == 'closed' %}active{% endif %}">Closed ({{ closed_count }})</a>
-            </div>
 
-            <!-- Department Filter -->
-            <div class="btn-group mb-3 me-3" role="group" aria-label="Department filter">
-                <a href="?department_filter=all{% if status != 'all' %}&status={{ status }}{% endif %}{% if sort_order != 'desc' %}&sort_order={{ sort_order }}{% endif %}" 
-                   class="btn btn-outline-secondary {% if department_filter == 'all' %}active{% endif %}">
-                    All Departments
-                </a>
-                <a href="?department_filter=mine{% if status != 'all' %}&status={{ status }}{% endif %}{% if sort_order != 'desc' %}&sort_order={{ sort_order }}{% endif %}" 
-                   class="btn btn-outline-secondary {% if department_filter == 'mine' %}active{% endif %}">
-                    My Department ({{ my_department_count }})
-                </a>
-            </div>
-            
-            <!-- Sort Order Filter -->
-            <div class="btn-group mb-3" role="group" aria-label="Sort order">
-                <a href="?{% if status != 'all' %}status={{ status }}&{% endif %}{% if department_filter != 'all' %}department_filter={{ department_filter }}&{% endif %}sort_order={% if sort_order == 'asc' %}desc{% else %}asc{% endif %}" 
-                   class="btn btn-outline-secondary">
-                    <i class="bi {% if sort_order == 'asc' %}bi-sort-down{% else %}bi-sort-up{% endif %}"></i>
-                    Sort by Date {% if sort_order == 'asc' %}(Oldest First){% else %}(Newest First){% endif %}
-                </a>
+                <!-- Status Filters -->
+                <div class="btn-group" role="group">
+                    <a href="?status=all&department_filter={{ department_filter }}&sort_order={{ sort_order }}" class="btn btn-outline-primary {% if status == 'all' %}active{% endif %}">All</a>
+                    <a href="?status=open&department_filter={{ department_filter }}&sort_order={{ sort_order }}" class="btn btn-outline-primary {% if status == 'open' %}active{% endif %}">Open ({{ open_count }})</a>
+                    <a href="?status=pending&department_filter={{ department_filter }}&sort_order={{ sort_order }}" class="btn btn-outline-primary {% if status == 'pending' %}active{% endif %}">Pending ({{ pending_count }})</a>
+                    <a href="?status=closed&department_filter={{ department_filter }}&sort_order={{ sort_order }}" class="btn btn-outline-primary {% if status == 'closed' %}active{% endif %}">Closed ({{ closed_count }})</a>
+                </div>
+
+                <!-- Department Filter -->
+                <div class="btn-group" role="group">
+                    <a href="?department_filter=all{% if status != 'all' %}&status={{ status }}{% endif %}{% if sort_order != 'desc' %}&sort_order={{ sort_order }}{% endif %}"
+                       class="btn btn-outline-secondary {% if department_filter == 'all' %}active{% endif %}">All Departments</a>
+                    <a href="?department_filter=mine{% if status != 'all' %}&status={{ status }}{% endif %}{% if sort_order != 'desc' %}&sort_order={{ sort_order }}{% endif %}"
+                       class="btn btn-outline-secondary {% if department_filter == 'mine' %}active{% endif %}">My Department ({{ my_department_count }})</a>
+                </div>
+
+                <!-- Sort Order -->
+                <div class="btn-group" role="group">
+                    <a href="?{% if status != 'all' %}status={{ status }}&{% endif %}{% if department_filter != 'all' %}department_filter={{ department_filter }}&{% endif %}sort_order={% if sort_order == 'asc' %}desc{% else %}asc{% endif %}"
+                       class="btn btn-outline-secondary">
+                        <i class="bi {% if sort_order == 'asc' %}bi-sort-down{% else %}bi-sort-up{% endif %}"></i>
+                        Sort by Date {% if sort_order == 'asc' %}(Oldest First){% else %}(Newest First){% endif %}
+                    </a>
+                </div>
             </div>
         </div>
     </div>
+</div>
 
+<!-- Ticket Table -->
+<div class="card shadow-sm border-0 mb-4" style="border-radius: 1.25rem;">
     <div class="card-body px-4 py-4">
         <div class="table-responsive">
             <table class="table table-hover align-middle">
@@ -73,14 +71,8 @@
                         <th>Subject</th>
                         <th>Department</th>
                         <th>Status</th>
-                        <th>
-                            Submitted
-                            <i class="bi {% if sort_order == 'asc' %}bi-arrow-up{% else %}bi-arrow-down{% endif %} small"></i>
-                        </th>
-                        
-                        {% if status == 'closed' %}
-                        <th>Rating</th>
-                        {% endif %}
+                        <th>Submitted</th>
+                        {% if status == 'closed' %}<th>Rating</th>{% endif %}
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -96,15 +88,14 @@
                             </span>
                         </td>
                         <td>{{ ticket.date_submitted|date:"M d, Y" }}</td>
-                        
                         {% if status == 'closed' %}
                         <td>
                             {% if ticket.rating %}
                                 {% for i in "12345" %}
                                     {% if forloop.counter <= ticket.rating %}
-                                    <span style="color: #FFD700;">★</span>
+                                        <span style="color: #FFD700;">★</span>
                                     {% else %}
-                                    <span style="color: #e0e0e0;">★</span>
+                                        <span style="color: #e0e0e0;">★</span>
                                     {% endif %}
                                 {% endfor %}
                             {% else %}
@@ -114,18 +105,14 @@
                         {% endif %}
                         <td>
                             <div class="btn-group">
-                                <a href="{% url 'staff_ticket_detail' ticket.id %}" class="btn btn-sm btn-info me-2">
-                                    View
-                                </a>
+                                <a href="{% url 'staff_ticket_detail' ticket.id %}" class="btn btn-sm btn-info me-2">View</a>
                                 {% if ticket.status == 'open' %}
                                 <form method="post" action="{% url 'manage_ticket' ticket.id %}" class="d-inline">
                                     {% csrf_token %}
                                     <input type="hidden" name="status_filter" value="{{ status }}">
                                     <input type="hidden" name="department_filter" value="{{ department_filter }}">
                                     <input type="hidden" name="sort_order" value="{{ sort_order }}">
-                                    <button type="submit" name="action" value="assign" class="btn btn-sm btn-primary">
-                                        Assign to Me
-                                    </button>
+                                    <button type="submit" name="action" value="assign" class="btn btn-sm btn-primary">Assign to Me</button>
                                 </form>
                                 {% endif %}
                                 {% if ticket.status != 'closed' and ticket.assigned_staff == request.user.staff %}
