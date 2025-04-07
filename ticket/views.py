@@ -1510,13 +1510,24 @@ class SignUpView(View):
             message = f'Hello {user.first_name},\n\nPlease click the link below to verify your email address:\n{verification_url}\n\nThank you!'
             if user.role == 'staff':
                 message += "\n\nPlease note: Your staff account requires administrator approval before you can log in."
-            send_mail(
-                subject=subject,
-                message=message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=False,
-            )
+            try:
+                send_mail(
+                    subject=subject,
+                    message=message,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                    fail_silently=False,
+                )
+            except Exception as e:
+                # Delete the user if the email fails to send.
+                user.delete()
+                messages.error(
+                    request, 
+                    "We couldn't send a verification email at this time. "
+                    "Please try again later or contact support."
+                )
+                return redirect('sign_up')
+
             success_msg = "Account created successfully! Please check your email to verify your address."
             if user.role == 'staff':
                 success_msg += " Staff accounts require admin approval before login."
