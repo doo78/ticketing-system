@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+from whitenoise.middleware import WhiteNoiseMiddleware
 import os
 
 
@@ -27,7 +28,7 @@ SECRET_KEY = 'django-insecure-522s1gd5yk5^td_+@y4u)=$z2zgbna-bj_p&89r_#idojf5)n#
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['alsubaie.pythonanywhere.com', 'localhost', '127.0.0.1']
 
 # Application definition
 
@@ -49,12 +50,14 @@ CRISPY_TEMPLATE_PACK = 'bootstrap4'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+
 ]
 
 ROOT_URLCONF = 'my_library.urls'
@@ -124,13 +127,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = '/static/'
-
-STATICFILES_DIRS = [
-    BASE_DIR / "static",  
-]
-STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 
 
 # Default primary key field type
@@ -149,33 +149,6 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 LOGIN_URL = '/login/'
 
-DEPT_CHOICES = [
-    ('', 'Select Department'),
-    ('arts_humanities', 'Arts & Humanities'),
-    ('business', 'Business'),
-    ('dentistry', 'Dentistry'),
-    ('law', 'Law'),
-    ('life_sciences_medicine', 'Life Sciences & Medicine'),
-    ('natural_mathematical_engineering', 'Natural, Mathematical & Engineering Sciences'),
-    ('nursing', 'Nursing'),
-    ('psychiatry', 'Psychiatry'),
-    ('social_science', 'Social Science')
-]
-
-DEPT_EMAILS = {
-    'arts_humanities': {
-        'email': 'artshumanities.teamsk@gmail.com',
-        'password': 'zhwewyafoeszdqtz'
-    },
-    'business': {
-        'email': 'businessdept.teamsk@gmail.com',
-        'password': 'wvfxzznugpegzeey'
-    },
-    'dentistry': {
-        'email': 'dentistry.teamsk@gmail.com',
-        'password': 'jumxjedgyngmgnge'
-    },
-}
 
 MAIN_EMAIL_HOST_USER = "testingteamsk@gmail.com"
 MAIN_EMAIL_HOST_PASSWORD = "kqlnawtipijjcvdv"
@@ -211,5 +184,25 @@ AWS_SECRET_ACCESS_KEY = '***REMOVED***'  # Replace with actual secret
 # Lambda Configuration
 LAMBDA_FUNCTION_NAME = 'ticket-context-handler'  # The name we gave our Lambda function
 
-MAIN_URL="http://127.0.0.1:8000"
+MAIN_URL="http://alsubaie.pythonanywhere.com"
 WEBSITE_NAME="University Helpdesk"
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'ERROR',
+    },
+    'django': {
+        'handlers': ['console'],
+        'level': 'ERROR',
+        'propagate': True,
+    },
+}
+

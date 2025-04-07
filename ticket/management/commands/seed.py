@@ -1,8 +1,9 @@
 import random
 from django.core.management.base import BaseCommand
 from django.utils.timezone import now
+from django_mailbox.transports import gmail
 from faker import Faker
-from ticket.models import CustomUser, Staff, Student, Ticket
+from ticket.models import CustomUser, Staff, Student, Ticket, Department
 from datetime import timedelta
 
 
@@ -14,17 +15,57 @@ ROLE_STAFF = "staff"
 ROLE_STUDENT = "student"
 
 # Department Choices
+
 DEPT_CHOICES = [
-    "arts_humanities",
-    "business",
-    "dentistry",
-    "law",
-    "life_sciences_medicine",
-    "natural_mathematical_engineering",
-    "nursing",
-    "psychiatry",
-    "social_science",
+    ('arts_humanities', 'Arts & Humanities'),
+    ('business', 'Business'),
+    ('dentistry', 'Dentistry'),
+    ('law', 'Law'),
+    ('life_sciences_medicine', 'Life Sciences & Medicine'),
+    ('natural_mathematical_engineering', 'Natural, Mathematical & Engineering Sciences'),
+    ('nursing', 'Nursing'),
+    ('psychiatry', 'Psychiatry'),
+    ('social_science', 'Social Science')
 ]
+
+DEPT_EMAILS = {
+    'arts_humanities': {
+        'email': 'artshumanities.teamsk@gmail.com',
+        'password': 'zhwewyafoeszdqtz'
+    },
+    'business': {
+        'email': 'businessdept.teamsk@gmail.com',
+        'password': 'wvfxzznugpegzeey'
+    },
+    'dentistry': {
+        'email': 'dentistry.teamsk@gmail.com',
+        'password': 'jumxjedgyngmgnge'
+    },
+    'law': {
+        'email': 'lawdept.teamsk@gmail.com',
+        'password': 'wvfxzznugpegzeey'
+    },
+    'life_sciences_medicine': {
+        'email': 'med.teamsk@gmail.com',
+        'password': 'wvfxzznugpegzeey'
+    },
+    'natural_mathematical_engineering': {
+        'email': 'math.teamsk@gmail.com',
+        'password': 'wvfxzznugpegzeey'
+    },
+    'nursing': {
+        'email': 'nursing.teamsk@gmail.com',
+        'password': 'wvfxzznugpegzeey'
+    },
+    'psychiatry': {
+        'email': 'psych.teamsk@gmail.com',
+        'password': 'wvfxzznugpegzeey'
+    },
+    'social_science': {
+        'email': 'scisoc.teamsk@gmail.com',
+        'password': 'wvfxzznugpegzeey'
+    },
+}
 
 # Fixed Users
 DEFAULT_USERS = [
@@ -61,10 +102,11 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.stdout.write("Starting the seeding process...")
-
+        self.create_departments()
         self.create_fixed_users()
         self.create_random_users()
         self.create_tickets()
+
 
         self.stdout.write(self.style.SUCCESS("Database seeding complete!"))
 
@@ -89,24 +131,28 @@ class Command(BaseCommand):
 
     def create_user(self, data):
         """Helper function to create users"""
-        user, created = CustomUser.objects.get_or_create(
-            username=data["username"],
-            defaults={
-                "email": data["email"],
-                "first_name": data["first_name"],
-                "last_name": data["last_name"],
-                "password": "password123",
-                "role": data["role"],
-            },
-        )
+        try:
+            user = CustomUser.objects.get(username=data["username"])
+            created = False
+        except CustomUser.DoesNotExist:
+            user = CustomUser(
+                username=data["username"],
+                email=data["email"],
+                first_name=data["first_name"],
+                last_name=data["last_name"],
+                password="password123",
+                role=data["role"],
+            )
+            user.save()
+            created = True
 
         if created:
             if data["role"] == ROLE_STAFF:
-                Staff.objects.create(user=user, department=random.choice(DEPT_CHOICES), role="Support Staff")
+                Staff.objects.create(user=user, department=Department.objects.order_by("?").first(), role="Support Staff")
             elif data["role"] == ROLE_STUDENT:
                 Student.objects.create(
                     user=user,
-                    department=random.choice(DEPT_CHOICES),
+                    department=Department.objects.order_by("?").first(),
                     program=fake.job(),
                     year_of_study=random.randint(1, 4)
                 )
@@ -144,7 +190,19 @@ class Command(BaseCommand):
                 priority=random.choice(["low", "normal", "urgent"]),
                 date_submitted=date_submitted,
                 date_closed=date_closed,
-                department=random.choice(DEPT_CHOICES),
+                department=Department.objects.order_by("?").first(),
             )
 
         self.stdout.write(self.style.SUCCESS(f"{self.TICKET_COUNT} tickets generated."))
+    def create_departments(self):
+        """Generate sample departments"""
+        for key,department in DEPT_CHOICES:
+            if key in DEPT_EMAILS:
+                Department.objects.create(
+                    name=department,
+                    email=DEPT_EMAILS[key]["email"],
+                    password=DEPT_EMAILS[key]["password"],
+                )
+            else:
+                print(f"the department name '{key}' is not recognized")
+
