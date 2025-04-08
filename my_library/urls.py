@@ -9,7 +9,7 @@ from django.conf import settings
 from ticket import views
 from django.conf.urls.static import static
 from ticket.views import (
-    StudentSettingsView, StaffUpdateProfileView, LogInView, LogOutView, 
+    StaffAnnouncementsView, StudentSettingsView, StaffUpdateProfileView, LogInView, LogOutView, 
     StaffTicketListView, StaffTicketDetailView, ManageTicketView, StaffProfileView,
     SignUpView,AdminTicketListView, AdminAccountsView,AdminAccountView,AdminAccountEditView,
     AdminAPITicketDetailsView,AdminAPIStaffByDepartmentView,AdminAPITicketAssignView,ForgetPasswordMailView,
@@ -57,7 +57,8 @@ urlpatterns = [
         path('profile/', StaffProfileView.as_view(), name='staff_profile'),
         path('tickets/', StaffTicketListView.as_view(), name='staff_ticket_list'),
         path('ticket/<int:ticket_id>/manage/', ManageTicketView.as_view(), name='manage_ticket'),
-        path('update_profile', StaffUpdateProfileView.as_view(), name='staff_update_profile'),
+        path('staff/profile/edit/', StaffUpdateProfileView.as_view(), name='staff_update_profile'),
+        path('staff/announcements/', StaffAnnouncementsView.as_view(), name='staff_announcements'),
         path('staff/ticket/<int:ticket_id>/', StaffTicketDetailView.as_view(), name='staff_ticket_detail'),
     ])),
     

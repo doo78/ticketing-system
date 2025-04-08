@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+from whitenoise.middleware import WhiteNoiseMiddleware
 import os
 
 
@@ -50,7 +51,7 @@ CRISPY_TEMPLATE_PACK = 'bootstrap4'
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware', 
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -174,6 +175,9 @@ EMAIL_HOST_PASSWORD = MAIN_EMAIL_HOST_PASSWORD
     'password': 'cnwmkjrvikrpktgb'
 },
 """
+CSRF_COOKIE_DOMAIN = '.yourdomain.com'  # For subdomains
+CSRF_COOKIE_PATH = '/'  # Standard path
+
 
 # AWS Configuration
 AWS_REGION = 'eu-west-2'  # Keep only the region

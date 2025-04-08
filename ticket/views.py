@@ -13,6 +13,20 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.exceptions import PermissionDenied
+from django.utils import timezone
+from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth import login, logout
+from django.urls import reverse
+from django.conf import settings
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
+import urllib
+import six
+from ticket.mixins import RoleBasedRedirectMixin, StaffRequiredMixin, AdminRequiredMixin, StudentRequiredMixin, AdminOrStaffRequiredMixin
+from .models import Ticket, Staff, Student, CustomUser, AdminMessage, Announcement, StudentMessage, StaffMessage
+from .forms import LogInForm, SignUpForm, StaffUpdateProfileForm, EditAccountForm, TicketForm, RatingForm,AdminUpdateProfileForm, AdminUpdateForm, DepartmentForm
+from django.views.generic.edit import UpdateView
+from django.views import View
+from datetime import datetime, timedelta
 from django.core.mail import send_mail
 from django.db import models
 from django.db.models import Avg, Case, Count, DurationField, ExpressionWrapper, F, FloatField, Q, Value , When
@@ -243,6 +257,7 @@ def student_dashboard(request):
 #------------------------------------STAFF SECTION------------------------------------#
 
 class StaffDashboardView(LoginRequiredMixin, StaffRequiredMixin, View):
+    
     """
     Loads and processes all the details for staff dashboard
     """
@@ -310,7 +325,7 @@ class ManageTicketView(LoginRequiredMixin, StaffRequiredMixin, View):
             messages.success(request, f'Ticket #{ticket.id} has been closed successfully.')
         
         else:
-            new_department = Department.objects.get(id=request.POST.get('department'))
+            new_department = Department.objects.get(name=request.POST.get('department'))
 
             if not new_department:
                 messages.error(request, 'Please select a department to redirect the ticket to.')
@@ -403,6 +418,7 @@ class StaffTicketDetailView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View)
             ticket.date_closed = now()
             ticket.closed_by = ticket.assigned_staff if ticket.assigned_staff else None
             ticket.save()
+
             
         ticket_messages = sorted(
                 list(ticket.student_messages.all()) +  
@@ -415,7 +431,8 @@ class StaffTicketDetailView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View)
             'ticket': ticket,
             'ticket_messages': ticket_messages,
         }
-        return render(request, 'staff/ticket_detail.html', context)
+        return render(request, 'staff/staff_ticket_detail.html', context)
+
 
     def post(self, request, ticket_id):
         """
@@ -521,6 +538,33 @@ class StaffTicketDetailView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View)
 
         return redirect('staff_ticket_detail', ticket_id=ticket_id)
 
+from ticket.models import StaffMessage
+
+def ticket_detail(request, ticket_id):
+        ticket = get_object_or_404(Ticket, id=ticket_id)
+        
+        # Add any permission checks if needed
+        if ticket.assigned_staff and ticket.assigned_staff != request.user.staff:
+            return HttpResponseForbidden()
+
+        ticket_messages = ticket.messages.all().order_by("created_at")
+
+        if request.method == "POST":
+            # Handle message posting or AI logic
+            pass
+
+        context = {
+            "ticket": ticket,
+            'ticket_messages': StaffMessage.objects.filter(ticket=ticket).order_by('created_at')
+        }
+        return render(request, "staff/ticket_detail.html", context)
+
+class StaffAnnouncementsView(View):
+    def get(self, request):
+        announcements = Announcement.objects.all().order_by('-created_at')
+        context = {'announcements': announcements}
+        return render(request, 'staff/announcements.html', context)
+    
 class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
     """
     Loads relevant data and template for staff profile
@@ -529,6 +573,7 @@ class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
         if request.user.role == 'staff':
             staff_member = request.user.staff
             assigned_tickets = Ticket.objects.filter(assigned_staff=staff_member)
+            department_display = request.user.staff.get_department_display() if request.user.staff.department else "Not Assigned"
 
             open_tickets = assigned_tickets.filter(status="open").count()
             pending_tickets = assigned_tickets.filter(status="pending").count()
@@ -579,6 +624,7 @@ class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
                 else:
                     avg_close_time_days_display = "N/A"
                     
+
             context = {
                 "open_tickets": open_tickets,
                 "pending_tickets": pending_tickets,
@@ -590,8 +636,10 @@ class StaffProfileView(LoginRequiredMixin, AdminOrStaffRequiredMixin, View):
                 "avg_close_time_days": avg_close_time_days_display,
                 "avg_rating": avg_rating,
                 "avg_rating_display": avg_rating_display,
-                "rated_tickets_count": rated_tickets_count
+                "rated_tickets_count": rated_tickets_count, 
+                "department_display": department_display,
             }
+
             
         else:
             context={}
@@ -1346,6 +1394,7 @@ class CreateAnnouncementView(LoginRequiredMixin, AdminRequiredMixin, View):
         else:
             messages.error(request, 'Content is required.')
         
+
         return redirect('admin_announcements')
 
 class DeleteAnnouncementView(LoginRequiredMixin, AdminRequiredMixin, View):

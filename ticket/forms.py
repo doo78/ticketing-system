@@ -54,12 +54,21 @@ class StaffUpdateProfileForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         self.fields['department'].choices = Department.get_all_departments_list()
-        for field in self.fields.values():
+
+        for field_name, field in self.fields.items():
             field.widget.attrs['class'] = 'form-control'
 
-        self.fields['department'].initial = self.instance.staff.department.id
-        self.fields['profile_picture'].initial = self.instance.staff.profile_picture
+        if hasattr(self.instance, 'staff') and self.instance.staff and self.instance.staff.department:
+            self.fields['department'].initial = self.instance.staff.department.id
+        else:
+            self.fields['department'].initial = None
+
+        if hasattr(self.instance, 'staff') and self.instance.staff and self.instance.staff.profile_picture:
+            self.fields['profile_picture'].initial = self.instance.staff.profile_picture
+        else:
+            self.fields['profile_picture'].initial = None
 
     def save(self, commit=True):
         """Save user and update the related Staff model."""

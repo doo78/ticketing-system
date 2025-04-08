@@ -1,140 +1,102 @@
 {% extends 'staff/base.html' %}
+{% load static %}
+
+{% block title %}Staff Profile - University Ticketing System{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Profile Card -->
-    <div class="card shadow-sm mb-4 text-center">
-        <div class="card-body">
-            <div class="d-flex flex-column align-items-center">
-                <div class="position-relative mb-3">
-                    <img src="{% if request.user.role == 'staff' and request.user.staff.profile_picture %}{{ request.user.staff.profile_picture.url }}{% else %}/static/images/default-profile.png{% endif %}"
-                        class="rounded-circle border border-3 shadow-sm" 
-                        width="150" height="150" alt="Profile Picture">
+<div class="ticket-header p-4 rounded shadow-sm mb-4 text-left"
+     style="border-radius: 1.25rem; background: linear-gradient(135deg, rgba(245, 247, 250, 0.667), rgba(232, 235, 238, 0.651));">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+        <div>
+            <h2 class="mb-1 fw-bold text-primary">Staff Profile</h2>
+            <p class="text-muted mb-0">View and manage your profile, stats, and performance</p>
+        </div>
 
-                </div>
+        <div>
+            <a href="{% url 'staff_dashboard' %}" class="btn btn-outline-dark shadow-sm">
+                <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
 
-                <h3 class="card-title mt-2 mb-1">
-                    {{ request.user.preferred_name|default:request.user.first_name }}
-                </h3>
-                <p class="text-muted mb-3"><strong>Staff Member</strong></p>
-
-                {% if request.user.role == 'staff' %}
-                <a href="{% url 'staff_update_profile' %}" class="btn btn-primary">
+<div class="row">
+    <!-- Profile Overview -->
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 mb-4"
+             style="border-radius: 1.25rem; background: linear-gradient(135deg, rgba(245, 247, 250, 0.667), rgba(232, 235, 238, 0.651));">
+            <div class="card-body text-center py-4 px-4">
+                <img src="{% if request.user.staff.profile_picture %}{{ request.user.staff.profile_picture.url }}{% else %}{% static 'images/default-profile.png' %}{% endif %}"
+                     class="rounded-circle mb-3 shadow-sm" width="120" height="120" alt="Profile Picture">
+                <h4 class="fw-semibold">{{ request.user.preferred_name|default:request.user.first_name }}</h4>
+                <p class="text-muted mb-2">Staff Member</p>
+                <p><strong>Email:</strong> {{ request.user.email }}</p>
+                <p><strong>Department:</strong> {{ department_display|default_if_none:"N/A" }}</p>
+                <p><strong>Date Joined:</strong> {{ request.user.staff.date_joined|date:"F d, Y" }}</p>
+                <a href="{% url 'staff_update_profile' %}" class="btn btn-primary mt-2">
                     <i class="fas fa-edit me-2"></i>Edit Profile
                 </a>
-                {% elif request.user.role == 'admin' %}
-                    <a href="{% url 'admin_update_profile' %}" class="btn btn-primary">
-                    <i class="fas fa-edit me-2"></i>Edit Profile
-                </a>
-                {% endif %}
             </div>
         </div>
     </div>
 
-
-    <!-- Staff Profile Info and Stats -->
-    <div class="row">
-        <!-- Staff Details Section -->
-        <div class="col-md-6">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Personal Information</h5>
+    <!-- Ticket Stats -->
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 mb-4"
+             style="border-radius: 1.25rem; background: linear-gradient(135deg, rgba(245, 247, 250, 0.667), rgba(232, 235, 238, 0.651));">
+            <div class="card-header bg-transparent px-4 py-3"
+                 style="border-top-left-radius: 1.25rem; border-top-right-radius: 1.25rem;">
+                <h5 class="mb-0 text-primary fw-semibold">Ticket Statistics</h5>
+            </div>
+            <div class="card-body px-4 py-4">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h6 class="text-muted text-uppercase small">Open</h6>
+                        <p>{{ open_tickets }} ({{ open_percentage|floatformat:1 }}%)</p>
+                        <div class="progress">
+                            <div class="progress-bar bg-danger" style="width: {{ open_percentage }}%"></div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <h6 class="text-muted text-uppercase small">Pending</h6>
+                        <p>{{ pending_tickets }} ({{ pending_percentage|floatformat:1 }}%)</p>
+                        <div class="progress">
+                            <div class="progress-bar bg-warning" style="width: {{ pending_percentage }}%"></div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <h6 class="text-muted text-uppercase small">Closed</h6>
+                        <p>{{ closed_tickets }} ({{ closed_percentage|floatformat:1 }}%)</p>
+                        <div class="progress">
+                            <div class="progress-bar bg-success" style="width: {{ closed_percentage }}%"></div>
+                        </div>
+                    </div>
                 </div>
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item">
-                        <strong>Name: </strong> {{ request.user.preferred_name|default:request.user.first_name }}
-                    </li>
-                    <li class="list-group-item">
-                        <strong>Department:</strong> {{ request.user.staff.get_department_display|default:None }}
-                    </li>
-                    <li class="list-group-item">
-                        <strong>Email:</strong> {{ request.user.email }}
-                    </li>
-                    <li class="list-group-item">
-                        <strong>Date Joined:</strong> {{ request.user.staff.date_joined|date:"F j, Y" }}
-                    </li>
-                </ul>
             </div>
         </div>
 
-        {% if request.user.role == 'staff' %}
-        <!-- Ticket Stats Section -->
+        <!-- Average Time and Rating -->
+        <div class="row mt-2">
             <div class="col-md-6">
-            <div class="card shadow-sm mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Ticket Stats</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-4">
-                            <div class="card text-white bg-danger">
-                                <div class="card-body text-center">
-                                    <h6 class="card-title">Open</h6>
-                                    <p class="card-text">{{ open_tickets }} ({{ open_percentage|floatformat:1 }}%)</p>
-                                    <div class="progress">
-                                        <div class="progress-bar open-progress-bar" role="progressbar" 
-                                             data-percentage="{{ open_percentage }}"
-                                             aria-valuenow="{{ open_tickets }}" 
-                                             aria-valuemin="0" 
-                                             aria-valuemax="{{ total_tickets }}"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="card text-white bg-warning">
-                                <div class="card-body text-center">
-                                    <h6 class="card-title">Pending</h6>
-                                    <p class="card-text">{{ pending_tickets }} ({{ pending_percentage|floatformat:1 }}%)</p>
-                                    <div class="progress">
-                                        <div class="progress-bar pending-progress-bar" role="progressbar" 
-                                             data-percentage="{{ pending_percentage }}"
-                                             aria-valuenow="{{ pending_tickets }}" 
-                                             aria-valuemin="0" 
-                                             aria-valuemax="{{ total_tickets }}"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="card text-white bg-success">
-                                <div class="card-body text-center">
-                                    <h6 class="card-title">Closed</h6>
-                                    <p class="card-text">{{ closed_tickets }} ({{ closed_percentage|floatformat:1 }}%)</p>
-                                    <div class="progress">
-                                        <div class="progress-bar closed-progress-bar" role="progressbar" 
-                                             data-percentage="{{ closed_percentage }}"
-                                             aria-valuenow="{{ closed_tickets }}" 
-                                             aria-valuemin="0" 
-                                             aria-valuemax="{{ total_tickets }}"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                <div class="card shadow-sm h-100"
+                     style="border-radius: 1.25rem; background: rgba(245, 247, 250, 0.7);">
+                    <div class="card-header bg-transparent">
+                        <h6 class="mb-0 text-muted text-uppercase small fw-semibold">Avg. Response Time</h6>
+                    </div>
+                    <div class="card-body text-center">
+                        <h3><strong>{{ avg_close_time_days }}</strong></h3>
                     </div>
                 </div>
             </div>
 
-            <!-- Average Response Time and Rating (side by side) -->
-            <div class="row mt-4">
-                <div class="col-md-6">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header">
-                            <h5 class="mb-0">Average Response Time</h5>
-                        </div>
-                        <div class="card-body text-center">
-                            <h3><strong>{{ avg_close_time_days }}</strong></h3>
-                        </div>
+            <div class="col-md-6">
+                <div class="card shadow-sm h-100"
+                     style="border-radius: 1.25rem; background: rgba(245, 247, 250, 0.7);">
+                    <div class="card-header bg-transparent">
+                        <h6 class="mb-0 text-muted text-uppercase small fw-semibold">Average Rating</h6>
                     </div>
-                </div>
-                
-                <div class="col-md-6">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header">
-                            <h5 class="mb-0">Average Rating</h5>
-                        </div>
-                        <div class="card-body text-center">
-                            {% if avg_rating_display != "N/A" %}
+                    <div class="card-body text-center">
+                        {% if avg_rating_display != "N/A" %}
                             <div class="d-flex justify-content-center align-items-center">
                                 <h3 class="mb-0 me-3"><strong>{{ avg_rating_display }}</strong></h3>
                                 <div>
@@ -142,47 +104,20 @@
                                         {% if forloop.counter <= avg_rating %}
                                             <span style="color: #FFD700; font-size: 1.5rem;">★</span>
                                         {% else %}
-                                            {% if forloop.counter <= avg_rating|add:0.5 and avg_rating|floatformat:0 != avg_rating %}
-                                                <span style="color: #FFD700; font-size: 1.5rem;">★</span>
-                                            {% else %}
-                                                <span style="color: #e0e0e0; font-size: 1.5rem;">★</span>
-                                            {% endif %}
+                                            <span style="color: #e0e0e0; font-size: 1.5rem;">★</span>
                                         {% endif %}
                                     {% endfor %}
                                 </div>
                             </div>
                             <p class="text-muted mt-2 mb-0">Based on {{ rated_tickets_count }} rated ticket{{ rated_tickets_count|pluralize }}</p>
-                            {% else %}
+                        {% else %}
                             <h3><strong>{{ avg_rating_display }}</strong></h3>
                             <p class="text-muted mt-2 mb-0">No rated tickets yet</p>
-                            {% endif %}
-                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
-        {% endif %}
     </div>
 </div>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Set progress bar widths dynamically after page load
-        const openBar = document.querySelector('.open-progress-bar');
-        const pendingBar = document.querySelector('.pending-progress-bar');
-        const closedBar = document.querySelector('.closed-progress-bar');
-        
-        if (openBar) {
-            openBar.style.width = openBar.dataset.percentage + '%';
-        }
-        
-        if (pendingBar) {
-            pendingBar.style.width = pendingBar.dataset.percentage + '%';
-        }
-        
-        if (closedBar) {
-            closedBar.style.width = closedBar.dataset.percentage + '%';
-        }
-    });
-</script>
 {% endblock %}
