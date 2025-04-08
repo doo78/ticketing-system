@@ -1,14 +1,17 @@
 import csv
 import urllib
-import six
-import django
-
+from datetime import datetime, timedelta
 from itertools import count
-from django.db.models import Count  
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from urllib.parse import quote
+import six
+from django import forms
+from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth import login, logout, get_user, get_user_model
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.exceptions import PermissionDenied
 from django.utils import timezone
 from django.contrib.auth.forms import AuthenticationForm
@@ -24,23 +27,50 @@ from .forms import LogInForm, SignUpForm, StaffUpdateProfileForm, EditAccountFor
 from django.views.generic.edit import UpdateView
 from django.views import View
 from datetime import datetime, timedelta
-from django.db import models
-from django.utils.timezone import now
-from django.views.decorators.csrf import csrf_protect
-from django.db.models import F, ExpressionWrapper, DurationField, Case, When, Value, FloatField, Avg, Count, Q
-from django.db.models.functions import Cast
-from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.mail import send_mail
-from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from django.utils.encoding import force_bytes
-from django.contrib.auth import get_user
-from django.utils.encoding import force_str
-from django.contrib.auth import get_user_model
-from django import forms
-from urllib.parse import quote 
+from django.db import models
+from django.db.models import Avg, Case, Count, DurationField, ExpressionWrapper, F, FloatField, Q, Value , When
+from django.db.models.functions import Cast
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
-from django.utils.timezone import localtime
 from django.utils.decorators import method_decorator
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils.timezone import localtime, now
+from django.views import View
+from django.views.decorators.csrf import csrf_protect
+from django.views.generic.edit import UpdateView
+from ticket.forms import TicketForm
+from ticket.mixins import (
+    AdminOrStaffRequiredMixin,
+    AdminRequiredMixin,
+    RoleBasedRedirectMixin,
+    StaffRequiredMixin,
+    StudentRequiredMixin
+)
+from .forms import (
+    AdminUpdateForm,
+    AdminUpdateProfileForm,
+    DepartmentForm,
+    EditAccountForm,
+    LogInForm,
+    RatingForm,
+    SignUpForm,
+    StaffUpdateProfileForm,
+    TicketForm
+)
+from .models import (
+    AdminMessage,
+    Announcement,
+    CustomUser,
+    Staff,
+    StaffMessage,
+    Student,
+    StudentMessage,
+    Ticket
+)
 
 
 #---------Gen AI imports---------#
@@ -1507,7 +1537,7 @@ class SignUpView(View):
         Validates the sign up information and sends verification email
         """
         form = SignUpForm(request.POST)
-        if form.is_valid() and request.POST.get("role") == "staff" or request.POST.get("role") == "student":
+        if form.is_valid() and request.POST.get("role") in ["student","staff"]:
             user = form.save()
             if user.role == 'staff':
                 Staff.objects.create(user=user, department=None, role='Staff Member')
@@ -1529,13 +1559,24 @@ class SignUpView(View):
             message = f'Hello {user.first_name},\n\nPlease click the link below to verify your email address:\n{verification_url}\n\nThank you!'
             if user.role == 'staff':
                 message += "\n\nPlease note: Your staff account requires administrator approval before you can log in."
-            send_mail(
-                subject=subject,
-                message=message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=False,
-            )
+            try:
+                send_mail(
+                    subject=subject,
+                    message=message,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                    fail_silently=False,
+                )
+            except Exception as e:
+                # Delete the user if the email fails to send.
+                user.delete()
+                messages.error(
+                    request, 
+                    "We couldn't send a verification email at this time. "
+                    "Please try again later or contact support."
+                )
+                return redirect('sign_up')
+
             success_msg = "Account created successfully! Please check your email to verify your address."
             if user.role == 'staff':
                 success_msg += " Staff accounts require admin approval before login."

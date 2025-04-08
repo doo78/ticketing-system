@@ -75,6 +75,9 @@ class AuthenticationViewsTestCase(TestCase):
     
     def test_login_post_success_staff(self):
         """Test successful login for staff user"""
+        staff_profile = Staff.objects.get(user__username='staffuser')
+        staff_profile.is_approved = True
+        staff_profile.save()
         response = self.client.post(self.login_url, {
             'username': 'staffuser',
             'password': 'staffpass123'

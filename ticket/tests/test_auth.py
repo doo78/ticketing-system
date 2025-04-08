@@ -46,8 +46,9 @@ class StaffAuthenticationTest(TestCase):
             last_name=self.staff_data['last_name'],
             role='staff'
         )
-        Staff.objects.create(user=user, department=self.business_dept, role='Staff Member')
-
+        staff_profile = Staff.objects.create(user=user, department=self.business_dept, role='Staff Member')
+        staff_profile.is_approved = True
+        staff_profile.save()
         response = self.client.post(self.login_url, {
             'username': self.staff_data['username'],
             'password': self.staff_data['password1']
